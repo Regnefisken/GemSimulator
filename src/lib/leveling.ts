@@ -11,6 +11,9 @@ export const XP_REWARDS = {
   gemCrafted: 12,
   jewelryCrafted: 25,
   jewelrySold: 15,
+  gemSold: 8,
+  rawOreSold: 1,
+  nuggetSold: 3,
 }
 
 export function applyXpGain(state: GameState, amount: number): GameState {

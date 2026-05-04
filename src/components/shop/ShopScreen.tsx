@@ -13,6 +13,7 @@ import {
   smelterNextUpgradeCost,
 } from '../../data/shop'
 import { playGoldSpend } from '../../lib/sounds'
+import SellTab from './SellTab'
 
 type Props = {
   state: GameState
@@ -271,6 +272,8 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
             })}
           </ul>
         )}
+
+        {tab === 'sell' && <SellTab state={state} dispatch={dispatch} />}
       </div>
     </div>
   )

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { GameState } from '../../types'
 import { xpToNextLevel } from '../../lib/leveling'
 import { isSoundMuted, setSoundMuted } from '../../lib/sounds'
+import SettingsMenu from './SettingsMenu'
 
 type Props = { state: GameState }
 
@@ -9,11 +10,33 @@ export default function LevelBadge({ state }: Props) {
   const need = xpToNextLevel(state.level)
   const pct = need > 0 ? Math.min(100, (state.xp / need) * 100) : 0
   const [muted, setMuted] = useState(isSoundMuted)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
 
   function toggleSound() {
     const next = !muted
     setMuted(next)
     setSoundMuted(next)
+  }
+
+  async function toggleFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen()
+      } else {
+        await document.exitFullscreen()
+      }
+    } catch {
+      // fuldskærm afvist eller utilgængelig
+    }
   }
 
   return (
@@ -44,6 +67,28 @@ export default function LevelBadge({ state }: Props) {
           >
             {muted ? '🔇' : '🔊'}
           </button>
+          <button
+            type="button"
+            onClick={() => void toggleFullscreen()}
+            className="min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] rounded-lg border border-slate-600 bg-slate-800/80 text-lg leading-none hover:bg-slate-700"
+            title={isFullscreen ? 'Forlad fuldskærm' : 'Fuldskærm'}
+            aria-label={isFullscreen ? 'Forlad fuldskærm' : 'Fuldskærm'}
+          >
+            {isFullscreen ? '⇲' : '⇱'}
+          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((o) => !o)}
+              className="min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] rounded-lg border border-slate-600 bg-slate-800/80 text-lg leading-none hover:bg-slate-700"
+              title="Indstillinger"
+              aria-label="Åbn indstillinger"
+              aria-expanded={settingsOpen}
+            >
+              ⚙️
+            </button>
+            {settingsOpen && <SettingsMenu onClose={() => setSettingsOpen(false)} />}
+          </div>
           <span
             className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-300 px-2 py-0.5 text-[11px] sm:text-xs font-semibold border border-amber-500/30 max-w-[100px] sm:max-w-none truncate"
             title="Guld"

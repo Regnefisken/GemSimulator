@@ -35,6 +35,7 @@ import {
   SHOP_CONSUMABLE_IDS,
   smelterNextUpgradeCost,
 } from '../data/shop'
+import { NUGGET_SELL_PRICES, ORE_SELL_PRICES } from '../data/market'
 import {
   ESSENCE_IDS,
   getEssenceDef,
@@ -76,6 +77,10 @@ export type Action =
   | { type: 'CONSUME_DYNAMITE' }
   | { type: 'CRAFT_JEWELRY'; recipeId: string; gemId: string; essenceId?: string }
   | { type: 'SELL_JEWELRY'; id: string }
+  | { type: 'SELL_GEM'; id: string }
+  | { type: 'SELL_GEMS_BULK'; ids: string[] }
+  | { type: 'SELL_RAW_ORE'; metalName: MetalName; quantity: number }
+  | { type: 'SELL_NUGGET'; metalName: MetalName; quantity: number }
   | { type: 'ADD_ESSENCE'; essenceId: string; quantity?: number }
   | { type: 'USE_ESSENCE_MINE'; essenceId: string }
   | { type: 'USE_ESSENCE_CHAMBER'; essenceId: string }
@@ -617,6 +622,68 @@ export function reducer(state: GameState, action: Action): GameState {
         gameNotice: null,
       }
       return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.jewelrySold))
+    }
+    case 'SELL_GEM': {
+      const gem = state.gems.find((g) => g.id === action.id)
+      if (!gem) return state
+      const next: GameState = {
+        ...state,
+        gems: state.gems.filter((g) => g.id !== action.id),
+        gold: state.gold + gem.goldValue,
+        gameNotice: null,
+      }
+      return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.gemSold))
+    }
+    case 'SELL_GEMS_BULK': {
+      if (action.ids.length === 0) return state
+      const selling = state.gems.filter((g) => action.ids.includes(g.id))
+      const totalGold = selling.reduce((s, g) => s + g.goldValue, 0)
+      const totalXp = selling.length * XP_REWARDS.gemSold
+      const next: GameState = {
+        ...state,
+        gems: state.gems.filter((g) => !action.ids.includes(g.id)),
+        gold: state.gold + totalGold,
+        gameNotice: null,
+      }
+      return applyEligibleUnlocks(applyXpGain(next, totalXp))
+    }
+    case 'SELL_RAW_ORE': {
+      const row = state.rawOre.find((o) => o.metalName === action.metalName)
+      if (!row) return state
+      const price = ORE_SELL_PRICES[action.metalName] ?? 0
+      if (price <= 0) return state
+      const qty = Math.max(1, Math.min(action.quantity, row.quantity))
+      const newRow = { ...row, quantity: row.quantity - qty }
+      const rawOre =
+        newRow.quantity > 0
+          ? state.rawOre.map((o) => (o.metalName === action.metalName ? newRow : o))
+          : state.rawOre.filter((o) => o.metalName !== action.metalName)
+      const next: GameState = {
+        ...state,
+        rawOre,
+        gold: state.gold + price * qty,
+        gameNotice: null,
+      }
+      return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.rawOreSold * qty))
+    }
+    case 'SELL_NUGGET': {
+      const row = state.metalNuggets.find((n) => n.metalName === action.metalName)
+      if (!row) return state
+      const price = NUGGET_SELL_PRICES[action.metalName] ?? 0
+      if (price <= 0) return state
+      const qty = Math.max(1, Math.min(action.quantity, row.quantity))
+      const newRow = { ...row, quantity: row.quantity - qty }
+      const metalNuggets =
+        newRow.quantity > 0
+          ? state.metalNuggets.map((n) => (n.metalName === action.metalName ? newRow : n))
+          : state.metalNuggets.filter((n) => n.metalName !== action.metalName)
+      const next: GameState = {
+        ...state,
+        metalNuggets,
+        gold: state.gold + price * qty,
+        gameNotice: null,
+      }
+      return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.nuggetSold * qty))
     }
     case 'ADD_ESSENCE': {
       const q = action.quantity ?? 1

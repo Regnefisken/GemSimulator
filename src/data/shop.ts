@@ -73,7 +73,7 @@ export const SHOP_CHARMS = [
   },
 ] as const
 
-export type ShopTabId = 'pickaxes' | 'smelter' | 'consumables' | 'inventory' | 'charms'
+export type ShopTabId = 'pickaxes' | 'smelter' | 'consumables' | 'inventory' | 'charms' | 'sell'
 
 export const SHOP_TAB_LABELS: Record<ShopTabId, string> = {
   pickaxes: 'Hakker',
@@ -81,6 +81,7 @@ export const SHOP_TAB_LABELS: Record<ShopTabId, string> = {
   consumables: 'Forbrug',
   inventory: 'Lager',
   charms: 'Charms',
+  sell: '💰 Sælg',
 }
 
 /** Guldpris for at rykke fra nuværende `smelterTier` til næste (null hvis maks.). */
