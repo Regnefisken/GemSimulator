@@ -163,6 +163,11 @@ export type GameState = {
   activeCharms: string[]
   activeEffects: ActiveEffect[]
 
+  /** Næste klippe i minen knuses i ét hug (Dynamit). */
+  instantBreakNextRock: boolean
+  /** Lægges oven i renhed ved næste slibning fra rå klippe (Slibesten). */
+  roughCraftPurityBonus: number
+
   jewelry: Jewelry[]
 
   /** Kort bruger-feedback fra reducer (fx fuldt lager); nulstilles af UI. */

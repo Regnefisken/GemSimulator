@@ -9,10 +9,11 @@ const PICKAXE_CONFIGS = [
   { slug: 'rune', name: 'Runehakke', damage: 70, maxDurability: 800, headColor: '#6ee7b7', edgeColor: '#047857' },
 ] as const
 
-export function makePickaxe(tier: number): Pickaxe {
+export function makePickaxe(tier: number, uniqueSuffix?: string): Pickaxe {
   const config = PICKAXE_CONFIGS[Math.max(0, Math.min(PICKAXE_CONFIGS.length - 1, tier))]
+  const id = uniqueSuffix ? `pickaxe-${config.slug}-${uniqueSuffix}` : `pickaxe-${config.slug}`
   return {
-    id: `pickaxe-${config.slug}`,
+    id,
     tier,
     name: config.name,
     damage: config.damage,

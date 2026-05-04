@@ -88,13 +88,16 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
   const handleMineHit = useCallback(() => {
     if (!pickaxe || pickaxe.durability <= 0) {
-      flashToast('Hakken er i stykker! Køb en ny i Butikken (kommer i Fase 7).')
+      flashToast('Hakken er i stykker! Køb reparations-kit eller en ny hakke i Butikken.')
       return
     }
 
-    const dmg = pickaxe.damage
+    const useDynamite = state.instantBreakNextRock
+    const dmg = useDynamite ? rockHp : pickaxe.damage
+
     dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.mineHit })
     dispatch({ type: 'DAMAGE_PICKAXE', amount: 1 })
+    if (useDynamite) dispatch({ type: 'CONSUME_DYNAMITE' })
     setHitPulse((n) => n + 1)
     setStriking(true)
     window.setTimeout(() => setStriking(false), 220)
@@ -107,7 +110,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     }
 
     setRockHp(0)
-    const drop = rollMineDrop(area, state.depth)
+    const drop = rollMineDrop(area, state.depth, state.activeCharms)
     const extra = extraMaterialsFromDrop(drop)
     if (extra > 0 && matCount + extra > matCap) {
       flashToast('Råmaterialer: lager fuldt — droppet gik tabt.')
@@ -129,6 +132,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     rockHp,
     area,
     state.depth,
+    state.activeCharms,
+    state.instantBreakNextRock,
     matCap,
     matCount,
     dispatch,
@@ -163,6 +168,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         pickaxeName={pickaxe?.name ?? '—'}
         durability={pickaxe?.durability ?? 0}
         maxDurability={pickaxe?.maxDurability ?? 1}
+        dynamiteReady={state.instantBreakNextRock}
       />
 
       <div className="relative">

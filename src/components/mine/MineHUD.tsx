@@ -5,9 +5,18 @@ type Props = {
   pickaxeName: string
   durability: number
   maxDurability: number
+  dynamiteReady?: boolean
 }
 
-export default function MineHUD({ depth, hp, maxHp, pickaxeName, durability, maxDurability }: Props) {
+export default function MineHUD({
+  depth,
+  hp,
+  maxHp,
+  pickaxeName,
+  durability,
+  maxDurability,
+  dynamiteReady,
+}: Props) {
   const hpPct = maxHp > 0 ? Math.max(0, (hp / maxHp) * 100) : 0
   const durPct = maxDurability > 0 ? Math.max(0, (durability / maxDurability) * 100) : 0
 
@@ -21,6 +30,11 @@ export default function MineHUD({ depth, hp, maxHp, pickaxeName, durability, max
           {pickaxeName}
         </span>
       </div>
+      {dynamiteReady && (
+        <div className="text-[11px] font-semibold text-red-300 bg-red-950/50 border border-red-800/60 rounded-lg px-2 py-1">
+          🧨 Dynamit klar — næste slag knuser klippen
+        </div>
+      )}
       <div>
         <div className="flex justify-between text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">
           <span>Klippe</span>

@@ -16,6 +16,8 @@ export function craftGemFromRoughStone(
   stone: RoughStone,
   ingots: { metalName: MetalName; quantity: number }[],
   depth: number,
+  purityBonus = 0,
+  valueCharms?: { smithEye?: boolean; deepCalm?: boolean },
 ): Gem {
   const palette = PALETTES.find((p) => p.name === stone.paletteName) ?? PALETTES[0]
   const templateObj = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)]
@@ -25,7 +27,7 @@ export function craftGemFromRoughStone(
     fine: 2,
     pristine: 3,
   }
-  const purity = purityFromQuality[stone.quality]
+  const purity = Math.min(4, purityFromQuality[stone.quality] + purityBonus)
 
   const flatMetals: MetalName[] = []
   for (const { metalName, quantity } of ingots) {
@@ -72,7 +74,7 @@ export function craftGemFromRoughStone(
     magicProperties,
     goldValue: 0,
   }
-  gem.goldValue = computeGoldValue(gem, depth)
+  gem.goldValue = computeGoldValue(gem, depth, valueCharms)
   return gem
 }
 

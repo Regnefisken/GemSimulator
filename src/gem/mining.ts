@@ -1,5 +1,6 @@
 import { MINEABLE_METALS, type Area, type Gem, type MetalName, type MetalNugget, type RawOre, type RoughStone } from '../types'
 import { PALETTES } from '../data/palettes'
+import { CHARM_IDS } from '../data/shop'
 import { createRandomGem } from './generate'
 import { makeNuggetPixelItem, makeOrePixelItem, makeRoughStonePixelItem } from '../data/oreTemplates'
 
@@ -14,19 +15,25 @@ export type MineDrop =
   | { kind: 'gem'; gem: Gem }
   | { kind: 'nothing' }
 
-export function rollMineDrop(area: Area, depth: number): MineDrop {
+export function rollMineDrop(area: Area, depth: number, activeCharms: string[] = []): MineDrop {
   if (area.kind !== 'mine' || !area.metalPool?.length) {
     return { kind: 'nothing' }
   }
 
   const r = Math.random()
   const bonus = area.rarityBonus
-  const gemThreshold = 0.02 + bonus
-  const nuggetThreshold = gemThreshold + 0.03 + bonus * 0.5
-  const stoneThreshold = nuggetThreshold + 0.17 + bonus * 0.5
+  const lucky = activeCharms.includes(CHARM_IDS.luckyMiner) ? 0.05 : 0
+  const gemThreshold = 0.02 + bonus + lucky
+  const nuggetThreshold = gemThreshold + 0.03 + bonus * 0.5 + lucky
+  const stoneThreshold = nuggetThreshold + 0.17 + bonus * 0.5 + lucky
   const oreThreshold = 0.9
 
-  if (r < gemThreshold) return { kind: 'gem', gem: createRandomGem(depth, area) }
+  const valueCharms = {
+    smithEye: activeCharms.includes(CHARM_IDS.smithEye),
+    deepCalm: activeCharms.includes(CHARM_IDS.deepCalm),
+  }
+
+  if (r < gemThreshold) return { kind: 'gem', gem: createRandomGem(depth, area, valueCharms) }
   if (r < nuggetThreshold) return { kind: 'nugget', nugget: rollNuggetFromArea(area) }
   if (r < stoneThreshold) return { kind: 'rough-stone', stone: rollRoughStone() }
   if (r < oreThreshold) return { kind: 'ore', ore: rollRawOreFromArea(area, depth) }

@@ -5,7 +5,6 @@ import type {
   MetalName,
   MetalNugget,
   MetalIngot,
-  Pickaxe,
   RawOre,
   RoughStone,
   SmeltingJob,
@@ -19,6 +18,15 @@ import { applyEligibleUnlocks } from './unlocks'
 import { XP_REWARDS } from './leveling'
 import { startSmeltingJob } from '../gem/smelting'
 import { craftAlloy, craftGemFromRoughStone } from '../gem/crafting'
+import {
+  CHARM_IDS,
+  findCharm,
+  findConsumable,
+  findInventoryPack,
+  findPickaxeOffer,
+  SHOP_CONSUMABLE_IDS,
+  smelterNextUpgradeCost,
+} from '../data/shop'
 
 export type Action =
   | { type: 'GAIN_XP'; amount: number }
@@ -45,10 +53,12 @@ export type Action =
   | { type: 'TICK_SMELTING' }
   | { type: 'CRAFT_ALLOY'; a: MetalName; b: MetalName }
   | { type: 'CRAFT_GEM_FROM_ROUGH'; stoneId: string; ingotSelection: MetalName[] }
-  | { type: 'BUY_PICKAXE'; pickaxe: Pickaxe }
+  | { type: 'BUY_PICKAXE'; tier: number }
   | { type: 'UPGRADE_SMELTER' }
-  | { type: 'EXPAND_INVENTORY'; category: 'gems' | 'materials' | 'tools'; amount: number }
+  | { type: 'BUY_CONSUMABLE'; id: string }
+  | { type: 'EXPAND_INVENTORY'; packId: string }
   | { type: 'BUY_CHARM'; charmId: string }
+  | { type: 'CONSUME_DYNAMITE' }
   | { type: 'ADD_JEWELRY'; jewelry: { id: string } }
   | { type: 'SELL_JEWELRY'; id: string }
   | { type: 'CLEAR_GAME_NOTICE' }
@@ -151,6 +161,8 @@ export const initialState: GameState = {
   unlockedLocations: ['kobbermine', 'smedjen', 'butikken'],
   activeCharms: [],
   activeEffects: [],
+  instantBreakNextRock: false,
+  roughCraftPurityBonus: 0,
   jewelry: [],
   gameNotice: null,
   version: CURRENT_STATE_VERSION,
@@ -349,9 +361,112 @@ export function reducer(state: GameState, action: Action): GameState {
       roughStones.splice(rs, 1)
       next = { ...next, roughStones }
       const ingots = [...need.entries()].map(([metalName, quantity]) => ({ metalName, quantity }))
-      const gem = craftGemFromRoughStone(stone, ingots, next.depth)
+      const purityBonus = state.roughCraftPurityBonus
+      const valueCharms = {
+        smithEye: state.activeCharms.includes(CHARM_IDS.smithEye),
+        deepCalm: state.activeCharms.includes(CHARM_IDS.deepCalm),
+      }
+      next = { ...next, roughCraftPurityBonus: 0 }
+      const gem = craftGemFromRoughStone(stone, ingots, next.depth, purityBonus, valueCharms)
       return addGemWithRewards(next, gem)
     }
+    case 'BUY_PICKAXE': {
+      const offer = findPickaxeOffer(action.tier)
+      if (!offer) return state
+      if (state.level < offer.minLevel) {
+        return { ...state, gameNotice: `Kræver level ${offer.minLevel}.` }
+      }
+      if (state.gold < offer.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.pickaxes.length >= state.inventoryCapacity.tools) {
+        return { ...state, gameNotice: 'Værktøjslager er fuldt.' }
+      }
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const pickaxe = makePickaxe(offer.tier, unique)
+      return {
+        ...state,
+        gold: state.gold - offer.price,
+        pickaxes: [...state.pickaxes, pickaxe],
+        activePickaxeId: pickaxe.id,
+        gameNotice: null,
+      }
+    }
+    case 'UPGRADE_SMELTER': {
+      const cost = smelterNextUpgradeCost(state.smelterTier)
+      if (cost == null) return { ...state, gameNotice: 'Smelter er allerede på maks.' }
+      if (state.gold < cost) return { ...state, gameNotice: 'Ikke nok guld.' }
+      return {
+        ...state,
+        gold: state.gold - cost,
+        smelterTier: state.smelterTier + 1,
+        gameNotice: null,
+      }
+    }
+    case 'BUY_CONSUMABLE': {
+      const c = findConsumable(action.id)
+      if (!c) return state
+      if (state.gold < c.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      let next: GameState = {
+        ...state,
+        gold: state.gold - c.price,
+        gameNotice: null,
+      }
+      if (c.id === SHOP_CONSUMABLE_IDS.dynamite) {
+        next.instantBreakNextRock = true
+      } else if (c.id === SHOP_CONSUMABLE_IDS.whetstone) {
+        next.roughCraftPurityBonus = state.roughCraftPurityBonus + 1
+      } else if (c.id === SHOP_CONSUMABLE_IDS.repairKit) {
+        next = {
+          ...next,
+          pickaxes: next.pickaxes.map((p) =>
+            p.id === next.activePickaxeId
+              ? {
+                  ...p,
+                  durability: Math.min(
+                    p.maxDurability,
+                    p.durability + Math.floor(p.maxDurability * 0.5),
+                  ),
+                }
+              : p,
+          ),
+        }
+      }
+      return next
+    }
+    case 'EXPAND_INVENTORY': {
+      const pack = findInventoryPack(action.packId)
+      if (!pack) return state
+      if (state.gold < pack.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      return {
+        ...state,
+        gold: state.gold - pack.price,
+        inventoryCapacity: {
+          gems: state.inventoryCapacity.gems + pack.gems,
+          materials: state.inventoryCapacity.materials + pack.materials,
+          tools: state.inventoryCapacity.tools + pack.tools,
+        },
+        gameNotice: null,
+      }
+    }
+    case 'BUY_CHARM': {
+      const ch = findCharm(action.charmId)
+      if (!ch) return state
+      if (state.activeCharms.includes(ch.id)) {
+        return { ...state, gameNotice: 'Du ejer allerede denne charm.' }
+      }
+      if (state.level < ch.minLevel) {
+        return { ...state, gameNotice: `Kræver level ${ch.minLevel}.` }
+      }
+      if (state.gold < ch.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      return {
+        ...state,
+        gold: state.gold - ch.price,
+        activeCharms: [...state.activeCharms, ch.id],
+        gameNotice: null,
+      }
+    }
+    case 'CONSUME_DYNAMITE':
+      if (!state.instantBreakNextRock) return state
+      return { ...state, instantBreakNextRock: false }
     default:
       return state
   }

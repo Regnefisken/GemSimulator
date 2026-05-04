@@ -3,7 +3,7 @@ import { makePickaxe } from '../data/pickaxes'
 import { METALS } from '../data/metals'
 import { computeGoldValue } from '../gem/generate'
 
-export const CURRENT_STATE_VERSION = 3
+export const CURRENT_STATE_VERSION = 4
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -161,6 +161,10 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       ? (r.activeEffects as GameState['activeEffects'])
       : base.activeEffects,
     jewelry: Array.isArray(r.jewelry) ? (r.jewelry as GameState['jewelry']) : base.jewelry,
+    instantBreakNextRock:
+      typeof r.instantBreakNextRock === 'boolean' ? r.instantBreakNextRock : base.instantBreakNextRock,
+    roughCraftPurityBonus:
+      typeof r.roughCraftPurityBonus === 'number' ? r.roughCraftPurityBonus : base.roughCraftPurityBonus,
     gameNotice: typeof r.gameNotice === 'string' ? r.gameNotice : null,
     version: CURRENT_STATE_VERSION,
   }

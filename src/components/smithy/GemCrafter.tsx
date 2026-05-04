@@ -55,6 +55,11 @@ export default function GemCrafter({ state, dispatch, onBeforeCraft }: Props) {
     <section className="rounded-2xl border border-amber-900/50 bg-slate-900/80 p-4 sm:p-6 shadow-lg">
       <h2 className="text-lg font-bold text-amber-100 mb-1 flex items-center gap-2">💎 Slibebord</h2>
       <p className="text-slate-400 text-sm mb-4">Vælg en rå klippe og op til tre metalbarer til inklusioner.</p>
+      {state.roughCraftPurityBonus > 0 && (
+        <p className="mb-3 text-sm text-amber-200/95 bg-amber-950/30 border border-amber-800/50 rounded-lg px-3 py-2">
+          Slibesten aktiv: +{state.roughCraftPurityBonus} renhed på næste slibning (maks. 4).
+        </p>
+      )}
 
       {state.roughStones.length === 0 ? (
         <p className="text-slate-500 text-sm">Ingen rå klipper — find dem i minen.</p>

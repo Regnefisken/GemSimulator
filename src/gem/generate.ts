@@ -183,15 +183,26 @@ export function addMetalInclusionMarks(baseData: string[], slotChars: string[]):
   return grid.map((row) => row.join(''))
 }
 
-export function computeGoldValue(gem: Gem, depth: number): number {
+export function computeGoldValue(
+  gem: Gem,
+  depth: number,
+  charms?: { smithEye?: boolean; deepCalm?: boolean },
+): number {
   const magicMul = [1, 2.5, 7, 20][gem.magicProperties.length] ?? 1
   const metalMul = gem.metalInclusions.reduce((m, x) => m * x.goldBonus, 1)
   const purityMul = [0.5, 1, 1.5, 3][gem.purity - 1] ?? 1
-  const depthMul = 1 + depth * 0.1
-  return Math.max(1, Math.floor(5 * magicMul * metalMul * purityMul * depthMul))
+  let depthMul = 1 + depth * 0.1
+  if (charms?.deepCalm) depthMul *= 1.15
+  let v = 5 * magicMul * metalMul * purityMul * depthMul
+  if (charms?.smithEye) v *= 1.1
+  return Math.max(1, Math.floor(v))
 }
 
-export function createRandomGem(depth = 0, area?: Area): Gem {
+export function createRandomGem(
+  depth = 0,
+  area?: Area,
+  valueCharms?: { smithEye?: boolean; deepCalm?: boolean },
+): Gem {
   const isGodTier = Math.random() < 0.12
 
   let palette
@@ -274,7 +285,7 @@ export function createRandomGem(depth = 0, area?: Area): Gem {
     magicProperties,
     goldValue: 0,
   }
-  gem.goldValue = computeGoldValue(gem, depth)
+  gem.goldValue = computeGoldValue(gem, depth, valueCharms)
   return gem
 }
 

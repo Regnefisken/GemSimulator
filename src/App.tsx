@@ -12,7 +12,8 @@ import InventoryScreen from './components/inventory/InventoryScreen'
 import type { VoxelSceneHandle } from './components/VoxelScene'
 import MineScreen from './components/mine/MineScreen'
 import SmithyScreen from './components/smithy/SmithyScreen'
-import { JewelryPlaceholder, ShopScreenPlaceholder } from './components/placeholders'
+import ShopScreen from './components/shop/ShopScreen'
+import { JewelryPlaceholder } from './components/placeholders'
 
 function seedState(): GameState {
   const base = loadState()
@@ -78,7 +79,7 @@ export default function App() {
   if (tab === 'inventory') {
     screen = <InventoryScreen state={state} dispatch={dispatch} />
   } else if (tab === 'shop') {
-    screen = <ShopScreenPlaceholder onBack={() => setTab('map')} backLabel="← Til kort" />
+    screen = <ShopScreen state={state} dispatch={dispatch} onBack={() => setTab('map')} />
   } else if (state.viewMode === 'map') {
     screen = <MapScreen state={state} dispatch={dispatch} />
   } else {
@@ -103,7 +104,7 @@ export default function App() {
         />
       )
     } else if (area.kind === 'butik') {
-      screen = <ShopScreenPlaceholder onBack={goToMapView} />
+      screen = <ShopScreen state={state} dispatch={dispatch} onBack={goToMapView} />
     } else {
       screen = <JewelryPlaceholder onBack={goToMapView} />
     }
