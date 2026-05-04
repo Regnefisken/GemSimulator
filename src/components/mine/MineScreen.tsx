@@ -91,7 +91,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
   const handleMineHit = useCallback(() => {
     if (!pickaxe || pickaxe.durability <= 0) {
-      showToast('Hakken er i stykker! Køb reparations-kit eller en ny hakke i Butikken.')
+      showToast('Hakken er slidt op! Gå til smedjen og reparér den på reparationsbænken.')
       return
     }
 
@@ -184,6 +184,16 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         maxDurability={pickaxe?.maxDurability ?? 1}
         dynamiteReady={state.instantBreakNextRock}
       />
+
+      {pickaxe && pickaxe.durability === 0 && (
+        <div
+          className="rounded-xl border border-amber-700/50 bg-amber-950/40 px-4 py-3 text-sm text-amber-100/95"
+          role="status"
+        >
+          🔨 Din hakke er slidt op. Gå til <strong className="text-amber-50">smedjen</strong> på kortet og reparér den
+          på reparationsbænken.
+        </div>
+      )}
 
       {(moonBuffActive || phoenixQ > 0 || slumberQ > 0) && (
         <div className="rounded-xl border border-slate-600 bg-slate-900/70 px-4 py-3 text-sm space-y-2">

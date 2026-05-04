@@ -77,3 +77,10 @@ export function playLevelUp(): void {
   window.setTimeout(() => tone(523, 0.1, 0.045), 90)
   window.setTimeout(() => tone(659, 0.14, 0.04), 180)
 }
+
+export function playAnvilStrike(): void {
+  const pitch = 880 + Math.random() * 240
+  tone(pitch, 0.05, 0.06, 'square')
+  window.setTimeout(() => tone(pitch * 0.5, 0.18, 0.04, 'triangle'), 25)
+  window.setTimeout(() => tone(pitch * 2, 0.08, 0.03, 'sine'), 10)
+}

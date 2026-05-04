@@ -39,7 +39,11 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
             key={p.id}
             item={p.pixelItem}
             label={p.name}
-            subtitle={`${p.durability}/${p.maxDurability} · ${p.damage} skade`}
+            subtitle={
+              p.durability === 0
+                ? '⚠️ Slidt op — reparér i smedjen'
+                : `${p.durability}/${p.maxDurability} · ${p.damage} skade`
+            }
             highlighted={p.id === state.activePickaxeId}
             onClick={() => setPreviewId(p.id)}
           />
@@ -59,20 +63,30 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
             preview.id === state.activePickaxeId ? 'Status: Aktiv i minen' : 'Status: Ikke valgt',
           ]}
           footer={
-            preview.id !== state.activePickaxeId ? (
-              <button
-                type="button"
-                onClick={() => {
-                  dispatch({ type: 'SET_ACTIVE_PICKAXE', id: preview.id })
-                  setPreviewId(null)
-                }}
-                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold"
-              >
-                Sæt som aktiv
-              </button>
-            ) : (
-              <span className="text-sm text-emerald-400 font-medium">Aktiv hakke</span>
-            )
+            <div className="flex flex-col gap-3 w-full">
+              {preview.id !== state.activePickaxeId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    dispatch({ type: 'SET_ACTIVE_PICKAXE', id: preview.id })
+                    setPreviewId(null)
+                  }}
+                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold"
+                >
+                  Sæt som aktiv
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <span className="text-sm text-emerald-400 font-medium">Aktiv hakke</span>
+                  {preview.durability < preview.maxDurability && (
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Gå til <strong className="text-amber-200/90">smedjen</strong> (kortet) og brug reparationsbænken
+                      for at genskabe holdbarhed — gratis.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           }
         />
       )}

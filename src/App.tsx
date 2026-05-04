@@ -126,6 +126,14 @@ function AppContent() {
     dispatch({ type: 'SET_VIEW_MODE', viewMode: 'map' })
   }
 
+  function handleTabChange(next: Tab) {
+    setTab(next)
+    if (next === 'map') {
+      dispatch({ type: 'SET_VIEW_MODE', viewMode: 'map' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   let screen: ReactNode
 
   if (tab === 'inventory') {
@@ -179,7 +187,7 @@ function AppContent() {
           </button>
         </div>
       )}
-      <AppShell state={state} tab={tab} onTabChange={setTab}>
+      <AppShell state={state} tab={tab} onTabChange={handleTabChange}>
         {screen}
       </AppShell>
     </>

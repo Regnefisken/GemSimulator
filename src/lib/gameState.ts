@@ -70,6 +70,7 @@ export type Action =
   | { type: 'CRAFT_ALLOY'; a: MetalName; b: MetalName }
   | { type: 'CRAFT_GEM_FROM_ROUGH'; stoneId: string; ingotSelection: MetalName[]; essenceId?: string }
   | { type: 'BUY_PICKAXE'; tier: number }
+  | { type: 'REPAIR_PICKAXE'; amount: number }
   | { type: 'UPGRADE_SMELTER' }
   | { type: 'BUY_CONSUMABLE'; id: string }
   | { type: 'EXPAND_INVENTORY'; packId: string }
@@ -305,6 +306,15 @@ export function reducer(state: GameState, action: Action): GameState {
       )
       return { ...state, pickaxes }
     }
+    case 'REPAIR_PICKAXE': {
+      if (action.amount <= 0) return state
+      const pickaxes = state.pickaxes.map((p) =>
+        p.id === state.activePickaxeId
+          ? { ...p, durability: Math.min(p.maxDurability, p.durability + action.amount) }
+          : p,
+      )
+      return { ...state, pickaxes }
+    }
     case 'SET_ACTIVE_PICKAXE':
       if (!state.pickaxes.some((p) => p.id === action.id)) return state
       return { ...state, activePickaxeId: action.id }
@@ -456,6 +466,9 @@ export function reducer(state: GameState, action: Action): GameState {
         return { ...state, gameNotice: `Kræver level ${offer.minLevel}.` }
       }
       if (state.gold < offer.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.pickaxes.some((p) => p.tier === action.tier)) {
+        return { ...state, gameNotice: 'Du ejer allerede denne hakke. Reparér den i smedjen.' }
+      }
       if (state.pickaxes.length >= state.inventoryCapacity.tools) {
         return { ...state, gameNotice: 'Værktøjslager er fuldt.' }
       }
@@ -493,21 +506,6 @@ export function reducer(state: GameState, action: Action): GameState {
         next.instantBreakNextRock = true
       } else if (c.id === SHOP_CONSUMABLE_IDS.whetstone) {
         next.roughCraftPurityBonus = state.roughCraftPurityBonus + 1
-      } else if (c.id === SHOP_CONSUMABLE_IDS.repairKit) {
-        next = {
-          ...next,
-          pickaxes: next.pickaxes.map((p) =>
-            p.id === next.activePickaxeId
-              ? {
-                  ...p,
-                  durability: Math.min(
-                    p.maxDurability,
-                    p.durability + Math.floor(p.maxDurability * 0.5),
-                  ),
-                }
-              : p,
-          ),
-        }
       }
       return next
     }

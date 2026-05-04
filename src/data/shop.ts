@@ -11,13 +11,10 @@ export type CharmId = (typeof CHARM_IDS)[keyof typeof CHARM_IDS]
 export const SHOP_CONSUMABLE_IDS = {
   dynamite: 'cons_dynamite',
   whetstone: 'cons_whetstone',
-  repairKit: 'cons_repair',
 } as const
 
-/** Butikkens hakker (tier matcher `makePickaxe(tier)`). */
+/** Butikkens hakker (tier matcher `makePickaxe(tier)`). Tier 0 fås kun ved start; reparation sker i smedjen. */
 export const SHOP_PICKAXE_OFFERS = [
-  /** Samme som starthakken — billig erstatning når holdbarheden slipper op før level 3. */
-  { tier: 0, price: 10, minLevel: 1 },
   { tier: 1, price: 200, minLevel: 3 },
   { tier: 2, price: 1000, minLevel: 8 },
   { tier: 3, price: 10000, minLevel: 25 },
@@ -36,12 +33,6 @@ export const SHOP_CONSUMABLES = [
     name: 'Slibesten',
     price: 120,
     description: 'Næste ædelsten du sliber fra rå klippe får +1 renhed (maks. 4).',
-  },
-  {
-    id: SHOP_CONSUMABLE_IDS.repairKit,
-    name: 'Reparations-kit',
-    price: 400,
-    description: 'Genskaber 50% af aktiv hakkes maks. holdbarhed som holdbarhed nu.',
   },
 ] as const
 

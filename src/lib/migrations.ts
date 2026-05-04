@@ -4,7 +4,7 @@ import { migrateJewelry } from '../data/jewelry'
 import { METALS } from '../data/metals'
 import { computeGoldValue } from '../gem/generate'
 
-export const CURRENT_STATE_VERSION = 7
+export const CURRENT_STATE_VERSION = 8
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -196,10 +196,6 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     }
   }
 
-  if (version < CURRENT_STATE_VERSION) {
-    // Sekventielle steps kan tilføjes her ved fremtidige versioner.
-  }
-
   if (!next.pickaxes.some((p) => p.id === next.activePickaxeId) && next.pickaxes[0]) {
     next.activePickaxeId = next.pickaxes[0].id
   }
@@ -216,6 +212,27 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       name: p.name || f.name,
     }
   })
+
+  if (version < 8) {
+    const byTier = new Map<number, Pickaxe>()
+    for (const p of next.pickaxes) {
+      const cur = byTier.get(p.tier)
+      if (!cur || p.durability > cur.durability) byTier.set(p.tier, p)
+    }
+    const deduped = [...byTier.values()].sort((a, b) => a.tier - b.tier)
+
+    if (deduped.length !== next.pickaxes.length) {
+      next.pickaxes = deduped
+      if (!deduped.some((p) => p.id === next.activePickaxeId)) {
+        const newest = deduped[deduped.length - 1] ?? deduped[0]
+        if (newest) next.activePickaxeId = newest.id
+      }
+    }
+  }
+
+  if (!next.pickaxes.some((p) => p.id === next.activePickaxeId) && next.pickaxes[0]) {
+    next.activePickaxeId = next.pickaxes[0].id
+  }
 
   return next
 }

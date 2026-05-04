@@ -5,6 +5,7 @@ import type { VoxelSceneHandle } from '../VoxelScene'
 import GemViewer from '../GemViewer'
 import Collection from '../Collection'
 import Header from '../Header'
+import RepairStation from './RepairStation'
 import Smelter from './Smelter'
 import AlloyStation from './AlloyStation'
 import GemCrafter from './GemCrafter'
@@ -65,6 +66,7 @@ export default function SmithyScreen({
 
       <Header templateCount={templateCount} />
 
+      <RepairStation state={state} dispatch={dispatch} />
       <Smelter state={state} dispatch={dispatch} onGoToShop={onGoToShop} />
       <AlloyStation state={state} dispatch={dispatch} />
       <GemCrafter
