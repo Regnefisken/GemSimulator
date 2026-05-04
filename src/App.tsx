@@ -17,6 +17,7 @@ import SmithyScreen from './components/smithy/SmithyScreen'
 import ShopScreen from './components/shop/ShopScreen'
 import JewelryWorkshopScreen from './components/jewelry/JewelryWorkshopScreen'
 import { ToastProvider, useToast } from './components/ui/ToastContext'
+import { DisplayRenderProvider } from './components/layout/DisplayRenderContext'
 
 function seedState(): GameState {
   const base = loadState()
@@ -197,7 +198,9 @@ function AppContent() {
 export default function App() {
   return (
     <ToastProvider>
-      <AppContent />
+      <DisplayRenderProvider>
+        <AppContent />
+      </DisplayRenderProvider>
     </ToastProvider>
   )
 }

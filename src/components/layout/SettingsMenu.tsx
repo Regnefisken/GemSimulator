@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { DISPLAY_RENDER_PRESETS } from '../../lib/displayRenderSettings'
+import { useDisplayRender } from './DisplayRenderContext'
 
 type Props = {
   onClose: () => void
@@ -6,6 +8,7 @@ type Props = {
 
 export default function SettingsMenu({ onClose }: Props) {
   const [resetPending, setResetPending] = useState(false)
+  const { preset, setPreset, gl } = useDisplayRender()
 
   function handleResetClick() {
     setResetPending(true)
@@ -43,7 +46,37 @@ export default function SettingsMenu({ onClose }: Props) {
 
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">🖥️ Skærmindstillinger</h3>
-          <p className="text-xs text-slate-600 italic px-3 py-1">Kommer snart</p>
+          <p className="text-[11px] text-slate-500 px-1 mb-2 leading-snug">
+            3D-forhåndsvisning (ædelsten m.m.): opløsning (pixelratio) og kantudglatning (MSAA).
+          </p>
+          <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="3D-gengivelse">
+            {DISPLAY_RENDER_PRESETS.map((p) => (
+              <label
+                key={p.id}
+                className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                  preset === p.id
+                    ? 'border-amber-500/60 bg-amber-950/35'
+                    : 'border-transparent hover:bg-slate-800/80'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="display-render-preset"
+                  value={p.id}
+                  checked={preset === p.id}
+                  onChange={() => setPreset(p.id)}
+                  className="mt-0.5 accent-amber-500"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-slate-200">{p.title}</span>
+                  <span className="block text-[11px] text-slate-500 leading-snug mt-0.5">{p.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <p className="text-[10px] text-slate-600 mt-2 px-1 font-mono">
+            Aktiv: {gl.antialias ? 'MSAA til' : 'MSAA fra'} · {gl.dpr.toFixed(2)}× pixelratio
+          </p>
         </section>
 
         <hr className="border-slate-800" />

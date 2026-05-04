@@ -13,6 +13,7 @@ import { OrbitControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
 import type { ColorMap } from '../types'
+import { useDisplayRenderGlFallback } from './layout/DisplayRenderContext'
 
 const dummy = new THREE.Object3D()
 const _color = new THREE.Color()
@@ -20,7 +21,7 @@ const MAX_INSTANCES = 320
 
 function VoxelMesh({ data, colorMap }: { data: string[]; colorMap: ColorMap }) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
-  const geo = useMemo(() => new THREE.BoxGeometry(0.9, 0.9, 0.7), [])
+  const geo = useMemo(() => new THREE.BoxGeometry(1, 1, 1), [])
   const mat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
@@ -124,6 +125,7 @@ const VoxelScene = forwardRef<
   { data: string[]; colorMap: ColorMap; className?: string; canvasStyle?: CSSProperties }
 >(({ data, colorMap, className, canvasStyle }, ref) => {
     const glRef = useRef<THREE.WebGLRenderer | null>(null)
+    const { dpr, antialias } = useDisplayRenderGlFallback()
 
     useImperativeHandle(ref, () => ({
       toDataURL: () => glRef.current?.domElement.toDataURL('image/png') ?? '',
@@ -131,15 +133,16 @@ const VoxelScene = forwardRef<
 
     return (
       <Canvas
+        key={`voxel-gl-${dpr}-${antialias}`}
         orthographic
         camera={{ position: [0, 0, 18], near: 0.1, far: 60 }}
-        gl={{ antialias: false, preserveDrawingBuffer: true }}
-        dpr={1}
+        gl={{ antialias, preserveDrawingBuffer: true }}
+        dpr={dpr}
         style={{ width: 320, height: 320, ...canvasStyle }}
         className={`pixelated block max-w-full ${className ?? ''}`}
         onCreated={({ gl }) => {
           gl.setClearColor(new THREE.Color(0x020617))
-          gl.setPixelRatio(1)
+          gl.setPixelRatio(dpr)
           glRef.current = gl
         }}
       >
