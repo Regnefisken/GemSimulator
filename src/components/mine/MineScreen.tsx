@@ -3,7 +3,10 @@ import type { Area, GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
 import { materialsCount } from '../../lib/gameState'
 import { XP_REWARDS } from '../../lib/leveling'
-import { rockHpForDepth, rollMineDrop, type MineDrop } from '../../gem/mining'
+import { rockHpForDepth, rollBonusMineEssence, rollMineDrop, type MineDrop } from '../../gem/mining'
+import { ESSENCE_IDS, getEssenceDef, MOON_TEAR_EFFECT_ID } from '../../data/essences'
+import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
+import { useToast } from '../ui/ToastContext'
 import Rock3DScene from './Rock3DScene'
 import PickaxeOverlay from './PickaxeOverlay'
 import DamageNumbers, { type DamageFloater } from './DamageNumbers'
@@ -30,15 +33,20 @@ function extraMaterialsFromDrop(drop: MineDrop): number {
 }
 
 export default function MineScreen({ area, state, dispatch, onBack }: Props) {
+  const { showToast } = useToast()
   const pickaxe = state.pickaxes.find((p) => p.id === state.activePickaxeId) ?? state.pickaxes[0]
   const [rockHp, setRockHp] = useState(0)
   const [maxHp, setMaxHp] = useState(0)
   const [hitPulse, setHitPulse] = useState(0)
   const [striking, setStriking] = useState(false)
   const [floaters, setFloaters] = useState<DamageFloater[]>([])
-  const [toast, setToast] = useState<string | null>(null)
   const [wow, setWow] = useState<'gem' | 'nugget' | null>(null)
   const hitId = useRef(0)
+  const phoenixQ = state.essences.find((s) => s.essenceId === ESSENCE_IDS.phoenixAsh)?.quantity ?? 0
+  const slumberQ = state.essences.find((s) => s.essenceId === ESSENCE_IDS.slumberPowder)?.quantity ?? 0
+  const moonBuffActive = state.activeEffects.some(
+    (e) => e.id === MOON_TEAR_EFFECT_ID && (e.expiresAt == null || e.expiresAt > Date.now()),
+  )
 
   useLayoutEffect(() => {
     const max = rockHpForDepth(state.depth, area)
@@ -54,11 +62,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     window.setTimeout(() => {
       setFloaters((prev) => prev.filter((f) => f.id !== id))
     }, 600)
-  }, [])
-
-  const flashToast = useCallback((msg: string) => {
-    setToast(msg)
-    window.setTimeout(() => setToast(null), 2800)
   }, [])
 
   const applyDrop = useCallback(
@@ -88,7 +91,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
   const handleMineHit = useCallback(() => {
     if (!pickaxe || pickaxe.durability <= 0) {
-      flashToast('Hakken er i stykker! Køb reparations-kit eller en ny hakke i Butikken.')
+      showToast('Hakken er i stykker! Køb reparations-kit eller en ny hakke i Butikken.')
       return
     }
 
@@ -97,6 +100,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
     dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.mineHit })
     dispatch({ type: 'DAMAGE_PICKAXE', amount: 1 })
+    playMineHit()
     if (useDynamite) dispatch({ type: 'CONSUME_DYNAMITE' })
     setHitPulse((n) => n + 1)
     setStriking(true)
@@ -110,19 +114,28 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     }
 
     setRockHp(0)
+    playRockBreak()
     const drop = rollMineDrop(area, state.depth, state.activeCharms)
     const extra = extraMaterialsFromDrop(drop)
     if (extra > 0 && matCount + extra > matCap) {
-      flashToast('Råmaterialer: lager fuldt — droppet gik tabt.')
+      showToast('Råmaterialer: lager fuldt — droppet gik tabt.')
     } else {
       applyDrop(drop)
       if (drop.kind === 'gem') {
+        playGemFound()
         setWow('gem')
         window.setTimeout(() => setWow(null), 2200)
       } else if (drop.kind === 'nugget') {
         setWow('nugget')
         window.setTimeout(() => setWow(null), 2200)
       }
+    }
+    const bonusEss = rollBonusMineEssence(area, state.activeEffects, state.activeCharms)
+    if (bonusEss) {
+      dispatch({ type: 'ADD_ESSENCE', essenceId: bonusEss, quantity: 1 })
+      playEssenceFound()
+      const name = getEssenceDef(bonusEss)?.name ?? bonusEss
+      showToast(`Essens fundet: ${name}`, 'success')
     }
 
     dispatch({ type: 'INCREMENT_DEPTH' })
@@ -133,12 +146,13 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     area,
     state.depth,
     state.activeCharms,
+    state.activeEffects,
     state.instantBreakNextRock,
     matCap,
     matCount,
     dispatch,
     pushFloater,
-    flashToast,
+    showToast,
     applyDrop,
   ])
 
@@ -171,6 +185,36 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         dynamiteReady={state.instantBreakNextRock}
       />
 
+      {(moonBuffActive || phoenixQ > 0 || slumberQ > 0) && (
+        <div className="rounded-xl border border-slate-600 bg-slate-900/70 px-4 py-3 text-sm space-y-2">
+          {moonBuffActive && (
+            <p className="text-cyan-300/95">🌙 Måne-buff aktiv — øget chance for essens-drops.</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {phoenixQ > 0 && (
+              <button
+                type="button"
+                disabled={!pickaxe}
+                onClick={() => dispatch({ type: 'USE_ESSENCE_MINE', essenceId: ESSENCE_IDS.phoenixAsh })}
+                className="min-h-[40px] px-3 rounded-lg bg-rose-900/60 border border-rose-600/50 text-rose-100 text-xs font-semibold hover:bg-rose-800/60 disabled:opacity-40"
+              >
+                Fønix-Aske ({phoenixQ}) — fuld repair +5 max
+              </button>
+            )}
+            {slumberQ > 0 && (
+              <button
+                type="button"
+                disabled={!pickaxe}
+                onClick={() => dispatch({ type: 'USE_ESSENCE_MINE', essenceId: ESSENCE_IDS.slumberPowder })}
+                className="min-h-[40px] px-3 rounded-lg bg-indigo-900/50 border border-indigo-600/50 text-indigo-100 text-xs font-semibold hover:bg-indigo-800/50 disabled:opacity-40"
+              >
+                Dvalepulver ({slumberQ}) — +25% max som holdbarhed
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="relative">
         <Rock3DScene
           hp={rockHp}
@@ -182,15 +226,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         <PickaxeOverlay striking={striking} />
         <DamageNumbers items={floaters} />
       </div>
-
-      {toast && (
-        <div
-          className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[70] max-w-[90vw] px-4 py-2 rounded-xl bg-slate-900 border border-amber-500/40 text-amber-100 text-sm text-center shadow-xl"
-          role="status"
-        >
-          {toast}
-        </div>
-      )}
 
       {wow && (
         <div

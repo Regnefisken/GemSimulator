@@ -14,7 +14,7 @@ export default function AppShell({ state, tab, onTabChange, children }: Props) {
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-100 pb-20 pt-14">
       <LevelBadge state={state} />
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-4">{children}</main>
+      <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-4 py-4 min-w-0">{children}</main>
       <TabBar active={tab} onChange={onTabChange} />
     </div>
   )

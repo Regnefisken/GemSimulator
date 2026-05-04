@@ -1,6 +1,6 @@
 import type { Area, ColorMap, Gem, MagicProperty, MetalInclusion, MetalName } from '../types'
 import { METALS } from '../data/metals'
-import { MAGIC_PROPERTIES } from '../data/magic'
+import { getMagicPropertyByName, MAGIC_PROPERTIES } from '../data/magic'
 import { PALETTES } from '../data/palettes'
 import { TEMPLATES } from '../data/templates'
 
@@ -70,13 +70,27 @@ export function addGoldInclusions(baseData: string[]): string[] {
 }
 
 /** 61.5% / 30% / 7% / 1.5% for 0 / 1 / 2 / 3 egenskaber — unikke navne. */
-export function rollMagicProperties(opts?: { excludeLegendary?: boolean }): MagicProperty[] {
+export function rollMagicProperties(opts?: {
+  excludeLegendary?: boolean
+  /** Garanterer Ild blandt egenskaberne (Drageglimmer). */
+  guaranteeFire?: boolean
+  /** Mindst dette antal magiske egenskaber (Runedrys). */
+  minMagicCount?: number
+}): MagicProperty[] {
   const r = Math.random() * 100
   let count = 0
   if (r < 61.5) count = 0
   else if (r < 91.5) count = 1
   else if (r < 98.5) count = 2
   else count = 3
+
+  if (opts?.minMagicCount != null) {
+    count = Math.max(count, opts.minMagicCount)
+  }
+  if (opts?.guaranteeFire) {
+    count = Math.max(count, 1)
+  }
+  count = Math.min(3, count)
 
   if (count === 0) return []
 
@@ -107,6 +121,24 @@ export function rollMagicProperties(opts?: { excludeLegendary?: boolean }): Magi
     if (pick) {
       picked.push(pick)
       used.add(pick.name)
+    }
+  }
+
+  if (opts?.guaranteeFire) {
+    const ild = getMagicPropertyByName('Ild')
+    if (ild && !picked.some((p) => p.name === 'Ild')) {
+      const rest = picked.filter((p) => p.name !== 'Ild')
+      picked.length = 0
+      picked.push(ild, ...rest.slice(0, 2))
+    }
+  }
+
+  if (opts?.minMagicCount != null && picked.length < opts.minMagicCount) {
+    while (picked.length < opts.minMagicCount && picked.length < 3) {
+      const avail = pool.filter((p) => !picked.some((x) => x.name === p.name))
+      if (avail.length === 0) break
+      const pick = avail[Math.floor(Math.random() * avail.length)]
+      if (pick) picked.push(pick)
     }
   }
 

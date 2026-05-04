@@ -14,7 +14,7 @@ const ITEMS: { id: Tab; label: string; icon: string }[] = [
 export default function TabBar({ active, onChange }: Props) {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-700 bg-slate-950/95 backdrop-blur-md min-h-16 flex items-stretch justify-around px-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-700 bg-slate-950/95 backdrop-blur-md min-h-16 flex items-stretch justify-around px-1 sm:px-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
       aria-label="Hovednavigation"
     >
       {ITEMS.map((item) => {

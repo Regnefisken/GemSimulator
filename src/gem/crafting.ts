@@ -18,6 +18,7 @@ export function craftGemFromRoughStone(
   depth: number,
   purityBonus = 0,
   valueCharms?: { smithEye?: boolean; deepCalm?: boolean },
+  roughEssence?: 'dragon_glimmer' | 'rune_dust',
 ): Gem {
   const palette = PALETTES.find((p) => p.name === stone.paletteName) ?? PALETTES[0]
   const templateObj = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)]
@@ -59,7 +60,10 @@ export function craftGemFromRoughStone(
     data = mirrorGemDataHorizontally(data)
   }
 
-  const magicProperties = rollMagicProperties()
+  const magicProperties = rollMagicProperties({
+    guaranteeFire: roughEssence === 'dragon_glimmer',
+    minMagicCount: roughEssence === 'rune_dust' ? 2 : undefined,
+  })
 
   const gem: Gem = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

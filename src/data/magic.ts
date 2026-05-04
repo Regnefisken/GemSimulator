@@ -11,3 +11,7 @@ export const MAGIC_PROPERTIES: MagicProperty[] = [
   { name: 'Tidskontrollerende', icon: '⏳', color: 'text-cyan-300 bg-cyan-900/60 border border-cyan-300 shadow-[0_0_10px_cyan]', glow: '#06b6d4', rarity: 'rare' },
   { name: 'Radioaktiv', icon: '☢️', color: 'text-lime-300 bg-lime-900/80 border-2 border-lime-400 shadow-[0_0_15px_lime] animate-pulse', glow: '#84cc16', rarity: 'legendary' },
 ]
+
+export function getMagicPropertyByName(name: string): MagicProperty | undefined {
+  return MAGIC_PROPERTIES.find((m) => m.name === name)
+}

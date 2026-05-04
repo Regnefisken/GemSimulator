@@ -12,6 +12,7 @@ import {
   type ShopTabId,
   smelterNextUpgradeCost,
 } from '../../data/shop'
+import { playGoldSpend } from '../../lib/sounds'
 
 type Props = {
   state: GameState
@@ -31,22 +32,27 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
     state.smelterTier < SMELTER_TIERS.length ? SMELTER_TIERS[state.smelterTier] : null
 
   function buyPickaxe(tier: number) {
+    playGoldSpend()
     dispatch({ type: 'BUY_PICKAXE', tier })
   }
 
   function buySmelter() {
+    playGoldSpend()
     dispatch({ type: 'UPGRADE_SMELTER' })
   }
 
   function buyConsumable(id: string) {
+    playGoldSpend()
     dispatch({ type: 'BUY_CONSUMABLE', id })
   }
 
   function buyPack(packId: string) {
+    playGoldSpend()
     dispatch({ type: 'EXPAND_INVENTORY', packId })
   }
 
   function buyCharm(charmId: string) {
+    playGoldSpend()
     dispatch({ type: 'BUY_CHARM', charmId })
   }
 

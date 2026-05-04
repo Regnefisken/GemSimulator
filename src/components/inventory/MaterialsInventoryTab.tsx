@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type { GameState, PixelItem } from '../../types'
 import PixelItemCard from '../PixelItemCard'
 import ItemPreviewModal from './ItemPreviewModal'
@@ -42,10 +42,14 @@ export default function MaterialsInventoryTab({ state }: { state: GameState }) {
     state.metalNuggets.reduce((s, n) => s + n.quantity, 0) +
     state.metalIngots.reduce((s, i) => s + i.quantity, 0)
 
-  const roughSorted = [...state.roughStones].sort((a, b) => {
-    const r = { pristine: 0, fine: 1, crude: 2 }
-    return r[a.quality] - r[b.quality]
-  })
+  const roughSorted = useMemo(
+    () =>
+      [...state.roughStones].sort((a, b) => {
+        const r = { pristine: 0, fine: 1, crude: 2 }
+        return r[a.quality] - r[b.quality]
+      }),
+    [state.roughStones],
+  )
 
   function SectionTitle({ children }: { children: ReactNode }) {
     return <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mt-6 mb-2 first:mt-0">{children}</h3>

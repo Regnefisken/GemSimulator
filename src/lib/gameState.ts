@@ -1,6 +1,7 @@
 import type {
   GameState,
   Gem,
+  Jewelry,
   LocationId,
   MetalName,
   MetalNugget,
@@ -19,6 +20,13 @@ import { XP_REWARDS } from './leveling'
 import { startSmeltingJob } from '../gem/smelting'
 import { craftAlloy, craftGemFromRoughStone } from '../gem/crafting'
 import {
+  findJewelryRecipe,
+  gemMatchesRecipe,
+  makeJewelryPixelItem,
+  primaryMetalForRecipe,
+  recipeIngotRequirements,
+} from '../data/jewelry'
+import {
   CHARM_IDS,
   findCharm,
   findConsumable,
@@ -27,6 +35,13 @@ import {
   SHOP_CONSUMABLE_IDS,
   smelterNextUpgradeCost,
 } from '../data/shop'
+import {
+  ESSENCE_IDS,
+  getEssenceDef,
+  isValidEssenceMarketOffer,
+  MOON_TEAR_EFFECT_ID,
+  rollEssenceFromSmelt,
+} from '../data/essences'
 
 export type Action =
   | { type: 'GAIN_XP'; amount: number }
@@ -52,16 +67,49 @@ export type Action =
   | { type: 'START_SMELTING'; metalName: MetalName; source: 'ore' | 'nugget' }
   | { type: 'TICK_SMELTING' }
   | { type: 'CRAFT_ALLOY'; a: MetalName; b: MetalName }
-  | { type: 'CRAFT_GEM_FROM_ROUGH'; stoneId: string; ingotSelection: MetalName[] }
+  | { type: 'CRAFT_GEM_FROM_ROUGH'; stoneId: string; ingotSelection: MetalName[]; essenceId?: string }
   | { type: 'BUY_PICKAXE'; tier: number }
   | { type: 'UPGRADE_SMELTER' }
   | { type: 'BUY_CONSUMABLE'; id: string }
   | { type: 'EXPAND_INVENTORY'; packId: string }
   | { type: 'BUY_CHARM'; charmId: string }
   | { type: 'CONSUME_DYNAMITE' }
-  | { type: 'ADD_JEWELRY'; jewelry: { id: string } }
+  | { type: 'CRAFT_JEWELRY'; recipeId: string; gemId: string; essenceId?: string }
   | { type: 'SELL_JEWELRY'; id: string }
+  | { type: 'ADD_ESSENCE'; essenceId: string; quantity?: number }
+  | { type: 'USE_ESSENCE_MINE'; essenceId: string }
+  | { type: 'USE_ESSENCE_CHAMBER'; essenceId: string }
+  | { type: 'BUY_ESSENCE_MARKET'; essenceId: string; price: number }
+  | { type: 'PRUNE_EXPIRED_EFFECTS' }
+  | { type: 'UNLOCK_ACHIEVEMENTS'; ids: string[] }
   | { type: 'CLEAR_GAME_NOTICE' }
+
+function addEssence(state: GameState, essenceId: string, quantity: number): GameState {
+  if (quantity <= 0) return state
+  const idx = state.essences.findIndex((e) => e.essenceId === essenceId)
+  const essences =
+    idx >= 0
+      ? state.essences.map((e, i) => (i === idx ? { ...e, quantity: e.quantity + quantity } : e))
+      : [...state.essences, { essenceId, quantity }]
+  return {
+    ...state,
+    essences,
+    totalEssencesCollected: state.totalEssencesCollected + quantity,
+    gameNotice: null,
+  }
+}
+
+function consumeEssence(state: GameState, essenceId: string, quantity = 1): GameState | null {
+  const idx = state.essences.findIndex((e) => e.essenceId === essenceId)
+  if (idx < 0) return null
+  const row = state.essences[idx]
+  if (row.quantity < quantity) return null
+  const essences =
+    row.quantity === quantity
+      ? state.essences.filter((_, i) => i !== idx)
+      : state.essences.map((e, i) => (i === idx ? { ...e, quantity: e.quantity - quantity } : e))
+  return { ...state, essences }
+}
 
 export function materialsCount(state: GameState): number {
   return (
@@ -146,6 +194,8 @@ export const initialState: GameState = {
   reputation: 0,
   depth: 0,
   totalGemsFound: 0,
+  totalEssencesCollected: 0,
+  achievementsUnlocked: [],
   activePickaxeId: starter.id,
   pickaxes: [starter],
   gems: [],
@@ -164,6 +214,7 @@ export const initialState: GameState = {
   instantBreakNextRock: false,
   roughCraftPurityBonus: 0,
   jewelry: [],
+  essences: [],
   gameNotice: null,
   version: CURRENT_STATE_VERSION,
 }
@@ -310,6 +361,10 @@ export function reducer(state: GameState, action: Action): GameState {
           continue
         }
         s = applyEligibleUnlocks(applyXpGain({ ...afterIngot, gameNotice: null }, XP_REWARDS.oreSmelted))
+        const bonusEssence = rollEssenceFromSmelt()
+        if (bonusEssence) {
+          s = addEssence(s, bonusEssence, 1)
+        }
       }
       return { ...s, smeltingJobs: remaining }
     }
@@ -341,6 +396,20 @@ export function reducer(state: GameState, action: Action): GameState {
       if (action.ingotSelection.length > 3) return state
       const stone = state.roughStones.find((x) => x.id === action.stoneId)
       if (!stone) return { ...state, gameNotice: 'Rå klippe findes ikke.' }
+      let roughEssence: 'dragon_glimmer' | 'rune_dust' | undefined
+      const essenceIdToConsume = action.essenceId
+      if (essenceIdToConsume) {
+        const def = getEssenceDef(essenceIdToConsume)
+        const q = state.essences.find((e) => e.essenceId === essenceIdToConsume)?.quantity ?? 0
+        if (!def || q < 1) return { ...state, gameNotice: 'Mangler essens.' }
+        if (def.id === ESSENCE_IDS.dragonGlimmer && def.useKind === 'rough_craft_fire') {
+          roughEssence = 'dragon_glimmer'
+        } else if (def.id === ESSENCE_IDS.runeDust && def.useKind === 'rough_craft_rune') {
+          roughEssence = 'rune_dust'
+        } else {
+          return { ...state, gameNotice: 'Denne essens kan ikke bruges ved slibning.' }
+        }
+      }
       const need = new Map<MetalName, number>()
       for (const m of action.ingotSelection) {
         need.set(m, (need.get(m) ?? 0) + 1)
@@ -360,6 +429,11 @@ export function reducer(state: GameState, action: Action): GameState {
       const roughStones = [...next.roughStones]
       roughStones.splice(rs, 1)
       next = { ...next, roughStones }
+      if (roughEssence && essenceIdToConsume) {
+        const c = consumeEssence(next, essenceIdToConsume, 1)
+        if (!c) return { ...state, gameNotice: 'Mangler essens.' }
+        next = c
+      }
       const ingots = [...need.entries()].map(([metalName, quantity]) => ({ metalName, quantity }))
       const purityBonus = state.roughCraftPurityBonus
       const valueCharms = {
@@ -367,7 +441,7 @@ export function reducer(state: GameState, action: Action): GameState {
         deepCalm: state.activeCharms.includes(CHARM_IDS.deepCalm),
       }
       next = { ...next, roughCraftPurityBonus: 0 }
-      const gem = craftGemFromRoughStone(stone, ingots, next.depth, purityBonus, valueCharms)
+      const gem = craftGemFromRoughStone(stone, ingots, next.depth, purityBonus, valueCharms, roughEssence)
       return addGemWithRewards(next, gem)
     }
     case 'BUY_PICKAXE': {
@@ -467,6 +541,158 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'CONSUME_DYNAMITE':
       if (!state.instantBreakNextRock) return state
       return { ...state, instantBreakNextRock: false }
+    case 'CRAFT_JEWELRY': {
+      const recipe = findJewelryRecipe(action.recipeId)
+      if (!recipe) return state
+      if (state.level < recipe.level) {
+        return { ...state, gameNotice: `Kræver level ${recipe.level}.` }
+      }
+      const gem = state.gems.find((g) => g.id === action.gemId)
+      if (!gem) return { ...state, gameNotice: 'Ædelsten findes ikke.' }
+      if (!gemMatchesRecipe(gem, recipe)) {
+        return { ...state, gameNotice: 'Ædelsten opfylder ikke opskriftens krav.' }
+      }
+      const essenceIdToUse = action.essenceId
+      let goldMult = 1
+      if (essenceIdToUse) {
+        const ed = getEssenceDef(essenceIdToUse)
+        if (!ed || ed.useKind !== 'jewelry_gold_boost' || ed.id !== ESSENCE_IDS.aetherMote) {
+          return { ...state, gameNotice: 'Essensen passer ikke til smykkesmedning.' }
+        }
+        if ((state.essences.find((e) => e.essenceId === essenceIdToUse)?.quantity ?? 0) < 1) {
+          return { ...state, gameNotice: 'Mangler Æterisk kime.' }
+        }
+        goldMult = 1.1
+      }
+      const needs = recipeIngotRequirements(recipe)
+      for (const { metalName, quantity } of needs) {
+        const row = state.metalIngots.find((i) => i.metalName === metalName)
+        if (!row || row.quantity < quantity) {
+          return { ...state, gameNotice: 'Ikke nok metalbarer til opskriften.' }
+        }
+      }
+      let next = state
+      for (const { metalName, quantity } of needs) {
+        const c = consumeIngot(next, metalName, quantity)
+        if (!c) return { ...state, gameNotice: 'Ikke nok metalbarer til opskriften.' }
+        next = c
+      }
+      if (essenceIdToUse) {
+        const c = consumeEssence(next, essenceIdToUse, 1)
+        if (!c) return { ...state, gameNotice: 'Mangler Æterisk kime.' }
+        next = c
+      }
+      const gems = next.gems.filter((g) => g.id !== gem.id)
+      next = { ...next, gems }
+      const rim = primaryMetalForRecipe(recipe.requires.ingot)
+      const timestamp = new Date().toLocaleTimeString('da-DK', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+      const piece: Jewelry = {
+        id: `jewelry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        recipeId: recipe.id,
+        name: recipe.name,
+        gemUsed: { id: gem.id, name: gem.name },
+        ingotsUsed: needs,
+        goldValue: Math.floor(recipe.goldValue * goldMult),
+        reputationValue: recipe.reputation,
+        pixelItem: makeJewelryPixelItem(gem, rim),
+        timestamp,
+      }
+      next = { ...next, jewelry: [piece, ...next.jewelry], gameNotice: null }
+      return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.jewelryCrafted))
+    }
+    case 'SELL_JEWELRY': {
+      const idx = state.jewelry.findIndex((j) => j.id === action.id)
+      if (idx < 0) return state
+      const item = state.jewelry[idx]
+      const jewelry = state.jewelry.filter((j) => j.id !== action.id)
+      const next: GameState = {
+        ...state,
+        jewelry,
+        gold: state.gold + item.goldValue,
+        reputation: state.reputation + item.reputationValue,
+        gameNotice: null,
+      }
+      return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.jewelrySold))
+    }
+    case 'ADD_ESSENCE': {
+      const q = action.quantity ?? 1
+      return addEssence(state, action.essenceId, q)
+    }
+    case 'USE_ESSENCE_MINE': {
+      const def = getEssenceDef(action.essenceId)
+      if (!def) return state
+      if (def.useKind !== 'mine_phoenix' && def.useKind !== 'mine_slumber') {
+        return { ...state, gameNotice: 'Denne essens kan ikke bruges som mine-boost.' }
+      }
+      const spent = consumeEssence(state, action.essenceId, 1)
+      if (!spent) return { ...state, gameNotice: 'Du har ikke essensen.' }
+      if (def.useKind === 'mine_phoenix') {
+        return {
+          ...spent,
+          pickaxes: spent.pickaxes.map((p) => {
+            if (p.id !== spent.activePickaxeId) return p
+            const newMax = p.maxDurability + 5
+            return { ...p, maxDurability: newMax, durability: newMax }
+          }),
+          gameNotice: null,
+        }
+      }
+      return {
+        ...spent,
+        pickaxes: spent.pickaxes.map((p) =>
+          p.id === spent.activePickaxeId
+            ? {
+                ...p,
+                durability: Math.min(
+                  p.maxDurability,
+                  p.durability + Math.floor(p.maxDurability * 0.25),
+                ),
+              }
+            : p,
+        ),
+        gameNotice: null,
+      }
+    }
+    case 'USE_ESSENCE_CHAMBER': {
+      const def = getEssenceDef(action.essenceId)
+      if (!def || def.useKind !== 'chamber_moon') {
+        return { ...state, gameNotice: 'Kun Månetåre kan aktiveres i essenskammeret.' }
+      }
+      const spent = consumeEssence(state, action.essenceId, 1)
+      if (!spent) return { ...state, gameNotice: 'Du har ikke essensen.' }
+      const rest = spent.activeEffects.filter((e) => e.id !== MOON_TEAR_EFFECT_ID)
+      return {
+        ...spent,
+        activeEffects: [
+          ...rest,
+          { id: MOON_TEAR_EFFECT_ID, expiresAt: Date.now() + 5 * 60 * 1000 },
+        ],
+        gameNotice: null,
+      }
+    }
+    case 'BUY_ESSENCE_MARKET': {
+      if (!isValidEssenceMarketOffer(action.essenceId, action.price)) {
+        return { ...state, gameNotice: 'Ugyldigt markedstilbud (ny dag?).' }
+      }
+      if (state.gold < action.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      return addEssence({ ...state, gold: state.gold - action.price, gameNotice: null }, action.essenceId, 1)
+    }
+    case 'PRUNE_EXPIRED_EFFECTS': {
+      const now = Date.now()
+      return {
+        ...state,
+        activeEffects: state.activeEffects.filter((e) => e.expiresAt == null || e.expiresAt > now),
+      }
+    }
+    case 'UNLOCK_ACHIEVEMENTS': {
+      if (action.ids.length === 0) return state
+      const set = new Set([...state.achievementsUnlocked, ...action.ids])
+      return { ...state, achievementsUnlocked: [...set].sort() }
+    }
     default:
       return state
   }

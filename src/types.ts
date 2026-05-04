@@ -122,7 +122,21 @@ export type Area = {
 }
 
 export type ActiveEffect = { id: string; expiresAt?: number; chargesLeft?: number }
-export type Jewelry = { id: string }
+
+export type EssenceStack = { essenceId: string; quantity: number }
+
+export type Jewelry = {
+  id: string
+  recipeId: string
+  name: string
+  gemUsed: { id: string; name: string }
+  ingotsUsed: { metalName: MetalName; quantity: number }[]
+  goldValue: number
+  reputationValue: number
+  pixelItem: PixelItem
+  timestamp: string
+}
+
 export type SmeltingJob = {
   id: string
   metalName: MetalName
@@ -141,7 +155,12 @@ export type GameState = {
   reputation: number
 
   depth: number
+  /** Antal ædelsten fundet eller skåret i alt. */
   totalGemsFound: number
+  /** Livsvarigt antal essenser modtaget (mined, smelt, køb). */
+  totalEssencesCollected: number
+  /** Låste præstation-id'er (persist). */
+  achievementsUnlocked: string[]
   activePickaxeId: string
   pickaxes: Pickaxe[]
 
@@ -169,6 +188,8 @@ export type GameState = {
   roughCraftPurityBonus: number
 
   jewelry: Jewelry[]
+
+  essences: EssenceStack[]
 
   /** Kort bruger-feedback fra reducer (fx fuldt lager); nulstilles af UI. */
   gameNotice: string | null

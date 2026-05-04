@@ -1,4 +1,5 @@
-import { MINEABLE_METALS, type Area, type Gem, type MetalName, type MetalNugget, type RawOre, type RoughStone } from '../types'
+import { MINEABLE_METALS, type ActiveEffect, type Area, type Gem, type MetalName, type MetalNugget, type RawOre, type RoughStone } from '../types'
+import { MOON_TEAR_EFFECT_ID, rollEssenceFromMine } from '../data/essences'
 import { PALETTES } from '../data/palettes'
 import { CHARM_IDS } from '../data/shop'
 import { createRandomGem } from './generate'
@@ -38,6 +39,27 @@ export function rollMineDrop(area: Area, depth: number, activeCharms: string[] =
   if (r < stoneThreshold) return { kind: 'rough-stone', stone: rollRoughStone() }
   if (r < oreThreshold) return { kind: 'ore', ore: rollRawOreFromArea(area, depth) }
   return { kind: 'nothing' }
+}
+
+function effectActive(e: ActiveEffect, nowMs: number): boolean {
+  if (e.expiresAt != null && e.expiresAt <= nowMs) return false
+  return true
+}
+
+/** Ekstra essens-drop ved knust klippe (påvirkes af Månetåre og mine-bonus). */
+export function rollBonusMineEssence(
+  area: Area,
+  activeEffects: ActiveEffect[],
+  activeCharms: string[],
+  nowMs = Date.now(),
+): string | null {
+  if (area.kind !== 'mine' || !area.metalPool?.length) return null
+  let chance = 0.015 + area.rarityBonus * 0.008
+  if (activeCharms.includes(CHARM_IDS.luckyMiner)) chance += 0.008
+  const moonUp = activeEffects.some((e) => e.id === MOON_TEAR_EFFECT_ID && effectActive(e, nowMs))
+  if (moonUp) chance += 0.028
+  if (Math.random() >= chance) return null
+  return rollEssenceFromMine(area)
 }
 
 export function rollMetalFromPool(area: Area): MetalName {

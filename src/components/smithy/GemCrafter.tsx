@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { GameState, MetalName } from '../../types'
 import type { Action } from '../../lib/gameState'
 import { METALS } from '../../data/metals'
+import { ESSENCE_IDS } from '../../data/essences'
 
 type Props = {
   state: GameState
@@ -14,6 +15,7 @@ const MAX_INGOTS = 3
 export default function GemCrafter({ state, dispatch, onBeforeCraft }: Props) {
   const [stoneId, setStoneId] = useState<string | null>(null)
   const [slots, setSlots] = useState<MetalName[]>([])
+  const [roughEssenceId, setRoughEssenceId] = useState<string>('')
   const [polishing, setPolishing] = useState(false)
 
   useEffect(() => {
@@ -39,14 +41,23 @@ export default function GemCrafter({ state, dispatch, onBeforeCraft }: Props) {
     return Boolean(stoneId) && !polishing && state.roughStones.some((s) => s.id === stoneId)
   }
 
+  const dragonQ = state.essences.find((e) => e.essenceId === ESSENCE_IDS.dragonGlimmer)?.quantity ?? 0
+  const runeQ = state.essences.find((e) => e.essenceId === ESSENCE_IDS.runeDust)?.quantity ?? 0
+
   function runSlib() {
     if (!stoneId || polishing) return
     const firstGemIdBefore = state.gems[0]?.id
     setPolishing(true)
     window.setTimeout(() => {
       onBeforeCraft(firstGemIdBefore)
-      dispatch({ type: 'CRAFT_GEM_FROM_ROUGH', stoneId, ingotSelection: [...slots] })
+      dispatch({
+        type: 'CRAFT_GEM_FROM_ROUGH',
+        stoneId,
+        ingotSelection: [...slots],
+        essenceId: roughEssenceId || undefined,
+      })
       setSlots([])
+      setRoughEssenceId('')
       setPolishing(false)
     }, 1500)
   }
@@ -112,6 +123,26 @@ export default function GemCrafter({ state, dispatch, onBeforeCraft }: Props) {
               ))}
             </div>
           )}
+
+          <label className="block text-xs text-slate-400 mb-1">Valgfri essens ved slibning</label>
+          <select
+            value={roughEssenceId}
+            onChange={(e) => setRoughEssenceId(e.target.value)}
+            disabled={polishing}
+            className="w-full rounded-lg bg-slate-800 border border-slate-600 text-slate-100 px-3 py-2 text-sm mb-4"
+          >
+            <option value="">Ingen</option>
+            {dragonQ > 0 && (
+              <option value={ESSENCE_IDS.dragonGlimmer}>
+                Drageglimmer ({dragonQ}) — garanteret Ild-magi
+              </option>
+            )}
+            {runeQ > 0 && (
+              <option value={ESSENCE_IDS.runeDust}>
+                Runedrys ({runeQ}) — mindst to magiske egenskaber
+              </option>
+            )}
+          </select>
 
           <button
             type="button"

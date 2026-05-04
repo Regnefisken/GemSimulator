@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Gem, GameState } from '../../types'
 import GemCard from '../GemCard'
 import GemPreviewModal from './GemPreviewModal'
@@ -27,6 +27,7 @@ export default function GemInventoryTab({ state }: { state: GameState }) {
   const [preview, setPreview] = useState<Gem | null>(null)
   const cap = state.inventoryCapacity.gems
   const used = state.gems.length
+  const gems = useMemo(() => state.gems, [state.gems])
 
   return (
     <div>
@@ -35,7 +36,7 @@ export default function GemInventoryTab({ state }: { state: GameState }) {
         <p className="text-slate-500 text-sm">Ingen ædelsten endnu.</p>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-          {state.gems.map((gem, i) => (
+          {gems.map((gem, i) => (
             <GemCard key={gem.id} gem={gem} isNewest={i === 0} onClick={() => setPreview(gem)} />
           ))}
         </div>

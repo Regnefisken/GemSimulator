@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNode } from 'react'
 import type { Gem, GameState } from './types'
 import { AREAS } from './data/areas'
+import { discoverNewAchievementIds, getAchievementDef } from './data/achievements'
 import { createPreloadGem, createRandomGem } from './gem/generate'
 import { loadState, saveState } from './lib/storage'
 import { reducer } from './lib/gameState'
+import { playLevelUp } from './lib/sounds'
 import { TEMPLATES } from './data/templates'
 import AppShell from './components/layout/AppShell'
 import type { Tab } from './components/layout/TabBar'
@@ -13,7 +15,8 @@ import type { VoxelSceneHandle } from './components/VoxelScene'
 import MineScreen from './components/mine/MineScreen'
 import SmithyScreen from './components/smithy/SmithyScreen'
 import ShopScreen from './components/shop/ShopScreen'
-import { JewelryPlaceholder } from './components/placeholders'
+import JewelryWorkshopScreen from './components/jewelry/JewelryWorkshopScreen'
+import { ToastProvider, useToast } from './components/ui/ToastContext'
 
 function seedState(): GameState {
   const base = loadState()
@@ -24,11 +27,18 @@ function seedState(): GameState {
   return { ...base, gems, totalGemsFound: gems.length }
 }
 
-export default function App() {
+function AppContent() {
   const [state, dispatch] = useReducer(reducer, 0, seedState)
+  const stateRef = useRef(state)
+  stateRef.current = state
   const [tab, setTab] = useState<Tab>('map')
   const [currentGem, setCurrentGem] = useState<Gem | null>(null)
   const voxelRef = useRef<VoxelSceneHandle>(null)
+  const { showToast } = useToast()
+
+  const prevLevel = useRef<number | null>(null)
+  const prevUnlocks = useRef<Set<string> | null>(null)
+  const announcedAchievements = useRef<Set<string>>(new Set())
 
   useLayoutEffect(() => {
     setCurrentGem((c) => {
@@ -38,13 +48,55 @@ export default function App() {
   }, [state.gems])
 
   useEffect(() => {
-    saveState(state)
+    const t = window.setTimeout(() => saveState(stateRef.current), 750)
+    return () => {
+      window.clearTimeout(t)
+      saveState(stateRef.current)
+    }
   }, [state])
 
   useEffect(() => {
-    const id = window.setInterval(() => dispatch({ type: 'TICK_SMELTING' }), 500)
+    const id = window.setInterval(() => {
+      dispatch({ type: 'TICK_SMELTING' })
+      dispatch({ type: 'PRUNE_EXPIRED_EFFECTS' })
+    }, 500)
     return () => window.clearInterval(id)
   }, [dispatch])
+
+  useEffect(() => {
+    if (prevLevel.current !== null && state.level > prevLevel.current) {
+      showToast(`Level ${state.level}!`, 'gold')
+      playLevelUp()
+    }
+    prevLevel.current = state.level
+  }, [state.level, showToast])
+
+  useEffect(() => {
+    const cur = new Set(state.unlockedLocations)
+    if (prevUnlocks.current === null) {
+      prevUnlocks.current = cur
+      return
+    }
+    for (const locId of state.unlockedLocations) {
+      if (!prevUnlocks.current.has(locId)) {
+        const area = AREAS.find((a) => a.id === locId)
+        showToast(`${area?.icon ?? '📍'} ${area?.name ?? locId} er tilgængelig!`, 'success')
+      }
+    }
+    prevUnlocks.current = cur
+  }, [state.unlockedLocations, showToast])
+
+  useEffect(() => {
+    const newIds = discoverNewAchievementIds(state, state.achievementsUnlocked)
+    const fresh = newIds.filter((id) => !announcedAchievements.current.has(id))
+    if (fresh.length === 0) return
+    for (const id of fresh) {
+      announcedAchievements.current.add(id)
+      const a = getAchievementDef(id)
+      showToast(a ? `🏆 ${a.title}` : `🏆 Præstation`, 'success')
+    }
+    dispatch({ type: 'UNLOCK_ACHIEVEMENTS', ids: fresh })
+  }, [state, dispatch, showToast])
 
   function handleSelectGem(gem: Gem) {
     setCurrentGem(gem)
@@ -106,7 +158,7 @@ export default function App() {
     } else if (area.kind === 'butik') {
       screen = <ShopScreen state={state} dispatch={dispatch} onBack={goToMapView} />
     } else {
-      screen = <JewelryPlaceholder onBack={goToMapView} />
+      screen = <JewelryWorkshopScreen state={state} dispatch={dispatch} onBack={goToMapView} />
     }
   }
 
@@ -131,5 +183,13 @@ export default function App() {
         {screen}
       </AppShell>
     </>
+  )
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   )
 }

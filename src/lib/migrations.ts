@@ -1,9 +1,10 @@
 import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe } from '../types'
 import { makePickaxe } from '../data/pickaxes'
+import { migrateJewelry } from '../data/jewelry'
 import { METALS } from '../data/metals'
 import { computeGoldValue } from '../gem/generate'
 
-export const CURRENT_STATE_VERSION = 4
+export const CURRENT_STATE_VERSION = 7
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -108,6 +109,9 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
   const gemsRaw = r.gems
   const gems = Array.isArray(gemsRaw) ? gemsRaw.map(migrateGem) : base.gems
 
+  const jewelryRaw = r.jewelry
+  const jewelry = Array.isArray(jewelryRaw) ? jewelryRaw.map(migrateJewelry) : base.jewelry
+
   const next: GameState = {
     ...base,
     ...r,
@@ -117,6 +121,11 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     reputation: typeof r.reputation === 'number' ? r.reputation : base.reputation,
     depth: typeof r.depth === 'number' ? r.depth : base.depth,
     totalGemsFound: typeof r.totalGemsFound === 'number' ? r.totalGemsFound : base.totalGemsFound,
+    totalEssencesCollected:
+      typeof r.totalEssencesCollected === 'number' ? r.totalEssencesCollected : base.totalEssencesCollected,
+    achievementsUnlocked: Array.isArray(r.achievementsUnlocked)
+      ? (r.achievementsUnlocked as unknown[]).filter((x): x is string => typeof x === 'string')
+      : base.achievementsUnlocked,
     activePickaxeId: typeof r.activePickaxeId === 'string' ? r.activePickaxeId : base.activePickaxeId,
     pickaxes: pickaxes.length > 0 ? pickaxes : base.pickaxes,
     gems,
@@ -160,13 +169,31 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     activeEffects: Array.isArray(r.activeEffects)
       ? (r.activeEffects as GameState['activeEffects'])
       : base.activeEffects,
-    jewelry: Array.isArray(r.jewelry) ? (r.jewelry as GameState['jewelry']) : base.jewelry,
+    jewelry,
+    essences: Array.isArray(r.essences)
+      ? (r.essences as GameState['essences']).filter(
+          (e) =>
+            e &&
+            typeof e.essenceId === 'string' &&
+            typeof e.quantity === 'number' &&
+            e.quantity > 0,
+        )
+      : base.essences,
     instantBreakNextRock:
       typeof r.instantBreakNextRock === 'boolean' ? r.instantBreakNextRock : base.instantBreakNextRock,
     roughCraftPurityBonus:
       typeof r.roughCraftPurityBonus === 'number' ? r.roughCraftPurityBonus : base.roughCraftPurityBonus,
     gameNotice: typeof r.gameNotice === 'string' ? r.gameNotice : null,
     version: CURRENT_STATE_VERSION,
+  }
+
+  if (version < 7) {
+    if (
+      (typeof r.totalEssencesCollected !== 'number' || next.totalEssencesCollected === 0) &&
+      next.essences.length > 0
+    ) {
+      next.totalEssencesCollected = next.essences.reduce((s, e) => s + e.quantity, 0)
+    }
   }
 
   if (version < CURRENT_STATE_VERSION) {
