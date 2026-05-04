@@ -38,16 +38,16 @@
 
 @keyframes pickaxe-strike {
   0% {
-    transform: rotate(0deg);
+    transform: rotate(42deg);
   }
-  35% {
-    transform: rotate(-38deg);
+  42% {
+    transform: rotate(124deg);
   }
-  65% {
-    transform: rotate(14deg);
+  72% {
+    transform: rotate(72deg);
   }
   100% {
-    transform: rotate(0deg);
+    transform: rotate(42deg);
   }
 }
 

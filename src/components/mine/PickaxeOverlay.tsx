@@ -1,19 +1,20 @@
 type Props = { striking: boolean }
 
+/** ⛏️ med pivot ved håndtag (bund) — placeret ved klippens midte. */
 export default function PickaxeOverlay({ striking }: Props) {
   return (
-    <div className="pointer-events-none absolute inset-0 flex items-end justify-end p-3 sm:p-6 pb-10 sm:pb-14">
-      <svg
-        className={`w-16 h-16 sm:w-24 sm:h-24 text-slate-200 drop-shadow-2xl origin-bottom-right ${striking ? 'animate-pickaxe-strike' : ''}`}
-        viewBox="0 0 64 64"
-        fill="currentColor"
-        aria-hidden
-      >
-        <path d="M44 6 L52 8 L48 18 L42 16 Z" className="text-slate-400" />
-        <path d="M38 14 L48 18 L30 52 L22 48 Z" className="text-slate-300" />
-        <path d="M22 48 L30 52 L18 58 L14 50 Z" className="text-amber-900/90" />
-        <path d="M14 50 L18 58 L8 62 L6 54 Z" className="text-amber-950" />
-      </svg>
+    <div className="pointer-events-none absolute inset-0 z-[5]">
+      <div className="absolute left-1/2 top-[40%] -translate-x-1/2 w-0 h-0" aria-hidden>
+        <div className="absolute left-1/2 bottom-0 -translate-x-1/2">
+          <span
+            className={`block text-5xl sm:text-6xl leading-none select-none drop-shadow-[0_4px_0_rgba(0,0,0,0.45)] origin-bottom ${
+              striking ? 'animate-pickaxe-strike' : 'rotate-[42deg]'
+            }`}
+          >
+            ⛏️
+          </span>
+        </div>
+      </div>
     </div>
   )
 }

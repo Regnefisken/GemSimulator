@@ -131,7 +131,7 @@ export default function RepairStation({ state, dispatch }: Props) {
                 transition-all duration-75
               "
             >
-              {isFull ? '✓ Færdigreparet' : '🔨 Slå med hammeren'}
+              {isFull ? '✓ Færdigreparet' : 'Reparer'}
             </button>
           </div>
         </div>
