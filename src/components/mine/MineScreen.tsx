@@ -11,6 +11,7 @@ import Rock3DScene from './Rock3DScene'
 import PickaxeOverlay from './PickaxeOverlay'
 import DamageNumbers, { type DamageFloater } from './DamageNumbers'
 import MineHUD from './MineHUD'
+import RockDropBanner, { type DropNotice } from './RockDropBanner'
 
 type Props = {
   area: Area
@@ -40,7 +41,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const [hitPulse, setHitPulse] = useState(0)
   const [striking, setStriking] = useState(false)
   const [floaters, setFloaters] = useState<DamageFloater[]>([])
-  const [wow, setWow] = useState<'gem' | 'nugget' | null>(null)
+  const [dropNotice, setDropNotice] = useState<DropNotice | null>(null)
+  const noticeId = useRef(0)
   const hitId = useRef(0)
   const phoenixQ = state.essences.find((s) => s.essenceId === ESSENCE_IDS.phoenixAsh)?.quantity ?? 0
   const slumberQ = state.essences.find((s) => s.essenceId === ESSENCE_IDS.slumberPowder)?.quantity ?? 0
@@ -117,25 +119,26 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     playRockBreak()
     const drop = rollMineDrop(area, state.depth, state.activeCharms)
     const extra = extraMaterialsFromDrop(drop)
-    if (extra > 0 && matCount + extra > matCap) {
+    const lostToFullInventory = extra > 0 && matCount + extra > matCap
+    if (lostToFullInventory) {
       showToast('Råmaterialer: lager fuldt — droppet gik tabt.')
     } else {
       applyDrop(drop)
-      if (drop.kind === 'gem') {
-        playGemFound()
-        setWow('gem')
-        window.setTimeout(() => setWow(null), 2200)
-      } else if (drop.kind === 'nugget') {
-        setWow('nugget')
-        window.setTimeout(() => setWow(null), 2200)
-      }
+      if (drop.kind === 'gem') playGemFound()
     }
     const bonusEss = rollBonusMineEssence(area, state.activeEffects, state.activeCharms)
     if (bonusEss) {
       dispatch({ type: 'ADD_ESSENCE', essenceId: bonusEss, quantity: 1 })
       playEssenceFound()
-      const name = getEssenceDef(bonusEss)?.name ?? bonusEss
-      showToast(`Essens fundet: ${name}`, 'success')
+    }
+    if (!lostToFullInventory) {
+      const ess = bonusEss ? getEssenceDef(bonusEss) : null
+      setDropNotice({
+        id: noticeId.current++,
+        drop,
+        essenceId: bonusEss ?? null,
+        essenceName: ess?.name ?? null,
+      })
     }
 
     dispatch({ type: 'INCREMENT_DEPTH' })
@@ -235,26 +238,14 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         />
         <PickaxeOverlay striking={striking} />
         <DamageNumbers items={floaters} />
+        {dropNotice && (
+          <RockDropBanner
+            key={dropNotice.id}
+            notice={dropNotice}
+            onDone={() => setDropNotice(null)}
+          />
+        )}
       </div>
-
-      {wow && (
-        <div
-          className="fixed inset-0 pointer-events-none z-[65] flex items-center justify-center px-4 animate-wow-burst"
-          aria-live="polite"
-        >
-          <div className="text-center text-2xl sm:text-4xl font-black text-fuchsia-100 drop-shadow-[0_0_28px_rgba(232,121,249,0.85)] leading-tight">
-            {wow === 'gem' ? (
-              <>
-                ✦ SJÆLDEN ÆDELSTEN! ✦
-              </>
-            ) : (
-              <>
-                ★ METALKLUMP! ★
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

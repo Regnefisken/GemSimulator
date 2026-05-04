@@ -1,0 +1,171 @@
+import { useEffect, useState, type ReactNode, type TransitionEvent } from 'react'
+import type { MineDrop } from '../../gem/mining'
+import { METALS } from '../../data/metals'
+
+/** UI-state for drop-banner (feature-local, not global `types.ts`). */
+export type DropNotice = {
+  id: number
+  drop: MineDrop
+  essenceId: string | null
+  essenceName: string | null
+}
+
+type Props = {
+  notice: DropNotice
+  onDone: () => void
+}
+
+function borderClassForDrop(drop: MineDrop): string {
+  switch (drop.kind) {
+    case 'ore':
+      return 'border-blue-700/60'
+    case 'nugget':
+      return 'border-yellow-700/60'
+    case 'rough-stone':
+      return 'border-slate-600/60'
+    case 'gem':
+      return 'border-fuchsia-600/70'
+    case 'nothing':
+      return 'border-slate-700/40'
+    default:
+      return 'border-slate-700/40'
+  }
+}
+
+function roughStoneQualityBadgeClass(quality: 'crude' | 'fine' | 'pristine'): string {
+  switch (quality) {
+    case 'crude':
+      return 'text-slate-400'
+    case 'fine':
+      return 'text-emerald-300'
+    case 'pristine':
+      return 'text-amber-300'
+    default:
+      return 'text-slate-400'
+  }
+}
+
+function roughStoneQualityLabel(quality: 'crude' | 'fine' | 'pristine'): string {
+  switch (quality) {
+    case 'crude':
+      return 'grov'
+    case 'fine':
+      return 'fin'
+    case 'pristine':
+      return 'uberørt'
+    default:
+      return quality
+  }
+}
+
+export default function RockDropBanner({ notice, onDone }: Props) {
+  const { drop } = notice
+  const [leaving, setLeaving] = useState(false)
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setLeaving(true), 2000)
+    return () => window.clearTimeout(t)
+  }, [])
+
+  const handleTransitionEnd = (e: TransitionEvent<HTMLDivElement>) => {
+    if (e.propertyName === 'opacity' && leaving) onDone()
+  }
+
+  let icon: string
+  let title: ReactNode
+  let badgeClass: string
+  let badgeText: string
+
+  switch (drop.kind) {
+    case 'ore': {
+      const name = METALS[drop.ore.metalName]?.name ?? drop.ore.metalName
+      icon = '⛏️'
+      title = (
+        <>
+          {drop.ore.quantity}× {name} malm
+        </>
+      )
+      badgeClass = 'text-blue-300'
+      badgeText = 'Malm'
+      break
+    }
+    case 'nugget': {
+      const name = METALS[drop.nugget.metalName]?.name ?? drop.nugget.metalName
+      icon = '🔩'
+      title = (
+        <>
+          {drop.nugget.quantity}× {name} klump
+        </>
+      )
+      badgeClass = 'text-yellow-300'
+      badgeText = 'Klump'
+      break
+    }
+    case 'rough-stone': {
+      const q = drop.stone.quality
+      icon = '🪨'
+      title = (
+        <>
+          Rå klippe (
+          <span className={roughStoneQualityBadgeClass(q)}>{roughStoneQualityLabel(q)}</span>)
+        </>
+      )
+      badgeClass = roughStoneQualityBadgeClass(q)
+      badgeText = 'Rå klippe'
+      break
+    }
+    case 'gem': {
+      icon = '✦'
+      title = 'Ædelsten fundet!'
+      if (drop.gem.isGodTier) {
+        badgeClass = 'text-fuchsia-300'
+        badgeText = 'GUDDOMMELIG'
+      } else {
+        badgeClass = 'text-violet-300'
+        badgeText = 'Sjælden'
+      }
+      break
+    }
+    case 'nothing':
+    default:
+      icon = '—'
+      title = 'Ingen fund'
+      badgeClass = 'text-slate-500'
+      badgeText = '—'
+      break
+  }
+
+  return (
+    <div
+      role="status"
+      className={[
+        'absolute bottom-3 left-3 right-3 z-20',
+        'rounded-xl border bg-slate-900/90 backdrop-blur-sm px-4 py-3',
+        'flex items-start gap-3',
+        'animate-drop-banner-enter',
+        'transition-opacity duration-500',
+        'pointer-events-none',
+        borderClassForDrop(drop),
+        leaving ? 'opacity-0' : 'opacity-100',
+      ].join(' ')}
+      onTransitionEnd={handleTransitionEnd}
+    >
+      <span className="text-xl shrink-0 leading-none pt-0.5" aria-hidden>
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1 flex flex-col gap-1">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-bold text-slate-100 leading-snug">{title}</p>
+          <span className={`text-xs font-semibold shrink-0 uppercase tracking-wide ${badgeClass}`}>
+            {badgeText}
+          </span>
+        </div>
+        {notice.essenceName != null && (
+          <p className="text-xs text-cyan-300">
+            <span aria-hidden>🌟 </span>Essens: {notice.essenceName}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
