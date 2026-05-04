@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { GameState, Gem } from '../../types'
 import type { Action } from '../../lib/gameState'
-import type { VoxelSceneHandle } from '../VoxelScene'
 import GemViewer from '../GemViewer'
 import Collection from '../Collection'
 import Header from '../Header'
@@ -19,8 +18,6 @@ type Props = {
   currentGem: Gem | null
   onSelectGem: (gem: Gem) => void
   onClearGems: () => void
-  onDownload: () => void
-  voxelRef: React.RefObject<VoxelSceneHandle | null>
 }
 
 export default function SmithyScreen({
@@ -32,8 +29,6 @@ export default function SmithyScreen({
   currentGem,
   onSelectGem,
   onClearGems,
-  onDownload,
-  voxelRef,
 }: Props) {
   const expectCraft = useRef(false)
   const firstGemIdBeforeCraft = useRef<string | undefined>(undefined)
@@ -78,7 +73,7 @@ export default function SmithyScreen({
         }}
       />
 
-      <GemViewer gem={currentGem} voxelRef={voxelRef} onDownload={onDownload} />
+      <GemViewer gem={currentGem} />
       {state.gems.length > 1 && (
         <Collection gems={state.gems} onSelect={onSelectGem} onClear={onClearGems} />
       )}

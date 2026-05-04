@@ -11,7 +11,6 @@ import AppShell from './components/layout/AppShell'
 import type { Tab } from './components/layout/TabBar'
 import MapScreen from './components/map/MapScreen'
 import InventoryScreen from './components/inventory/InventoryScreen'
-import type { VoxelSceneHandle } from './components/VoxelScene'
 import MineScreen from './components/mine/MineScreen'
 import SmithyScreen from './components/smithy/SmithyScreen'
 import ShopScreen from './components/shop/ShopScreen'
@@ -34,7 +33,6 @@ function AppContent() {
   stateRef.current = state
   const [tab, setTab] = useState<Tab>('map')
   const [currentGem, setCurrentGem] = useState<Gem | null>(null)
-  const voxelRef = useRef<VoxelSceneHandle>(null)
   const { showToast } = useToast()
 
   const prevLevel = useRef<number | null>(null)
@@ -104,18 +102,6 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function handleDownload() {
-    if (!currentGem || !voxelRef.current) return
-    const url = voxelRef.current.toDataURL()
-    const a = document.createElement('a')
-    let filename = currentGem.name.replace(/ /g, '_')
-    const firstMagic = currentGem.magicProperties[0]
-    if (firstMagic) filename += `_${firstMagic.name}`
-    a.download = `${filename}_${currentGem.timestamp}.png`
-    a.href = url
-    a.click()
-  }
-
   function handleClear() {
     if (confirm('Slet hele samlingen?')) {
       dispatch({ type: 'CLEAR_GEMS' })
@@ -160,8 +146,6 @@ function AppContent() {
           currentGem={currentGem}
           onSelectGem={handleSelectGem}
           onClearGems={handleClear}
-          onDownload={handleDownload}
-          voxelRef={voxelRef}
         />
       )
     } else if (area.kind === 'butik') {

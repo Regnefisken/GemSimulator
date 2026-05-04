@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import type { PixelItem } from '../../types'
-import VoxelScene, { type VoxelSceneHandle } from '../VoxelScene'
+import VoxelScene from '../VoxelScene'
 
 type Props = {
   open: boolean
@@ -12,7 +12,6 @@ type Props = {
 }
 
 export default function ItemPreviewModal({ open, onClose, item, title, subtitleLines, footer }: Props) {
-  const voxelRef = useRef<VoxelSceneHandle>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -39,15 +38,6 @@ export default function ItemPreviewModal({ open, onClose, item, title, subtitleL
 
   const hasPixels = item.data.length > 0
 
-  function downloadPng() {
-    if (!voxelRef.current) return
-    const url = voxelRef.current.toDataURL()
-    const a = document.createElement('a')
-    a.download = `${title.replace(/\s+/g, '_')}.png`
-    a.href = url
-    a.click()
-  }
-
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm"
@@ -71,7 +61,6 @@ export default function ItemPreviewModal({ open, onClose, item, title, subtitleL
           <div className="w-full max-w-[min(100%,400px)] aspect-square min-h-[220px] rounded-xl overflow-hidden border border-slate-700 bg-slate-950">
             {hasPixels ? (
               <VoxelScene
-                ref={voxelRef}
                 data={item.data}
                 colorMap={item.colorMap}
                 className="w-full h-full"
@@ -81,14 +70,6 @@ export default function ItemPreviewModal({ open, onClose, item, title, subtitleL
               <div className="w-full h-full flex items-center justify-center text-slate-500 text-sm">Intet billede</div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={downloadPng}
-            disabled={!hasPixels}
-            className="mt-3 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 text-sm font-semibold"
-          >
-            Gem PNG
-          </button>
         </div>
 
         <div className="flex-1 flex flex-col min-w-0 pt-8 md:pt-2">

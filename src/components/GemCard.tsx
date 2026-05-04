@@ -71,7 +71,6 @@ export default function GemCard({ gem, isNewest, onClick }: Props) {
           {gem.goldValue}
         </div>
       </div>
-      <div className="text-[10px] font-mono text-slate-500 mt-1">{gem.timestamp}</div>
     </div>
   )
 }

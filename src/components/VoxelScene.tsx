@@ -1,13 +1,5 @@
 import type { CSSProperties } from 'react'
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
@@ -118,40 +110,34 @@ function Scene({
   )
 }
 
-export type VoxelSceneHandle = { toDataURL: () => string }
+export default function VoxelScene({
+  data,
+  colorMap,
+  className,
+  canvasStyle,
+}: {
+  data: string[]
+  colorMap: ColorMap
+  className?: string
+  canvasStyle?: CSSProperties
+}) {
+  const { dpr, antialias } = useDisplayRenderGlFallback()
 
-const VoxelScene = forwardRef<
-  VoxelSceneHandle,
-  { data: string[]; colorMap: ColorMap; className?: string; canvasStyle?: CSSProperties }
->(({ data, colorMap, className, canvasStyle }, ref) => {
-    const glRef = useRef<THREE.WebGLRenderer | null>(null)
-    const { dpr, antialias } = useDisplayRenderGlFallback()
-
-    useImperativeHandle(ref, () => ({
-      toDataURL: () => glRef.current?.domElement.toDataURL('image/png') ?? '',
-    }))
-
-    return (
-      <Canvas
-        key={`voxel-gl-${dpr}-${antialias}`}
-        orthographic
-        camera={{ position: [0, 0, 18], near: 0.1, far: 60 }}
-        gl={{ antialias, preserveDrawingBuffer: true }}
-        dpr={dpr}
-        style={{ width: 320, height: 320, ...canvasStyle }}
-        className={`pixelated block max-w-full ${className ?? ''}`}
-        onCreated={({ gl }) => {
-          gl.setClearColor(new THREE.Color(0x020617))
-          gl.setPixelRatio(dpr)
-          glRef.current = gl
-        }}
-      >
-        <Scene data={data} colorMap={colorMap} />
-      </Canvas>
-    )
-  }
-)
-
-VoxelScene.displayName = 'VoxelScene'
-
-export default VoxelScene
+  return (
+    <Canvas
+      key={`voxel-gl-${dpr}-${antialias}`}
+      orthographic
+      camera={{ position: [0, 0, 18], near: 0.1, far: 60 }}
+      gl={{ antialias }}
+      dpr={dpr}
+      style={{ width: 320, height: 320, ...canvasStyle }}
+      className={`pixelated block max-w-full ${className ?? ''}`}
+      onCreated={({ gl }) => {
+        gl.setClearColor(new THREE.Color(0x020617))
+        gl.setPixelRatio(dpr)
+      }}
+    >
+      <Scene data={data} colorMap={colorMap} />
+    </Canvas>
+  )
+}

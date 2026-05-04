@@ -1,11 +1,8 @@
-import type { RefObject } from 'react'
 import type { Gem } from '../types'
-import VoxelScene, { type VoxelSceneHandle } from './VoxelScene'
+import VoxelScene from './VoxelScene'
 
 type Props = {
   gem: Gem | null
-  voxelRef: RefObject<VoxelSceneHandle | null>
-  onDownload: () => void
   /** Hvis udeladt, vises ikke "Slib ny"-knappen. */
   onGenerate?: () => void
   /** Skjul "Slib ny"-knappen (fx inventar-modal). */
@@ -105,7 +102,7 @@ function glowStateForGem(gem: Gem) {
   }
 }
 
-export default function GemViewer({ gem, voxelRef, onGenerate, onDownload, compact }: Props) {
+export default function GemViewer({ gem, onGenerate, compact }: Props) {
   const gs = gem ? glowStateForGem(gem) : null
   const glowColor = gs?.color ?? '#eab308'
   const glowOpacity = gs?.opacity ?? 0.25
@@ -127,7 +124,7 @@ export default function GemViewer({ gem, voxelRef, onGenerate, onDownload, compa
         <div className="relative z-10 flex flex-col items-center">
           <div className="bg-slate-950 p-5 rounded-2xl shadow-inner border border-slate-600 mb-6 relative">
             <div className="w-[320px] h-[320px] overflow-hidden rounded-sm">
-              {gem ? <VoxelScene ref={voxelRef} data={gem.data} colorMap={gem.colorMap} /> : null}
+              {gem ? <VoxelScene data={gem.data} colorMap={gem.colorMap} /> : null}
             </div>
           </div>
           {gem && (
@@ -150,23 +147,10 @@ export default function GemViewer({ gem, voxelRef, onGenerate, onDownload, compa
                   ))}
                 </div>
               )}
-              <div className="flex items-center justify-center gap-3 text-sm flex-wrap">
+              <div className="flex items-center justify-center text-sm">
                 <span className="px-4 py-1 bg-amber-500/15 border border-amber-500/40 rounded-full font-semibold text-amber-200 text-xs">
                   🪙 {gem.goldValue}
                 </span>
-                <span className="px-5 py-1 bg-slate-700 rounded-full font-mono text-slate-300">
-                  Slebet: {gem.timestamp}
-                </span>
-                <button
-                  type="button"
-                  onClick={onDownload}
-                  className="flex items-center gap-1.5 px-4 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold text-xs rounded-2xl transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 16v-4m0 0l4 4m-4-4l4-4m12 0v4m0 0l-4-4m4 4l-4 4" />
-                  </svg>
-                  PNG
-                </button>
               </div>
             </div>
           )}

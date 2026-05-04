@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Gem } from '../../types'
 import GemViewer from '../GemViewer'
-import type { VoxelSceneHandle } from '../VoxelScene'
 
 type Props = {
   gem: Gem | null
@@ -10,7 +9,6 @@ type Props = {
 }
 
 export default function GemPreviewModal({ gem, open, onClose }: Props) {
-  const voxelRef = useRef<VoxelSceneHandle>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -35,18 +33,6 @@ export default function GemPreviewModal({ gem, open, onClose }: Props) {
 
   const g = gem
 
-  function download() {
-    if (!voxelRef.current) return
-    const url = voxelRef.current.toDataURL()
-    const a = document.createElement('a')
-    let filename = g.name.replace(/ /g, '_')
-    const firstMagic = g.magicProperties[0]
-    if (firstMagic) filename += `_${firstMagic.name}`
-    a.download = `${filename}_${g.timestamp}.png`
-    a.href = url
-    a.click()
-  }
-
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm overflow-y-auto"
@@ -61,7 +47,7 @@ export default function GemPreviewModal({ gem, open, onClose }: Props) {
         >
           Luk
         </button>
-        <GemViewer gem={g} voxelRef={voxelRef} onDownload={download} compact />
+        <GemViewer gem={g} compact />
       </div>
     </div>
   )
