@@ -3,7 +3,7 @@ import { makePickaxe } from '../data/pickaxes'
 import { METALS } from '../data/metals'
 import { computeGoldValue } from '../gem/generate'
 
-export const CURRENT_STATE_VERSION = 2
+export const CURRENT_STATE_VERSION = 3
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }

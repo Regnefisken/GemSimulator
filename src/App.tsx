@@ -9,16 +9,10 @@ import AppShell from './components/layout/AppShell'
 import type { Tab } from './components/layout/TabBar'
 import MapScreen from './components/map/MapScreen'
 import InventoryScreen from './components/inventory/InventoryScreen'
-import Header from './components/Header'
-import GemViewer from './components/GemViewer'
-import Collection from './components/Collection'
 import type { VoxelSceneHandle } from './components/VoxelScene'
 import MineScreen from './components/mine/MineScreen'
-import {
-  JewelryPlaceholder,
-  ShopScreenPlaceholder,
-  SmithyPlaceholder,
-} from './components/placeholders'
+import SmithyScreen from './components/smithy/SmithyScreen'
+import { JewelryPlaceholder, ShopScreenPlaceholder } from './components/placeholders'
 
 function seedState(): GameState {
   const base = loadState()
@@ -46,11 +40,10 @@ export default function App() {
     saveState(state)
   }, [state])
 
-  function handleGenerate() {
-    const gem = createRandomGem(state.depth)
-    dispatch({ type: 'ADD_GEM', gem })
-    setCurrentGem(gem)
-  }
+  useEffect(() => {
+    const id = window.setInterval(() => dispatch({ type: 'TICK_SMELTING' }), 500)
+    return () => window.clearInterval(id)
+  }, [dispatch])
 
   function handleSelectGem(gem: Gem) {
     setCurrentGem(gem)
@@ -80,23 +73,6 @@ export default function App() {
     dispatch({ type: 'SET_VIEW_MODE', viewMode: 'map' })
   }
 
-  const collection = state.gems
-
-  const smithyContent = (
-    <>
-      <Header templateCount={TEMPLATES.length} />
-      <GemViewer
-        gem={currentGem}
-        voxelRef={voxelRef}
-        onGenerate={handleGenerate}
-        onDownload={handleDownload}
-      />
-      {collection.length > 1 && (
-        <Collection gems={collection} onSelect={handleSelectGem} onClear={handleClear} />
-      )}
-    </>
-  )
-
   let screen: ReactNode
 
   if (tab === 'inventory') {
@@ -112,7 +88,20 @@ export default function App() {
     } else if (area.kind === 'mine') {
       screen = <MineScreen area={area} state={state} dispatch={dispatch} onBack={goToMapView} />
     } else if (area.kind === 'smedje') {
-      screen = <SmithyPlaceholder onBack={goToMapView}>{smithyContent}</SmithyPlaceholder>
+      screen = (
+        <SmithyScreen
+          state={state}
+          dispatch={dispatch}
+          onBack={goToMapView}
+          onGoToShop={() => setTab('shop')}
+          templateCount={TEMPLATES.length}
+          currentGem={currentGem}
+          onSelectGem={handleSelectGem}
+          onClearGems={handleClear}
+          onDownload={handleDownload}
+          voxelRef={voxelRef}
+        />
+      )
     } else if (area.kind === 'butik') {
       screen = <ShopScreenPlaceholder onBack={goToMapView} />
     } else {

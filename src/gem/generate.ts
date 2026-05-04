@@ -152,7 +152,7 @@ export function rollMetalInclusions(area?: Area): MetalInclusion[] {
   return picked
 }
 
-function addMetalInclusionMarks(baseData: string[], slotChars: string[]): string[] {
+export function addMetalInclusionMarks(baseData: string[], slotChars: string[]): string[] {
   if (slotChars.length === 0) return baseData
   const grid = cloneTemplate(baseData)
   const height = grid.length

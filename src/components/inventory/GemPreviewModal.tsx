@@ -61,7 +61,7 @@ export default function GemPreviewModal({ gem, open, onClose }: Props) {
         >
           Luk
         </button>
-        <GemViewer gem={g} voxelRef={voxelRef} onGenerate={() => {}} onDownload={download} compact />
+        <GemViewer gem={g} voxelRef={voxelRef} onDownload={download} compact />
       </div>
     </div>
   )

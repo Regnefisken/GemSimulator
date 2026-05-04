@@ -5,8 +5,9 @@ import VoxelScene, { type VoxelSceneHandle } from './VoxelScene'
 type Props = {
   gem: Gem | null
   voxelRef: RefObject<VoxelSceneHandle | null>
-  onGenerate: () => void
   onDownload: () => void
+  /** Hvis udeladt, vises ikke "Slib ny"-knappen. */
+  onGenerate?: () => void
   /** Skjul "Slib ny"-knappen (fx inventar-modal). */
   compact?: boolean
 }
@@ -172,7 +173,7 @@ export default function GemViewer({ gem, voxelRef, onGenerate, onDownload, compa
         </div>
       </div>
 
-      {!compact && (
+      {!compact && onGenerate && (
         <button
           type="button"
           onClick={onGenerate}

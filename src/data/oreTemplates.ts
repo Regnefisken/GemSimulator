@@ -1,4 +1,5 @@
 import type { ColorMap, MetalName, Palette, PixelItem, RoughStone } from '../types'
+import { INGOT_TEMPLATE } from './ingotTemplates'
 import { METALS } from './metals'
 
 function parseHex(hex: string) {
@@ -122,6 +123,18 @@ export function makeNuggetPixelItem(metalName: MetalName): PixelItem {
       M: metal.pixelColor,
       S: darkenColor(metal.pixelColor, 0.35),
       F: '#ffffff',
+    },
+  }
+}
+
+export function makeIngotPixelItem(metalName: MetalName): PixelItem {
+  const metal = METALS[metalName]
+  return {
+    data: INGOT_TEMPLATE,
+    colorMap: {
+      I: darkenColor(metal.pixelColor, 0.28),
+      H: metal.pixelColor,
+      E: lightenColor(metal.pixelColor, 0.22),
     },
   }
 }
