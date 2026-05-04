@@ -55,7 +55,7 @@ export default function RepairStation({ state, dispatch }: Props) {
 
   return (
     <section className="rounded-2xl border border-amber-900/50 bg-slate-900/80 p-4 sm:p-6 shadow-lg">
-      <h2 className="text-lg font-bold text-amber-100 mb-1 flex items-center gap-2">🔨 Reparationsbænk</h2>
+      <h2 className="text-lg font-bold text-amber-100 mb-1 flex items-center gap-2">🛠️ Reparationsbænk</h2>
       <p className="text-slate-400 text-sm mb-4">
         Slå på ambolten for at reparere din aktive hakke. Skift aktiv hakke i lageret.
       </p>
@@ -83,12 +83,12 @@ export default function RepairStation({ state, dispatch }: Props) {
           </div>
 
           <div className="relative flex flex-col items-center gap-3">
-            <div className="relative w-full h-40 rounded-xl bg-slate-950/60 border border-slate-700 overflow-hidden">
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-4xl select-none" aria-hidden>
-                🛠️
-              </div>
-
-              <div key={swing} className="absolute top-2 left-1/2 hammer-strike text-3xl select-none" aria-hidden>
+            <div className="relative w-full h-48 sm:h-52 rounded-xl bg-slate-950/60 border border-slate-700 overflow-hidden">
+              <div
+                key={swing}
+                className="absolute top-3 left-1/2 hammer-strike text-6xl sm:text-7xl leading-none select-none"
+                aria-hidden
+              >
                 🔨
               </div>
 

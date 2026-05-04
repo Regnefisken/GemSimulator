@@ -121,7 +121,11 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     const extra = extraMaterialsFromDrop(drop)
     const lostToFullInventory = extra > 0 && matCount + extra > matCap
     if (lostToFullInventory) {
-      showToast('Råmaterialer: lager fuldt — droppet gik tabt.')
+      showToast(
+        'Lageret for råmaterialer (malm, klumper, rå klipper) er fuldt, så droppet gik tabt. Gå til butikken fra kortet og brug fanen «Sælg», eller brug materialerne i smedjen, så der bliver plads igen.',
+        'info',
+        7000,
+      )
     } else {
       applyDrop(drop)
       if (drop.kind === 'gem') playGemFound()
