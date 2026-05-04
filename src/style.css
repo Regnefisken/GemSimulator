@@ -35,3 +35,68 @@
 .glow-radioactive {
   animation: radioactive-pulse 2s infinite;
 }
+
+@keyframes pickaxe-strike {
+  0% {
+    transform: rotate(0deg);
+  }
+  35% {
+    transform: rotate(-38deg);
+  }
+  65% {
+    transform: rotate(14deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-pickaxe-strike {
+  animation: pickaxe-strike 220ms ease-out;
+}
+
+@keyframes damage-float {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-42px) scale(1.08);
+  }
+}
+
+.animate-damage-float {
+  animation: damage-float 0.58s ease-out forwards;
+}
+
+@keyframes wow-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+.glow-legendary {
+  animation: legendary-glow-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes legendary-glow-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 18px rgb(168 85 247 / 0.45));
+    opacity: 0.85;
+  }
+  50% {
+    filter: drop-shadow(0 0 36px rgb(244 114 182 / 0.65));
+    opacity: 1;
+  }
+}

@@ -12,7 +12,7 @@ export default function GemCard({ gem, isNewest, onClick }: Props) {
     if (c) drawGem(c, gem.data, gem.colorMap, 5)
   }, [gem])
 
-  const isRadioaktiv = gem.magicProperty?.name === 'Radioaktiv'
+  const isRadioaktiv = gem.magicProperties.some((m) => m.name === 'Radioaktiv')
   const borderClass = isRadioaktiv
     ? 'border-lime-500/50 hover:border-lime-400 shadow-[0_0_8px_rgba(132,204,22,0.3)]'
     : 'border-slate-700 hover:border-slate-500'
@@ -41,15 +41,35 @@ export default function GemCard({ gem, isNewest, onClick }: Props) {
         height={80}
         className="pixelated mb-3 group-hover:scale-105 transition-transform"
       />
-      <div className="text-xs font-medium text-center leading-tight text-slate-300 group-hover:text-white">
+      <div className="text-xs font-medium text-center leading-tight text-slate-300 group-hover:text-white w-full">
         {displayName}
-        {gem.magicProperty && (
-          <div
-            className={`text-[10px] mt-1 font-bold ${isRadioaktiv ? 'text-lime-400 animate-pulse' : 'text-slate-400'}`}
-          >
-            {gem.magicProperty.icon} {gem.magicProperty.name}
+        {gem.metalInclusions.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-1 mt-1.5 text-base leading-none" aria-label="Metal">
+            {gem.metalInclusions.map((inc) => (
+              <span key={`${gem.id}-m-${inc.name}`} title={`${inc.name}: ${inc.effect}`}>
+                {inc.icon}
+              </span>
+            ))}
           </div>
         )}
+        {gem.magicProperties.length > 0 && (
+          <div
+            className={`flex flex-wrap justify-center gap-1 mt-1.5 ${isRadioaktiv ? 'text-lime-400' : 'text-slate-400'}`}
+          >
+            {gem.magicProperties.map((m) => (
+              <span
+                key={`${gem.id}-${m.name}`}
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border border-slate-600/80 ${m.color}`}
+              >
+                {m.icon}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="text-[11px] font-semibold text-amber-400/95 mt-1.5 flex items-center justify-center gap-1">
+          <span aria-hidden>🪙</span>
+          {gem.goldValue}
+        </div>
       </div>
       <div className="text-[10px] font-mono text-slate-500 mt-1">{gem.timestamp}</div>
     </div>

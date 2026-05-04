@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import {
   forwardRef,
   useEffect,
@@ -118,8 +119,10 @@ function Scene({
 
 export type VoxelSceneHandle = { toDataURL: () => string }
 
-const VoxelScene = forwardRef<VoxelSceneHandle, { data: string[]; colorMap: ColorMap }>(
-  ({ data, colorMap }, ref) => {
+const VoxelScene = forwardRef<
+  VoxelSceneHandle,
+  { data: string[]; colorMap: ColorMap; className?: string; canvasStyle?: CSSProperties }
+>(({ data, colorMap, className, canvasStyle }, ref) => {
     const glRef = useRef<THREE.WebGLRenderer | null>(null)
 
     useImperativeHandle(ref, () => ({
@@ -132,8 +135,8 @@ const VoxelScene = forwardRef<VoxelSceneHandle, { data: string[]; colorMap: Colo
         camera={{ position: [0, 0, 18], near: 0.1, far: 60 }}
         gl={{ antialias: false, preserveDrawingBuffer: true }}
         dpr={1}
-        style={{ width: 320, height: 320 }}
-        className="pixelated block max-w-full"
+        style={{ width: 320, height: 320, ...canvasStyle }}
+        className={`pixelated block max-w-full ${className ?? ''}`}
         onCreated={({ gl }) => {
           gl.setClearColor(new THREE.Color(0x020617))
           gl.setPixelRatio(1)

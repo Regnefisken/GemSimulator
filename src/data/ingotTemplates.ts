@@ -1,0 +1,18 @@
+export const INGOT_TEMPLATE: string[] = [
+  '................',
+  '................',
+  '................',
+  '....IIIIIIII....',
+  '...IHHHHHHHHI...',
+  '..IHHEEEEEEHHI..',
+  '..IHEEHHHHEEHI..',
+  '..IHEEHHHHEEHI..',
+  '..IHEEHHHHEEHI..',
+  '..IHHEEEEEEHHI..',
+  '...IHHHHHHHHI...',
+  '....IIIIIIII....',
+  '................',
+  '................',
+  '................',
+  '................',
+]
