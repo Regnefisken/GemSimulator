@@ -16,6 +16,8 @@ export const SHOP_CONSUMABLE_IDS = {
 
 /** Butikkens hakker (tier matcher `makePickaxe(tier)`). */
 export const SHOP_PICKAXE_OFFERS = [
+  /** Samme som starthakken — billig erstatning når holdbarheden slipper op før level 3. */
+  { tier: 0, price: 10, minLevel: 1 },
   { tier: 1, price: 200, minLevel: 3 },
   { tier: 2, price: 1000, minLevel: 8 },
   { tier: 3, price: 10000, minLevel: 25 },
