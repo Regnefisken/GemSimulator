@@ -172,7 +172,7 @@ function AppContent() {
           </button>
         </div>
       )}
-      <AppShell state={state} tab={tab} onTabChange={handleTabChange}>
+      <AppShell state={state} dispatch={dispatch} tab={tab} onTabChange={handleTabChange}>
         {screen}
       </AppShell>
     </>

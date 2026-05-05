@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type Dispatch } from 'react'
 import type { GameState } from '../../types'
+import type { Action } from '../../lib/gameState'
 import { xpToNextLevel } from '../../lib/leveling'
 import { isSoundMuted, setSoundMuted } from '../../lib/sounds'
 import SettingsMenu from './SettingsMenu'
 
-type Props = { state: GameState }
+type Props = { state: GameState; dispatch: Dispatch<Action> }
 
-export default function LevelBadge({ state }: Props) {
+export default function LevelBadge({ state, dispatch }: Props) {
   const need = xpToNextLevel(state.level)
   const pct = need > 0 ? Math.min(100, (state.xp / need) * 100) : 0
   const [muted, setMuted] = useState(isSoundMuted)
@@ -87,7 +88,9 @@ export default function LevelBadge({ state }: Props) {
             >
               ⚙️
             </button>
-            {settingsOpen && <SettingsMenu onClose={() => setSettingsOpen(false)} />}
+            {settingsOpen && (
+              <SettingsMenu onClose={() => setSettingsOpen(false)} state={state} dispatch={dispatch} />
+            )}
           </div>
           <span
             className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-300 px-2 py-0.5 text-[11px] sm:text-xs font-semibold border border-amber-500/30 max-w-[100px] sm:max-w-none truncate"

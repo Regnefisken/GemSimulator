@@ -1,12 +1,17 @@
-import { useState } from 'react'
+import { useState, type Dispatch } from 'react'
+import type { GameState } from '../../types'
+import type { Action } from '../../lib/gameState'
+import DevCheatPanel from '../../dev/DevCheatPanel'
 import { DISPLAY_RENDER_PRESETS } from '../../lib/displayRenderSettings'
 import { useDisplayRender } from './DisplayRenderContext'
 
 type Props = {
   onClose: () => void
+  state: GameState
+  dispatch: Dispatch<Action>
 }
 
-export default function SettingsMenu({ onClose }: Props) {
+export default function SettingsMenu({ onClose, state, dispatch }: Props) {
   const [resetPending, setResetPending] = useState(false)
   const { preset, setPreset, gl } = useDisplayRender()
 
@@ -85,6 +90,8 @@ export default function SettingsMenu({ onClose }: Props) {
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">ℹ️ Om spillet</h3>
           <p className="text-xs text-slate-600 italic px-3 py-1">Kommer snart</p>
         </section>
+
+        <DevCheatPanel state={state} dispatch={dispatch} />
       </div>
 
       {resetPending && (
