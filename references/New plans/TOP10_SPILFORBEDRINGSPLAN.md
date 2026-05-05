@@ -1,42 +1,46 @@
-# Top 10 Forbedringsplan for GemSimulator
+# Top 10 Spilforbedringsplan (gameplay, opdateret)
 
-Denne fil indeholder en **prioriteret Top 10 plan** for at løfte dit gem-spil til et langt mere poleret og engagerende niveau.
+Denne plan tager udgangspunkt i det nuvaerende spil, hvor du allerede har:
+- kort med lokations-unlocks
+- mine/smedje/butik/smykkevaerksted
+- level + XP + omdoemme
+- achievements
+- persistent save/load
 
-## 📋 Top 10 Forbedringer (prioriteret)
+## Top 10 gameplay-forbedringer
 
-### 1. Forbedre Core Mining Loop
-Gør det sjovere og mere tilfredsstillende at mine ædelsten. Tilføj bedre haptic feedback, partikler, lydeffekter og visuel respons på hvert tryk.
+### 1. Tydelig "naeste maal"-guidning
+Giv spilleren et lille dynamisk maalpanel ("Naeste unlock", "Mangler X guld", "Mangler Y omdoemme"), saa progressionen altid foeles tydelig.
 
-### 2. Implementér Progression System
-Tilføj XP, levels, og unlock af nye gems, opgraderinger og features.
+### 2. Omraade-identitet i miner
+Gor hver mine mere unik med egne mini-modifiers (dropprofil, stenhaardhed, event-chance), sa valget af omraade bliver strategisk.
 
-### 3. Visuel & Atmosfærisk Polish
-Forbedr lighting, shadows, camera controls, gem rotation, background og special effects.
+### 3. Pickaxe-fordele med tydelig rolle
+Lad hoejere pickaxe-tier ikke kun vaere "mere skade", men ogsaa fx bedre holdbarhedsoekonomi eller bonus mod bestemte sten-typer.
 
-### 4. Moderne og Intuitiv UI/UX
-Redesign menu, inventory, settings og HUD for bedre brugervenlighed og æstetik.
+### 4. Smedje-flow uden doedtid
+Goer det lettere at skifte mellem smeltning, legering og crafting via anbefalinger og quick-actions, saa spilleren ikke mister rytme.
 
-### 5. Robust Save/Load System
-Gem spillerens fremskridt permanent (level, gems, samling).
+### 5. Smykker som langsigtet loop
+Udvid smykke-opskrifter med tydelige "build paths", saa spilleren kan planlaegge frem mod premium-salg i adelsmarkedet.
 
-### 6. Performance Optimering
-Optimer Three.js (reducer draw calls, brug instancing, LOD osv.) – især vigtigt for mobil.
+### 6. Bedre kapacitetsstyring
+Inventory-kapacitet findes allerede; tilfoej tidlige advarsler + smartere "ryd op"-flow (fx filtreret quick-sell), sa fulde lagre foeles mindre frustrerende.
 
-### 7. Audio & Sound Design
-Tilføj baggrundsmusik, mining lyde, collect sounds og UI feedback.
+### 7. Oekonomi og reward pacing
+Juster forholdet mellem guld, XP og omdoemme, saa ingen aktivitet bliver dominerende i alle faser af spillet.
 
-### 8. Mere Indhold & Variety
-Flere ædelstenstyper, rarities, magiske egenskaber og måske forskellige mining områder.
+### 8. Flere risiko/beloenning-valg
+Indfoer valgbaserede handlinger (hurtig sikker gevinst vs. dyr chance for stor gevinst), sa beslutninger bliver mere interessante.
 
-### 9. Idle / Offline Earnings
-Giv spilleren passiv indkomst når spillet er lukket.
+### 9. Live-events/light daily content
+Udbyg eksisterende daglig essenslogik med simple "dagens opgave"-bonusser, der giver retention uden tung backend.
 
-### 10. Balancing, Achievements & Replayability
-Balancer økonomien, tilføj achievements, statistics og eventuelt prestige-system.
+### 10. Meta-progression efter sen game
+Når de sidste lokationer er laast op, tilfoej et let prestige- eller mastery-lag, der bevarer foelelsen af fremdrift.
 
-## 🎯 Anbefalet Implementeringsrækkefølge
-1–2. Core Loop + Save System (grundlaget)
-3–4. Progression + UI
-5. Visuel polish
-
-Denne plan kan bruges som roadmap for både dig selv og når du giver prompts til Claude eller andre AI'er.
+## Foreslaaet raekkefolge
+1) Maalguidning + balancing (1, 7)  
+2) Mine/smedje/smykke dybde (2-5)  
+3) QoL + retention (6, 8, 9)  
+4) Endgame loop (10)

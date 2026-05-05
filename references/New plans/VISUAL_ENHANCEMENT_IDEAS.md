@@ -1,72 +1,55 @@
-# ✨ Visuel Forbedring af GemSimulator
+# Visual Enhancement Ideas (aligned with current game)
 
-Denne fil indeholder **top 10 konkrete ideer** til at gøre spillet markant mere visuelt appellerende og premium. Den indeholder også en **færdig, stærk prompt** du kan kopiere direkte til Claude.
+This list is updated for the present GemSimulator build with:
+- map-driven location flow
+- mining + smithy + shop + jewelry workshop
+- inventory tabs and achievement feedback
 
-## 📋 Top 10 Visuelle Forbedringsideer
+Focus is "high impact per effort" without breaking current performance profile.
 
-1. **Avancerede Gem Shaders & Materialer**  
-   Implementer custom Three.js shaders med refraction, chromatic dispersion, iridescence, subsurface scattering og environment mapping, så ædelstenene ser ægte glas/ædelsten-agtige ud.
+## Top 10 visual upgrades (next pass)
 
-2. **Rigelige Particle Effects**  
-   Tilføj kraftfulde particle systemer ved mining, indsamling og specielle gems — sparkles, magisk støv, farvede lysglimt og floating particles.
+1. **Location identity color grading**
+   - Give each mine area a subtle unique grade (warm/cold/arcane), while keeping UI readable.
+   - Reuse this identity in map cards and in-scene accents.
 
-3. **Dynamic + Colored Lighting**  
-   Hver gem-type udsender sit eget farvede lys. Tilføj pulsing glow, rim lighting og point lights der reagerer på gemmens egenskaber.
+2. **Rarity-tiered hit and drop VFX**
+   - Add lightweight particle variants by rarity and event type (normal break, rare drop, unlock).
+   - Keep particle budgets fixed to avoid mobile spikes.
 
-4. **Post-Processing Stack**  
-   Brug EffectComposer med: Unreal Bloom, Vignette, Chromatic Aberration, God Rays (volumetric light), subtle Film Grain og Color Grading.
+3. **Gem material refinement for voxel style**
+   - Improve emissive/specular response per gem family before moving to heavy custom shaders.
+   - Preserve pixel readability at small card sizes.
 
-5. **Forbedret Miljø / Scene**  
-   Lav en mere levende mine/hule baggrund med parallax, atmospheric fog, stalactites, subtle ambient animations og bedre depth.
+4. **Post-processing preset integration**
+   - Extend existing render presets with conservative bloom/contrast options.
+   - Keep one "performance-safe" preset as default.
 
-6. **Smooth & Cinematic Camera**  
-   Forbedrede OrbitControls med damping, auto-rotate når inaktiv, og mulighed for cinematic camera angles ved sjældne fund.
+5. **Mine scene depth pass**
+   - Add low-cost depth cues: layered fog bands, distant silhouettes, subtle parallax movement.
+   - Prioritize clarity of breakable rock and damage feedback.
 
-7. **Poleret & Moderne UI**  
-   Brug glassmorphism, neon/glow effekter, micro-animations på knapper, bedre typografi, hover states og progress bars med visuel feedback.
+6. **Event camera micro-motions**
+   - Add tiny camera impulses for strong actions (critical break, level up, achievement).
+   - Cap intensity and duration to avoid motion fatigue.
 
-8. **Flot Collection / Gallery System**  
-   Lav en dedikeret 3D inventory/grid hvor gems kan inspiceres fra alle vinkler med høj kvalitet preview.
+7. **UI animation polish**
+   - Introduce consistent micro-animations for tab switches, button press states, and toast entry/exit.
+   - Match pacing across map, shop, and workshop screens.
 
-9. **Rarity & Special Effects**  
-   Kraftige visuelle belønninger ved høj-rarity gems: screen shake, lens flares, confetti, rainbow trails, slow-motion osv.
+8. **Inventory and preview cohesion**
+   - Align 2D pixel cards and 3D preview lighting so items feel part of the same visual system.
+   - Improve visual hierarchy for "selected" and "newly crafted" items.
 
-10. **Små Atmosfæriske Detaljer**  
-    Tilføj floating dust particles i luften, gentle bob/rotation animation på gems, refleksioner i gulvet/vægge og bedre shadows.
+9. **Reward moments for progression milestones**
+   - Add stronger but short-lived visuals for location unlocks, achievement unlocks, and jewelry sales.
+   - Keep these moments skippable and non-blocking.
 
----
+10. **Atmospheric idle details**
+    - Add restrained ambient particles and glow breathing in hub screens.
+    - Ensure no clutter that competes with key gameplay info.
 
-## 🚀 Klar Prompt til Claude
-
-**Kopier hele teksten nedenfor og indsæt direkte til Claude:**
-
-```
-Du er ekspert i Three.js, Vite + TypeScript og visuel polering af web-baserede 3D-spil.
-
-Jeg har et eksisterende projekt kaldet GemSimulator — et 3D voxel ædelstens mining/simulator spil.
-
-Jeg vil have dig til at hjælpe mig med at løfte det visuelle niveau markant, så det føles premium og meget mere appellerende.
-
-Her er 10 konkrete visuelle forbedringsområder jeg gerne vil have prioriteret (i prioriteret rækkefølge):
-
-1. Avancerede Gem Shaders & Materialer (refraction, dispersion, iridescence, subsurface scattering)
-2. Rigelige particle effects ved mining og collection
-3. Dynamic colored lighting + pulsing glows
-4. Post-processing (Bloom, Vignette, Chromatic Aberration, God Rays osv.)
-5. Bedre miljø og atmospheric scene
-6. Forbedret kamera og smooth animationer
-7. Moderne, poleret UI/UX med glassmorphism og micro-animations
-8. Flot 3D collection/gallery view
-9. Stærke rarity/special effects
-10. Små atmosfæriske detaljer (dust, gentle animations, reflections)
-
-Projektet bruger: Three.js, TypeScript, Vite og Tailwind.
-
-Giv mig en trinvis, professionel plan for hvordan vi kan implementere disse forbedringer. Prioritér de ændringer der giver størst visuel impact først. Inkluder kodeeksempler hvor relevant, især til shaders og post-processing.
-```
-
----
-
-**Fil oprettet:** `VISUAL_ENHANCEMENT_IDEAS.md`
-
-Du kan nu `git pull` for at hente filen lokalt.
+## Suggested rollout
+1. Presets + rarity VFX + UI micro-animations (items 2, 4, 7)  
+2. Scene depth + material pass (items 3, 5, 8)  
+3. Milestone moments + ambient layer (items 6, 9, 10)
