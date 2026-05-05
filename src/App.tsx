@@ -79,7 +79,7 @@ function AppContent() {
     for (const locId of state.unlockedLocations) {
       if (!prevUnlocks.current.has(locId)) {
         const area = AREAS.find((a) => a.id === locId)
-        showToast(`${area?.icon ?? '📍'} ${area?.name ?? locId} er tilgængelig!`, 'success')
+        showToast(`${area?.icon ?? '📍'} ${area?.name ?? locId} låst op (krav opfyldt).`, 'success')
       }
     }
     prevUnlocks.current = cur

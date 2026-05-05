@@ -80,7 +80,7 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
         onClick={onBack}
         className="text-sm text-amber-400 hover:text-amber-300 font-medium flex items-center gap-2 min-h-[44px] -ml-1 px-1"
       >
-        ← Tilbage
+        ← Tilbage til kortet
       </button>
 
       <div className="rounded-2xl border border-amber-900/40 bg-slate-900/90 p-4 sm:p-6 shadow-xl">
@@ -88,7 +88,7 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
           <div>
             <h1 className="text-xl font-bold text-amber-100 flex items-center gap-2">🪙 Butikken</h1>
             <p className="text-slate-500 text-sm mt-0.5">
-              Guld: <span className="text-amber-200 font-mono font-semibold">{state.gold}</span> · Level{' '}
+              Guld: <span className="text-amber-200 font-mono font-semibold">{state.gold}</span> · lvl{' '}
               <span className="text-slate-200 font-mono">{state.level}</span>
             </p>
           </div>
@@ -107,11 +107,11 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
               const canTools = state.pickaxes.length < state.inventoryCapacity.tools
               const disabled = !canLevel || !canGold || !canTools
               const why = !canLevel
-                ? `Kræver level ${o.minLevel}.`
+                ? `Krav ikke opfyldt: lvl ${o.minLevel} kræves.`
                 : !canGold
-                  ? `Kræver ${o.price} guld.`
+                  ? `Krav ikke opfyldt: ${o.price} g kræves.`
                   : !canTools
-                    ? 'Værktøjslager fuldt.'
+                    ? `Lager fuldt: Værktøj (${state.pickaxes.length}/${state.inventoryCapacity.tools}).`
                     : ''
               return (
                 <li
@@ -124,7 +124,7 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
                       Skade {p.damage} · Holdbarhed {p.maxDurability}
                     </div>
                     <div className="text-sm text-amber-200/90 mt-1">
-                      {o.price.toLocaleString('da-DK')} g · min. level {o.minLevel}
+                      Pris {o.price.toLocaleString('da-DK')} g · Krav lvl {o.minLevel}
                     </div>
                   </div>
                   <button
@@ -150,13 +150,13 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
             {nextSmelterCost != null && nextSmelterDef ? (
               <>
                 <p className="text-slate-300">
-                  Næste: <span className="font-semibold text-amber-100">{nextSmelterDef.name}</span> —{' '}
+                  Næste: <span className="font-semibold text-amber-100">{nextSmelterDef.name}</span> · Pris{' '}
                   {nextSmelterCost.toLocaleString('da-DK')} g
                 </p>
                 <button
                   type="button"
                   disabled={!goldOk(state, nextSmelterCost)}
-                  title={!goldOk(state, nextSmelterCost) ? `Kræver ${nextSmelterCost} guld.` : ''}
+                  title={!goldOk(state, nextSmelterCost) ? `Krav ikke opfyldt: ${nextSmelterCost} g kræves.` : ''}
                   onClick={buySmelter}
                   className="min-h-[44px] px-4 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-40 font-bold text-slate-950 text-sm"
                 >
@@ -181,12 +181,12 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
                   <div>
                     <div className="font-semibold text-slate-100">{c.name}</div>
                     <p className="text-sm text-slate-400 mt-1">{c.description}</p>
-                    <div className="text-sm text-amber-200/90 mt-1">{c.price.toLocaleString('da-DK')} g</div>
+                    <div className="text-sm text-amber-200/90 mt-1">Pris {c.price.toLocaleString('da-DK')} g</div>
                   </div>
                   <button
                     type="button"
                     disabled={!ok}
-                    title={!ok ? `Kræver ${c.price} guld.` : ''}
+                    title={!ok ? `Krav ikke opfyldt: ${c.price} g kræves.` : ''}
                     onClick={() => buyConsumable(c.id)}
                     className="min-h-[44px] px-4 rounded-lg bg-slate-600 hover:bg-slate-500 disabled:opacity-40 font-semibold text-white text-sm shrink-0"
                   >
@@ -215,12 +215,12 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
                 >
                   <div>
                     <div className="font-semibold text-slate-100">{label}</div>
-                    <div className="text-sm text-amber-200/90 mt-1">{pack.price.toLocaleString('da-DK')} g</div>
+                    <div className="text-sm text-amber-200/90 mt-1">Pris {pack.price.toLocaleString('da-DK')} g</div>
                   </div>
                   <button
                     type="button"
                     disabled={!ok}
-                    title={!ok ? `Kræver ${pack.price} guld.` : ''}
+                    title={!ok ? `Krav ikke opfyldt: ${pack.price} g kræves.` : ''}
                     onClick={() => buyPack(pack.id)}
                     className="min-h-[44px] px-4 rounded-lg bg-slate-600 hover:bg-slate-500 disabled:opacity-40 font-semibold text-white text-sm shrink-0"
                   >
@@ -242,9 +242,9 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
               const why = owned
                 ? 'Allerede købt.'
                 : !canLevel
-                  ? `Kræver level ${ch.minLevel}.`
+                  ? `Krav ikke opfyldt: lvl ${ch.minLevel} kræves.`
                   : !canGold
-                    ? `Kræver ${ch.price} guld.`
+                    ? `Krav ikke opfyldt: ${ch.price} g kræves.`
                     : ''
               return (
                 <li
@@ -255,7 +255,7 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
                     <div className="font-semibold text-slate-100">{ch.name}</div>
                     <p className="text-sm text-slate-400 mt-1">{ch.description}</p>
                     <div className="text-sm text-amber-200/90 mt-1">
-                      {ch.price.toLocaleString('da-DK')} g · min. level {ch.minLevel}
+                      Pris {ch.price.toLocaleString('da-DK')} g · Krav lvl {ch.minLevel}
                     </div>
                   </div>
                   <button

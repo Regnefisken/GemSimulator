@@ -148,6 +148,18 @@ export type SmeltingJob = {
 
 export type ViewMode = 'map' | 'location'
 
+export type RockType = 'normal' | 'hard' | 'rich' | 'crystal' | 'chest'
+
+export type ChestTier = 'wood' | 'silver' | 'gold'
+
+export type RockEvent = {
+  type: RockType
+  /** HP-multiplikator ift. normal rockHpForDepth(). Chest = 0 (ingen HP). */
+  hpMultiplier: number
+  /** Kun når `type === 'chest'`. */
+  chestTier?: ChestTier
+}
+
 export type GameState = {
   level: number
   xp: number

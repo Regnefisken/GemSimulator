@@ -10,9 +10,9 @@ function formatRequirements(area: Area): string | null {
   const r = area.requirement
   if (!r) return null
   const parts: string[] = []
-  if (r.level !== undefined) parts.push(`Lvl ${r.level}`)
+  if (r.level !== undefined) parts.push(`lvl ${r.level}`)
   if (r.reputation !== undefined) parts.push(`Omdømme ${r.reputation}`)
-  if (r.gold !== undefined) parts.push(`${r.gold} guld`)
+  if (r.gold !== undefined) parts.push(`${r.gold} g`)
   return parts.join(' · ')
 }
 
@@ -53,7 +53,7 @@ export default function LocationCard({ area, state, onEnter }: Props) {
         ) : (
           <>
             <span className="text-slate-500">Låst</span>
-            {reqText && <span className="text-slate-500 font-normal normal-case">{reqText}</span>}
+            {reqText && <span className="text-slate-500 font-normal normal-case">Krav: {reqText}</span>}
           </>
         )}
       </div>

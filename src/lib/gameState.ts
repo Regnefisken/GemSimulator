@@ -60,6 +60,7 @@ export type Action =
   | { type: 'SET_ACTIVE_PICKAXE'; id: string }
   | { type: 'DAMAGE_PICKAXE'; amount: number }
   | { type: 'INCREMENT_DEPTH' }
+  | { type: 'OPEN_CHEST'; gold: number }
   | { type: 'CONSUME_ORE'; metalName: MetalName; quantity: number }
   | { type: 'CONSUME_NUGGET'; metalName: MetalName; quantity: number }
   | { type: 'CONSUME_ROUGH_STONE'; id: string }
@@ -126,6 +127,12 @@ export function materialsCount(state: GameState): number {
   )
 }
 
+function materialsFullNotice(state: GameState): string {
+  const used = materialsCount(state)
+  const cap = state.inventoryCapacity.materials
+  return `Lager fuldt: Råvarer (${used}/${cap}). Sælg i Butik > Sælg-fanen eller brug Smedjen.`
+}
+
 function addGemWithRewards(state: GameState, gem: Gem): GameState {
   const cap = state.inventoryCapacity.gems
   const atCap = state.gems.length >= cap
@@ -153,7 +160,7 @@ function addIngot(state: GameState, ingot: MetalIngot): GameState {
   }
   const next = { ...state, metalIngots, gameNotice: null as string | null }
   if (materialsCount(next) > state.inventoryCapacity.materials) {
-    return { ...state, gameNotice: 'Råvarer: lager fuldt.' }
+    return { ...state, gameNotice: materialsFullNotice(state) }
   }
   return next
 }
@@ -236,7 +243,7 @@ function addOre(state: GameState, ore: RawOre): GameState {
   }
   const next = { ...state, rawOre, gameNotice: null as string | null }
   if (materialsCount(next) > state.inventoryCapacity.materials) {
-    return { ...state, gameNotice: 'Råvarer: lager fuldt.' }
+    return { ...state, gameNotice: materialsFullNotice(state) }
   }
   return next
 }
@@ -255,7 +262,7 @@ function addNugget(state: GameState, nugget: MetalNugget): GameState {
   }
   const next = { ...state, metalNuggets, gameNotice: null as string | null }
   if (materialsCount(next) > state.inventoryCapacity.materials) {
-    return { ...state, gameNotice: 'Råvarer: lager fuldt.' }
+    return { ...state, gameNotice: materialsFullNotice(state) }
   }
   return next
 }
@@ -292,12 +299,19 @@ export function reducer(state: GameState, action: Action): GameState {
         gameNotice: null as string | null,
       }
       if (materialsCount(next) > state.inventoryCapacity.materials) {
-        return { ...state, gameNotice: 'Råvarer: lager fuldt.' }
+        return { ...state, gameNotice: materialsFullNotice(state) }
       }
       return next
     }
     case 'INCREMENT_DEPTH':
       return { ...state, depth: state.depth + 1 }
+    case 'OPEN_CHEST': {
+      const next = applyXpGain(
+        { ...state, gold: state.gold + action.gold, gameNotice: null },
+        XP_REWARDS.rockBroken,
+      )
+      return applyEligibleUnlocks(next)
+    }
     case 'DAMAGE_PICKAXE': {
       const pickaxes = state.pickaxes.map((p) =>
         p.id === state.activePickaxeId
@@ -371,7 +385,7 @@ export function reducer(state: GameState, action: Action): GameState {
           pixelItem: makeIngotPixelItem(job.metalName),
         }
         const afterIngot = addIngot(s, ingot)
-        if (afterIngot.gameNotice === 'Råvarer: lager fuldt.') {
+        if (afterIngot.gameNotice === materialsFullNotice(s)) {
           remaining.push(job)
           continue
         }
@@ -390,10 +404,10 @@ export function reducer(state: GameState, action: Action): GameState {
       const needA = 1
       const needB = 1
       if (countOf(action.a) < needA || countOf(action.b) < needB) {
-        return { ...state, gameNotice: 'Mangler metalbarer.' }
+        return { ...state, gameNotice: 'Mangler metalbarer i Lager > Råvarer.' }
       }
       if (action.a === action.b && countOf(action.a) < needA + needB) {
-        return { ...state, gameNotice: 'Mangler metalbarer.' }
+        return { ...state, gameNotice: 'Mangler metalbarer i Lager > Råvarer.' }
       }
       let next = consumeIngot(state, action.a, needA)!
       next = consumeIngot(next, action.b, needB)!
@@ -402,8 +416,8 @@ export function reducer(state: GameState, action: Action): GameState {
         quantity: 1,
         pixelItem: makeIngotPixelItem(out),
       })
-      if (after.gameNotice === 'Råvarer: lager fuldt.') {
-        return { ...state, gameNotice: 'Råvarer: lager fuldt.' }
+      if (after.gameNotice === materialsFullNotice(state)) {
+        return { ...state, gameNotice: materialsFullNotice(state) }
       }
       return { ...after, gameNotice: null }
     }

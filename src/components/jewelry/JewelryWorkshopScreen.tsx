@@ -67,7 +67,7 @@ export default function JewelryWorkshopScreen({ state, dispatch, onBack }: Props
         <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-8 text-center">
           <p className="text-4xl mb-4">💍</p>
           <h2 className="text-xl font-bold text-slate-100">Smykkeværkstedet er låst</h2>
-          <p className="text-slate-400 mt-2 text-sm">Krav: Level 8 og omdømme 5.</p>
+          <p className="text-slate-400 mt-2 text-sm">Krav: lvl 8 · Omdømme 5.</p>
         </div>
       </div>
     )
@@ -186,16 +186,19 @@ export default function JewelryWorkshopScreen({ state, dispatch, onBack }: Props
         {recipe && (
           <div className="text-sm text-slate-400 space-y-1">
             <p>
-              Krav til sten: renhed ≥ {recipe.requires.gemPurityMin}
+              Krav: Ædelsten med renhed ≥ {recipe.requires.gemPurityMin}
               {recipe.requires.gemMagicMin != null
                 ? ` · magi ≥ ${recipe.requires.gemMagicMin}`
                 : ''}
             </p>
-            <p>Barer: {ingotSummary(recipe)}</p>
+            <p>Forbrug: {ingotSummary(recipe)}</p>
+            <p>Belønning: {recipe.goldValue} g · +{recipe.reputation} omdømme · +25 XP</p>
             {!canCraftRecipe && (
-              <p className="text-amber-400">Du skal være level {recipe.level} for denne opskrift.</p>
+              <p className="text-amber-400">Krav ikke opfyldt: lvl {recipe.level} kræves.</p>
             )}
-            {canCraftRecipe && !hasIngots && <p className="text-amber-400">Ikke nok metalbarer.</p>}
+            {canCraftRecipe && !hasIngots && (
+              <p className="text-amber-400">Mangler metalbarer i Lager {'>'} Råvarer.</p>
+            )}
           </div>
         )}
 
@@ -238,9 +241,9 @@ export default function JewelryWorkshopScreen({ state, dispatch, onBack }: Props
             !recipe || !gemId
               ? 'Vælg opskrift og sten.'
               : !canCraftRecipe
-                ? `Level ${recipe.level} kræves.`
+                ? `Krav ikke opfyldt: lvl ${recipe.level} kræves.`
                 : !hasIngots
-                  ? 'Mangler barer.'
+                  ? 'Mangler metalbarer i Lager > Råvarer.'
                   : ''
           }
           onClick={craft}

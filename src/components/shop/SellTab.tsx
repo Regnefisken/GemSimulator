@@ -50,9 +50,9 @@ export default function SellTab({ state, dispatch }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-100 truncate">{gem.name}</p>
                   <p className="text-xs text-slate-400">
-                    Renhed {gem.purity} · {gem.magicProperties.length} magi
+                    Effekt: Renhed {gem.purity} · {gem.magicProperties.length} magi
                   </p>
-                  <p className="text-amber-200 text-sm font-mono">{gem.goldValue} g</p>
+                  <p className="text-amber-200 text-sm font-mono">Salgspris {gem.goldValue} g</p>
                 </div>
                 <button
                   type="button"
@@ -91,9 +91,11 @@ export default function SellTab({ state, dispatch }: Props) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-100 font-semibold">{ore.metalName}</p>
                     <p className="text-xs text-slate-400">
-                      {canSell ? `${unitPrice} g/stk` : 'Kan ikke sælges'} · {ore.quantity} tilgængelig
+                      {canSell ? `Pris ${unitPrice} g/stk` : 'Kan ikke sælges'} · Beholdning {ore.quantity} stk
                     </p>
-                    <p className="text-amber-200 text-sm font-mono">{canSell ? `${unitPrice * qty} g` : '—'}</p>
+                    <p className="text-amber-200 text-sm font-mono">
+                      {canSell ? `Værdi ${unitPrice * qty} g` : '—'}
+                    </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <input
@@ -154,9 +156,11 @@ export default function SellTab({ state, dispatch }: Props) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-100 font-semibold">{nug.metalName}</p>
                     <p className="text-xs text-slate-400">
-                      {canSell ? `${unitPrice} g/stk` : 'Kan ikke sælges'} · {nug.quantity} tilgængelig
+                      {canSell ? `Pris ${unitPrice} g/stk` : 'Kan ikke sælges'} · Beholdning {nug.quantity} stk
                     </p>
-                    <p className="text-amber-200 text-sm font-mono">{canSell ? `${unitPrice * qty} g` : '—'}</p>
+                    <p className="text-amber-200 text-sm font-mono">
+                      {canSell ? `Værdi ${unitPrice * qty} g` : '—'}
+                    </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <input

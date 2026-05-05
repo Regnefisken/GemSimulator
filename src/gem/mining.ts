@@ -1,9 +1,23 @@
-import { MINEABLE_METALS, type ActiveEffect, type Area, type Gem, type MetalName, type MetalNugget, type RawOre, type RoughStone } from '../types'
+import {
+  MINEABLE_METALS,
+  type ActiveEffect,
+  type Area,
+  type Gem,
+  type MetalName,
+  type MetalNugget,
+  type RawOre,
+  type ChestTier,
+  type RockEvent,
+  type RockType,
+  type RoughStone,
+} from '../types'
 import { MOON_TEAR_EFFECT_ID, rollEssenceFromMine } from '../data/essences'
 import { PALETTES } from '../data/palettes'
 import { CHARM_IDS } from '../data/shop'
 import { createRandomGem } from './generate'
 import { makeNuggetPixelItem, makeOrePixelItem, makeRoughStonePixelItem } from '../data/oreTemplates'
+
+export type { ChestTier, RockEvent } from '../types'
 
 export function rockHpForDepth(depth: number, area: Area): number {
   return Math.floor((20 + depth * 12 + depth * depth * 0.6) * area.depthMultiplier)
@@ -14,9 +28,70 @@ export type MineDrop =
   | { kind: 'nugget'; nugget: MetalNugget }
   | { kind: 'rough-stone'; stone: RoughStone }
   | { kind: 'gem'; gem: Gem }
+  | { kind: 'chest'; gold: number; tier: ChestTier }
   | { kind: 'nothing' }
 
-export function rollMineDrop(area: Area, depth: number, activeCharms: string[] = []): MineDrop {
+const ROCK_EVENT_WEIGHTS: Record<RockType, number> = {
+  chest: 5,
+  hard: 20,
+  rich: 15,
+  crystal: 10,
+  normal: 50,
+}
+
+const ROCK_HP_MULTIPLIERS: Record<RockType, number> = {
+  normal: 1.0,
+  hard: 1.6,
+  rich: 1.0,
+  crystal: 0.9,
+  chest: 0,
+}
+
+const CHEST_TIER_GOLD_MULT: Record<ChestTier, number> = {
+  wood: 1,
+  silver: 1.55,
+  gold: 2.35,
+}
+
+function rollChestTier(): ChestTier {
+  const r = Math.random()
+  if (r < 0.52) return 'wood'
+  if (r < 0.87) return 'silver'
+  return 'gold'
+}
+
+export function rollRockEvent(area: Area): RockEvent {
+  if (area.kind !== 'mine') return { type: 'normal', hpMultiplier: 1.0 }
+
+  const entries = Object.entries(ROCK_EVENT_WEIGHTS) as [RockType, number][]
+  const total = entries.reduce((s, [, w]) => s + w, 0)
+  let r = Math.random() * total
+  for (const [type, weight] of entries) {
+    if (r < weight) {
+      if (type === 'chest') {
+        return { type: 'chest', hpMultiplier: 0, chestTier: rollChestTier() }
+      }
+      return { type, hpMultiplier: ROCK_HP_MULTIPLIERS[type] }
+    }
+    r -= weight
+  }
+  return { type: 'normal', hpMultiplier: 1.0 }
+}
+
+export function rollChestReward(area: Area, depth: number, tier: ChestTier): number {
+  const base = 10 + depth * 3
+  const scaled = Math.floor(
+    base * area.depthMultiplier * (0.8 + Math.random() * 0.4) * CHEST_TIER_GOLD_MULT[tier],
+  )
+  return Math.max(5, scaled)
+}
+
+export function rollMineDrop(
+  area: Area,
+  depth: number,
+  activeCharms: string[] = [],
+  rockType: RockType = 'normal',
+): MineDrop {
   if (area.kind !== 'mine' || !area.metalPool?.length) {
     return { kind: 'nothing' }
   }
@@ -24,20 +99,34 @@ export function rollMineDrop(area: Area, depth: number, activeCharms: string[] =
   const r = Math.random()
   const bonus = area.rarityBonus
   const lucky = activeCharms.includes(CHARM_IDS.luckyMiner) ? 0.05 : 0
-  const gemThreshold = 0.02 + bonus + lucky
-  const nuggetThreshold = gemThreshold + 0.03 + bonus * 0.5 + lucky
-  const stoneThreshold = nuggetThreshold + 0.17 + bonus * 0.5 + lucky
-  const oreThreshold = 0.9
-
   const valueCharms = {
     smithEye: activeCharms.includes(CHARM_IDS.smithEye),
     deepCalm: activeCharms.includes(CHARM_IDS.deepCalm),
   }
 
+  // Krystalvene: kraftigt boosted gem + rough-stone, ingen nuggets
+  if (rockType === 'crystal') {
+    const crystalGem = Math.min(0.18, (0.02 + bonus + lucky) * 3.5)
+    const crystalStone = crystalGem + Math.min(0.55, (0.17 + bonus * 0.5 + lucky) * 2.5)
+    if (r < crystalGem) return { kind: 'gem', gem: createRandomGem(depth, area, valueCharms) }
+    if (r < crystalStone) return { kind: 'rough-stone', stone: rollRoughStone() }
+    if (r < 0.75) return { kind: 'ore', ore: rollRawOreFromArea(area, depth) }
+    return { kind: 'nothing' }
+  }
+
+  // Rig åre: normale tærskler, men dobbelt ore-mængde og ekstra nugget-chance
+  const gemThreshold = 0.02 + bonus + lucky
+  const nuggetThreshold = gemThreshold + 0.03 + bonus * 0.5 + lucky + (rockType === 'rich' ? 0.06 : 0)
+  const stoneThreshold = nuggetThreshold + 0.17 + bonus * 0.5 + lucky
+  const oreThreshold = 0.9
+
   if (r < gemThreshold) return { kind: 'gem', gem: createRandomGem(depth, area, valueCharms) }
   if (r < nuggetThreshold) return { kind: 'nugget', nugget: rollNuggetFromArea(area) }
   if (r < stoneThreshold) return { kind: 'rough-stone', stone: rollRoughStone() }
-  if (r < oreThreshold) return { kind: 'ore', ore: rollRawOreFromArea(area, depth) }
+  if (r < oreThreshold) {
+    const ore = rollRawOreFromArea(area, depth, rockType === 'rich')
+    return { kind: 'ore', ore }
+  }
   return { kind: 'nothing' }
 }
 
@@ -75,11 +164,14 @@ export function rollMetalFromPool(area: Area): MetalName {
   return validPool[0].metal
 }
 
-function rollRawOreFromArea(area: Area, _depth: number): RawOre {
+function rollRawOreFromArea(area: Area, _depth: number, isRich = false): RawOre {
   const metal = rollMetalFromPool(area)
+  const qty = isRich
+    ? 2 + Math.floor(Math.random() * 3) // 2–4 ved rig åre
+    : 1 + Math.floor(Math.random() * 2) // 1–2 normalt
   return {
     metalName: metal,
-    quantity: 1 + Math.floor(Math.random() * 2),
+    quantity: qty,
     pixelItem: makeOrePixelItem(metal),
   }
 }

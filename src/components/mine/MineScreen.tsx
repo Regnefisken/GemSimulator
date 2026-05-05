@@ -1,12 +1,20 @@
 import { useCallback, useLayoutEffect, useRef, useState, type Dispatch } from 'react'
-import type { Area, GameState } from '../../types'
+import type { Area, ChestTier, GameState, RockEvent } from '../../types'
 import type { Action } from '../../lib/gameState'
 import { materialsCount } from '../../lib/gameState'
 import { XP_REWARDS } from '../../lib/leveling'
-import { rockHpForDepth, rollBonusMineEssence, rollMineDrop, type MineDrop } from '../../gem/mining'
+import {
+  rockHpForDepth,
+  rollBonusMineEssence,
+  rollChestReward,
+  rollMineDrop,
+  rollRockEvent,
+  type MineDrop,
+} from '../../gem/mining'
 import { ESSENCE_IDS, getEssenceDef, MOON_TEAR_EFFECT_ID } from '../../data/essences'
 import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
 import { useToast } from '../ui/ToastContext'
+import ChestScene from './ChestScene'
 import Rock3DScene from './Rock3DScene'
 import PickaxeOverlay from './PickaxeOverlay'
 import DamageNumbers, { type DamageFloater } from './DamageNumbers'
@@ -28,6 +36,8 @@ function extraMaterialsFromDrop(drop: MineDrop): number {
       return drop.nugget.quantity
     case 'rough-stone':
       return 1
+    case 'chest':
+      return 0
     default:
       return 0
   }
@@ -42,6 +52,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const [striking, setStriking] = useState(false)
   const [floaters, setFloaters] = useState<DamageFloater[]>([])
   const [dropNotice, setDropNotice] = useState<DropNotice | null>(null)
+  const [rockEvent, setRockEvent] = useState<RockEvent>(() => rollRockEvent(area))
   const noticeId = useRef(0)
   const hitId = useRef(0)
   const phoenixQ = state.essences.find((s) => s.essenceId === ESSENCE_IDS.phoenixAsh)?.quantity ?? 0
@@ -51,19 +62,26 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   )
 
   useLayoutEffect(() => {
-    const max = rockHpForDepth(state.depth, area)
-    setMaxHp(max)
-    setRockHp(max)
+    const event = rollRockEvent(area)
+    setRockEvent(event)
+    if (event.type !== 'chest') {
+      const max = Math.floor(rockHpForDepth(state.depth, area) * event.hpMultiplier)
+      setMaxHp(max)
+      setRockHp(max)
+    } else {
+      setMaxHp(0)
+      setRockHp(0)
+    }
   }, [state.depth, area])
 
-  const pushFloater = useCallback((value: number) => {
+  const pushFloater = useCallback((value: number, isCrit = false) => {
     const id = hitId.current++
     const left = `${42 + Math.random() * 16}%`
     const top = `${38 + Math.random() * 12}%`
-    setFloaters((prev) => [...prev, { id, value, left, top }])
+    setFloaters((prev) => [...prev, { id, value, left, top, isCrit }])
     window.setTimeout(() => {
       setFloaters((prev) => prev.filter((f) => f.id !== id))
-    }, 600)
+    }, isCrit ? 900 : 600)
   }, [])
 
   const applyDrop = useCallback(
@@ -81,6 +99,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         case 'gem':
           dispatch({ type: 'ADD_GEM', gem: drop.gem })
           break
+        case 'chest':
+          break
         default:
           break
       }
@@ -91,6 +111,26 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const matCount = materialsCount(state)
   const matCap = state.inventoryCapacity.materials
 
+  const handleOpenChest = useCallback(() => {
+    const tier: ChestTier = rockEvent.type === 'chest' ? (rockEvent.chestTier ?? 'wood') : 'wood'
+    const gold = rollChestReward(area, state.depth, tier)
+    dispatch({ type: 'OPEN_CHEST', gold })
+    playRockBreak()
+    const bonusEss = rollBonusMineEssence(area, state.activeEffects, state.activeCharms)
+    if (bonusEss) {
+      dispatch({ type: 'ADD_ESSENCE', essenceId: bonusEss, quantity: 1 })
+      playEssenceFound()
+    }
+    const ess = bonusEss ? getEssenceDef(bonusEss) : null
+    setDropNotice({
+      id: noticeId.current++,
+      drop: { kind: 'chest', gold, tier },
+      essenceId: bonusEss ?? null,
+      essenceName: ess?.name ?? null,
+    })
+    dispatch({ type: 'INCREMENT_DEPTH' })
+  }, [area, state.depth, state.activeEffects, state.activeCharms, dispatch, rockEvent])
+
   const handleMineHit = useCallback(() => {
     if (!pickaxe || pickaxe.durability <= 0) {
       showToast('Hakken er slidt op! Gå til smedjen og reparér den på reparationsbænken.')
@@ -98,7 +138,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     }
 
     const useDynamite = state.instantBreakNextRock
-    const dmg = useDynamite ? rockHp : pickaxe.damage
+    const isCrit = !useDynamite && Math.random() < 0.1
+    const dmg = useDynamite ? rockHp : isCrit ? pickaxe.damage * 2 : pickaxe.damage
 
     dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.mineHit })
     dispatch({ type: 'DAMAGE_PICKAXE', amount: 1 })
@@ -107,7 +148,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     setHitPulse((n) => n + 1)
     setStriking(true)
     window.setTimeout(() => setStriking(false), 220)
-    pushFloater(dmg)
+    pushFloater(dmg, isCrit)
 
     const nextHp = rockHp - dmg
     if (nextHp > 0) {
@@ -117,7 +158,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
     setRockHp(0)
     playRockBreak()
-    const drop = rollMineDrop(area, state.depth, state.activeCharms)
+    const drop = rollMineDrop(area, state.depth, state.activeCharms, rockEvent.type)
     const extra = extraMaterialsFromDrop(drop)
     const lostToFullInventory = extra > 0 && matCount + extra > matCap
     if (lostToFullInventory) {
@@ -161,6 +202,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     pushFloater,
     showToast,
     applyDrop,
+    rockEvent,
   ])
 
   const mineDisabled = !pickaxe || pickaxe.durability <= 0
@@ -190,6 +232,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         durability={pickaxe?.durability ?? 0}
         maxDurability={pickaxe?.maxDurability ?? 1}
         dynamiteReady={state.instantBreakNextRock}
+        rockType={rockEvent.type !== 'chest' ? rockEvent.type : undefined}
+        chestTier={rockEvent.type === 'chest' ? (rockEvent.chestTier ?? 'wood') : undefined}
       />
 
       {pickaxe && pickaxe.durability === 0 && (
@@ -233,13 +277,21 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       )}
 
       <div className="relative">
-        <Rock3DScene
-          hp={rockHp}
-          maxHp={maxHp}
-          hitPulse={hitPulse}
-          onMineHit={handleMineHit}
-          disabled={mineDisabled}
-        />
+        {rockEvent.type === 'chest' ? (
+          <ChestScene
+            onOpen={handleOpenChest}
+            tier={rockEvent.chestTier ?? 'wood'}
+          />
+        ) : (
+          <Rock3DScene
+            hp={rockHp}
+            maxHp={maxHp}
+            hitPulse={hitPulse}
+            onMineHit={handleMineHit}
+            disabled={mineDisabled}
+            rockType={rockEvent.type}
+          />
+        )}
         <PickaxeOverlay striking={striking} />
         <DamageNumbers items={floaters} />
         {dropNotice && (

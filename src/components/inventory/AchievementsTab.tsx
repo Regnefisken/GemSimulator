@@ -6,6 +6,63 @@ export default function AchievementsTab({ state }: { state: GameState }) {
   const unlocked = useMemo(() => new Set(state.achievementsUnlocked), [state.achievementsUnlocked])
   const count = state.achievementsUnlocked.length
 
+  function progressText(id: string): { value: string; next: string } {
+    switch (id) {
+      case 'first_gem':
+        return {
+          value: `Fremskridt ${Math.min(state.totalGemsFound, 1)}/1`,
+          next: 'Tip: Find eller slib én ædelsten mere.',
+        }
+      case 'gems_25':
+        return {
+          value: `Fremskridt ${Math.min(state.totalGemsFound, 25)}/25`,
+          next: 'Tip: Bliv ved i minen og forarbejd rå klipper i Smedjen.',
+        }
+      case 'depth_50':
+        return {
+          value: `Fremskridt ${Math.min(state.depth, 50)}/50`,
+          next: 'Tip: Knus flere klipper for at øge dybden.',
+        }
+      case 'depth_200':
+        return {
+          value: `Fremskridt ${Math.min(state.depth, 200)}/200`,
+          next: 'Tip: Hold minedrift i gang over tid.',
+        }
+      case 'essence_first':
+        return {
+          value: `Fremskridt ${Math.min(state.totalEssencesCollected, 1)}/1`,
+          next: 'Tip: Smelt metaller og hold øje med essensdråber.',
+        }
+      case 'essence_25':
+        return {
+          value: `Fremskridt ${Math.min(state.totalEssencesCollected, 25)}/25`,
+          next: 'Tip: Brug essensmarkedet og smelt oftere.',
+        }
+      case 'gold_1000':
+        return {
+          value: `Fremskridt ${Math.min(state.gold, 1000)}/1000`,
+          next: 'Tip: Sælg ædelsten, råvarer og smykker for hurtigere guld.',
+        }
+      case 'rep_5':
+        return {
+          value: `Fremskridt ${Math.min(state.reputation, 5)}/5`,
+          next: 'Tip: Lav og sælg smykker for mere omdømme.',
+        }
+      case 'jewelry_craft':
+        return {
+          value: `Fremskridt ${Math.min(state.jewelry.length, 1)}/1`,
+          next: 'Tip: Brug Smykkeværkstedet til at lave dit første smykke.',
+        }
+      case 'level_10':
+        return {
+          value: `Fremskridt ${Math.min(state.level, 10)}/10`,
+          next: 'Tip: Saml XP via minedrift, smeltning og salg.',
+        }
+      default:
+        return { value: 'Fremskridt —', next: 'Tip: Fortsæt med at spille.' }
+    }
+  }
+
   return (
     <div>
       <p className="text-xs text-slate-400 mb-4">
@@ -14,6 +71,7 @@ export default function AchievementsTab({ state }: { state: GameState }) {
       <ul className="grid gap-2 sm:grid-cols-2">
         {ACHIEVEMENTS.map((a) => {
           const ok = unlocked.has(a.id)
+          const progress = progressText(a.id)
           return (
             <li
               key={a.id}
@@ -30,6 +88,9 @@ export default function AchievementsTab({ state }: { state: GameState }) {
               <div className="min-w-0">
                 <div className={'font-semibold ' + (ok ? 'text-amber-100' : 'text-slate-500')}>{a.title}</div>
                 <p className="text-xs text-slate-500 mt-1 leading-snug">{a.description}</p>
+                <p className="text-xs text-slate-500 mt-1 leading-snug">
+                  {progress.value} · {progress.next}
+                </p>
               </div>
             </li>
           )

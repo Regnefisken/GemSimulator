@@ -15,10 +15,10 @@ med eksisterende progression (XP/level), achievements, save/load, inventory-kapa
 - Lav et tydeligt "midgame"-tempo mellem level 8-35, sa spilleren konstant har meningsfulde maal.
 - Dokumenter baseline-tal i en separat balance-matrix.
 
-### 3) Mine-loop: mere variation pr. sten
-- Udvid rock-typer og mine-events (fx haard sten, rig aaere, "kritisk fund").
-- Differentier drops tydeligere pr. omraade/metalpulje for bedre lokationsidentitet.
-- Tilfoej tydeligere feedback ved naesten-brudt sten og "kritisk slag".
+### 3) Mine-loop + mine-scene: samlet variation og feedback
+- Udvid rock-typer og mine-events (fx haard sten, rig aaere, "kritisk fund") og koble dem til tydelige visuelle cues.
+- Differentier drops tydeligere pr. omraade/metalpulje for bedre lokationsidentitet, understottet af unikke lys/materiale-profiler pr. mine.
+- Tilfoej tydelig feedback ved naesten-brudt sten og "kritisk slag" via korte animationer, VFX og klar hit-respons.
 
 ### 4) Smedjen: dybere materialeflow
 - Udbyg sammenhaengen mellem Repair, Smelter, Alloy og GemCrafter med tydelig "naeste bedste handling".
@@ -35,10 +35,10 @@ med eksisterende progression (XP/level), achievements, save/load, inventory-kapa
 - Forbedr tab-overgange og mikrofeedback, sa det er tydeligt hvad der opdateres efter en handling.
 - Saml "hjaelp/ordbog" for centrale begreber (renhed, essens, omdoemme, rarity-bonus).
 
-### 7) Visuel polish af 3D-view og mine-scene
-- Forbedr lys, post-processing og materials i moderate, performance-venlige trin.
-- Giv tydelig visuel forskel mellem almindelige fund og top-rarity fund.
-- Tilfoej flere korte overgangsanimationer (entry/loot/level-up).
+### 7) Visuel polish af 3D-view og mine-scene (integreret i punkt 3)
+- Leveres sammen med punkt 3 som en samlet mine-oplevelse frem for et separat spor.
+- Fokus: performance-venlige forbedringer af lys, post-processing, materials og rarity-laesbarhed.
+- Overgangsanimationer prioriteres, hvor de styrker feedback for mining-events og loot.
 
 ### 8) Audio pass + indstillinger
 - Udvid variation i mining/smedje/salg lyde for at undgaa repetition.
@@ -57,6 +57,6 @@ med eksisterende progression (XP/level), achievements, save/load, inventory-kapa
 
 ## Anbefalet implementeringsraekkefolge
 1. Save v2 + balancing (punkt 1-2)  
-2. Core-loop dybde (punkt 3-5)  
-3. Polish-lag (punkt 6-9)  
+2. Core-loop dybde (punkt 3-5, inkl. visuel mine-polish fra punkt 7)  
+3. Polish-lag (punkt 6, 8-9)  
 4. Teknisk haerdning (punkt 10)

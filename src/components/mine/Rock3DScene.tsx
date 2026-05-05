@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import type { Mesh } from 'three'
+import type { RockType } from '../../types'
 
 type Props = {
   hp: number
@@ -9,30 +10,46 @@ type Props = {
   hitPulse: number
   onMineHit: () => void
   disabled?: boolean
+  rockType?: RockType
 }
 
-function Rock({ hp, maxHp, hitPulse, onMineHit, disabled }: Props) {
+const ROCK_TYPE_COLOR: Record<RockType, [number, number]> = {
+  normal: [28, 24],
+  hard: [220, 10],
+  rich: [38, 55],
+  crystal: [185, 55],
+  chest: [28, 24],
+}
+
+function Rock({ hp, maxHp, hitPulse, onMineHit, disabled, rockType = 'normal' }: Props) {
   const ref = useRef<Mesh>(null)
   const shake = useRef(0)
+  const pct = maxHp > 0 ? hp / maxHp : 1
+  const isLowHp = pct < 0.25
 
   useEffect(() => {
-    shake.current = Math.min(1, shake.current + 0.9)
-  }, [hitPulse])
+    shake.current = Math.min(1, shake.current + (isLowHp ? 1.2 : 0.9))
+  }, [hitPulse, isLowHp])
 
   useFrame((_, delta) => {
     shake.current *= Math.pow(0.92, delta * 50)
     const m = ref.current
     if (!m) return
     const t = performance.now() * 0.008
-    m.rotation.z = Math.sin(t) * 0.07 * shake.current
-    m.rotation.x = Math.cos(t * 1.1) * 0.06 * shake.current
-    m.position.x = Math.sin(t * 2) * 0.09 * shake.current
+    const amp = isLowHp ? shake.current * 1.5 : shake.current
+    m.rotation.z = Math.sin(t) * 0.07 * amp
+    m.rotation.x = Math.cos(t * 1.1) * 0.06 * amp
+    m.position.x = Math.sin(t * 2) * 0.09 * amp
   })
 
+  const [hue, sat] = ROCK_TYPE_COLOR[rockType]
   const color = useMemo(() => {
-    const l = Math.max(0.16, (hp / Math.max(maxHp, 1)) * 0.38 + 0.14)
-    return `hsl(28, 24%, ${l * 100}%)`
-  }, [hp, maxHp])
+    const l = Math.max(0.16, pct * 0.38 + 0.14)
+    return `hsl(${hue}, ${sat}%, ${l * 100}%)`
+  }, [pct, hue, sat])
+
+  const emissive = isLowHp ? '#ff2200' : '#000000'
+  const emissiveIntensity = isLowHp ? 0.5 * (1 - pct / 0.25) : 0
 
   return (
     <mesh
@@ -44,7 +61,13 @@ function Rock({ hp, maxHp, hitPulse, onMineHit, disabled }: Props) {
       onPointerDown={(e) => e.stopPropagation()}
     >
       <icosahedronGeometry args={[1.2, 1]} />
-      <meshStandardMaterial color={color} roughness={0.88} metalness={0.08} />
+      <meshStandardMaterial
+        color={color}
+        roughness={isLowHp ? 0.65 : 0.88}
+        metalness={0.08}
+        emissive={emissive}
+        emissiveIntensity={emissiveIntensity}
+      />
     </mesh>
   )
 }

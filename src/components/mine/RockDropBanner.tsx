@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode, type TransitionEvent } from 'react'
 import type { MineDrop } from '../../gem/mining'
+import type { ChestTier } from '../../types'
 import { METALS } from '../../data/metals'
 
 /** UI-state for drop-banner (feature-local, not global `types.ts`). */
@@ -15,6 +16,17 @@ type Props = {
   onDone: () => void
 }
 
+function borderClassForChestTier(tier: ChestTier): string {
+  switch (tier) {
+    case 'wood':
+      return 'border-amber-800/55'
+    case 'silver':
+      return 'border-slate-400/55'
+    case 'gold':
+      return 'border-amber-300/65'
+  }
+}
+
 function borderClassForDrop(drop: MineDrop): string {
   switch (drop.kind) {
     case 'ore':
@@ -25,6 +37,8 @@ function borderClassForDrop(drop: MineDrop): string {
       return 'border-slate-600/60'
     case 'gem':
       return 'border-fuchsia-600/70'
+    case 'chest':
+      return borderClassForChestTier(drop.tier)
     case 'nothing':
       return 'border-slate-700/40'
     default:
@@ -124,6 +138,24 @@ export default function RockDropBanner({ notice, onDone }: Props) {
         badgeClass = 'text-violet-300'
         badgeText = 'Sjælden'
       }
+      break
+    }
+    case 'chest': {
+      const tierLabel =
+        drop.tier === 'wood' ? 'Træ' : drop.tier === 'silver' ? 'Sølv' : 'Guld'
+      icon = '🎁'
+      title = (
+        <>
+          {tierLabel}kiste åbnet! <span className="text-yellow-300 font-bold">+{drop.gold} guld</span>
+        </>
+      )
+      badgeClass =
+        drop.tier === 'silver'
+          ? 'text-slate-200'
+          : drop.tier === 'gold'
+            ? 'text-amber-200'
+            : 'text-yellow-300'
+      badgeText = `${tierLabel}kiste`
       break
     }
     case 'nothing':
