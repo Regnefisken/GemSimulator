@@ -108,7 +108,62 @@ Målet: Skab en følelse af **uendeligt flere eksotiske ædelsten** uden at bryd
 
 Med disse ændringer vil spillet føles som en uendelig skattekiste af unikke, eksotiske ædelsten – præcis som du ønskede fra starten.
 
-**Fil oprettet: 05. maj 2026**
+---
+
+## Risikovurdering
+
+Ingen af punkterne nedenfor bryder spillet i sin nuværende form, men de er potentielle flaskehalse, der bør holdes i tankerne under implementering.
+
+| # | Risiko | Sandsynlighed | Konsekvens | Anbefalet handling |
+|---|--------|:---:|:---:|---|
+| R1 | **Visuel variation forbliver begrænset** – mutations baseres på få chars og tilfældige swaps; nye paletter/effekter risikerer stadig "same look" uden avancerede mønstre (Perlin noise, veining, cracks) | Middel | Middel | Prioritér noise-baserede patterns (§2) tidligt; lav spot-tests med 10+ gems af samme palette ved review |
+| R2 | **Navngivning følger ikke taxonomien** – `createRandomGem` genererer stadig simple navne; tooltip/UI vil ikke matche det spilleren ser, når metal/magi tilføjes | Høj | Middel | Implementér navne-DSL (§4) *inden* nye paletter og metaller goes live |
+| R3 | **Halvfærdige features ved ny content** – den største risiko: ny metal/palette opdateres i `generate.ts` men glemmes i mining-pools, 2D/3D-assets, crafting, shop | Høj | Høj | Brug **Implementerings-checklisten** nedenfor; bloker merge indtil alle felter er afkrydset |
+| R4 | **Performance ved mange gems** – noise-patterns + flere chars i grids + 3D kan give tung rendering på low-end devices, især i inventory med mange gems synlige | Lav | Middel | Cache genererede grids; mål FPS med 50+ gems i inventory inden noise-pr. release |
+| R5 | **Økonomibal­ance skævvrides** – `computeGoldValue` er fin nu, men eksotiske metaller/magi kan gøre GodTier/legendary for sjældne eller for stærke | Middel | Lav | Kør simuleret loot-session (f.eks. 1.000 gems) og log value-distribution ved hver ny type |
+| R6 | **Save-inkompatibilitet** – `GameState.version` skal opdateres hvis `Gem`-typen eller inventory-struktur ændres; glemmes det, crasher eksisterende saves | Lav | Høj | Tilføj "bump `version`" som obligatorisk punkt i checklisten nedenfor |
+| R7 | **Lyd og musik ikke planlagt** – kan være bevidst, men skaber et mærkbart "tomt" feel efterhånden som visuelle effekter vokser | Lav | Lav | Notér som separat backlog-item; berør ikke dette roadmap |
+| R8 | **Mobil/touch ikke testet** – spillet er web-baseret; nye interaktionspunkter (crafting, 3D-scene) kan bryde touch-flow | Lav | Middel | Manuel smoke-test på mobilbrowser ved større UI-ændringer |
+
+---
+
+## Implementerings-checkliste pr. ny Palette / Metal
+
+Brug denne liste som **gate** for hver PR/commit der introducerer en ny palette eller metaltype. Ingenting merges, før alle relevante felter er afkrydset.
+
+### Ny Palette
+
+- [ ] `src/data/palettes.ts` – tilføj palette-objekt med alle 5 chars (`O`, `D`, `G`, `L`, `W`)
+- [ ] `src/types.ts` – tilføj palette-navn til `PaletteName`-union (hvis den eksisterer)
+- [ ] `src/gem/generate.ts` – verificér at den nye palette indgår i udvælgelsespuljen
+- [ ] **Navngivning** – tilføj evt. farve-fraser eller præfikser til navne-skabelonerne i `src/data/` (§4)
+- [ ] **2D-visning** – spot-test at `GemCanvas`-komponenten gengiver alle 5 chars korrekt for nye farver
+- [ ] **3D-visning** – spot-test at 3D-scenen mapper de nye chars til korrekte materialer/shaders
+- [ ] **Inventory / lister** – verificér at gem-kortet i inventory viser den nye palette uden artefakter
+- [ ] **Shop/salg** – verificér pris/rarity stadig er fornuftig (R5)
+- [ ] `GameState.version` – bump version hvis `Gem`-typen er udvidet (R6)
+- [ ] Kør 20+ genererede gems af den nye palette og inspicér visuelt (R1)
+
+### Nyt Metal (minebar eller legering)
+
+- [ ] `src/data/metals.ts` – tilføj metal-objekt (navn, char, rarity, baseValue, farve/look)
+- [ ] `src/types.ts` – tilføj til `MetalName`-union; placer i `MINEABLE_METALS` eller `ALLOY_ONLY_METALS`
+- [ ] **Mining-logik** – opdatér `metalPool` / drop-tabeller for relevante mine-dybder/lokationer
+- [ ] **Mining-drops** – tilføj rå malm/klump-drop til relevante lokationer (`src/data/locations.ts` e.l.)
+- [ ] **2D-pixel assets** – opret/opdatér sprite for: rå malm, klump, bar/ingot (match eksisterende stil)
+- [ ] **3D-scene** – tilføj 3D-model eller material for malm i minevisning og evt. inventory
+- [ ] `src/gem/generate.ts` – tilføj metallets char til inklusions-logikken (`addMetalInclusions`)
+- [ ] **Crafting** (`src/crafting.ts` e.l.) – tilføj smeltning/legerings-opskrifter hvis relevant
+- [ ] **Smykkeværksted** – verificér at metallet kan bruges i jewelry-flows hvis intentionen er det
+- [ ] **Inventory-rendering** – verificér at metallets ikon/label vises korrekt i inventory-slots
+- [ ] **Shop/salg** – tilføj pris og sæt rarity-vægt så økonomi ikke skævvrides (R5)
+- [ ] **Navngivning** – opdatér metal-fraser i navne-skabelonerne (`src/data/`) (§4, R2)
+- [ ] `GameState.version` – bump version (R6)
+- [ ] Kør simulation med 1.000 gems og log value-distribution (R5)
+
+---
+
+**Fil oprettet: 05. maj 2026 · Opdateret: 05. maj 2026**
 
 ---
 
