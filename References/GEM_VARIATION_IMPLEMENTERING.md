@@ -665,5 +665,5 @@ Hvis intet test-framework: minimum manuel devcheat-tjekliste i `DevCheatPanel.ts
 
 ---
 
-**Plan oprettet:** 5. maj 2026
-**Status:** Klar til Fase 0
+**Plan oprettet:** 5. maj 2026  
+**Status:** Implementeret 5. maj 2026 (Fase 0–5)

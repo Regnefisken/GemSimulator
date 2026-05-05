@@ -1,10 +1,64 @@
-import type { Area, ColorMap, Gem, MagicProperty, MetalInclusion, MetalName } from '../types'
+import type { Area, ColorMap, Gem, MagicProperty, MetalInclusion, MetalName, Palette } from '../types'
+import { MINEABLE_METALS } from '../types'
 import { METALS } from '../data/metals'
 import { getMagicPropertyByName, MAGIC_PROPERTIES } from '../data/magic'
-import { PALETTES } from '../data/palettes'
+import { PALETTES, PALETTE_WEIGHTS } from '../data/palettes'
 import { TEMPLATES } from '../data/templates'
+import { hashStringToInt, makeNoise2D, mulberry32 } from '../lib/rng'
+import { deriveGemName } from './naming'
+import {
+  applyAsterism,
+  applyBanding,
+  applyChatoyancy,
+  applyCracks,
+  applyOpalescence,
+  applySpeckles,
+  applyVeining,
+} from './patterns'
 
 const METAL_SLOT_CHARS = ['1', '2', '3'] as const
+
+function pickWeightedRandomPalette(): Palette {
+  const entries: { p: Palette; w: number }[] = []
+  for (const p of PALETTES) {
+    let w = PALETTE_WEIGHTS[p.category]
+    if (p.name === 'Citrin' && p.category === 'classic') w *= 2
+    entries.push({ p, w })
+  }
+  const total = entries.reduce((s, e) => s + e.w, 0)
+  let r = Math.random() * total
+  for (const { p, w } of entries) {
+    r -= w
+    if (r <= 0) return p
+  }
+  return PALETTES[0]!
+}
+
+function applyPalettePatternPasses(
+  data: string[],
+  palette: Palette,
+  gemId: string,
+  opts: { isGodTier: boolean },
+): string[] {
+  const rng = mulberry32(hashStringToInt(gemId))
+  const noise = makeNoise2D(gemId)
+  let d = data
+  const mk = () => ({ data: d, rng, noise })
+  const tags = palette.effectTags ?? []
+  if (tags.includes('veined')) d = applyVeining(mk())
+  if (tags.includes('banded')) d = applyBanding(mk(), rng() < 0.5 ? 'h' : 'v')
+  if (tags.includes('starry')) d = applyAsterism(mk())
+  if (tags.includes('opalescent')) d = applyOpalescence(mk())
+  if (tags.includes('cracked')) d = applyCracks(mk())
+  if (tags.includes('iridescent')) {
+    d = applyBanding(mk(), 'h', 4)
+    d = applyVeining(mk(), 0.04)
+  }
+  if (tags.includes('chatoyant')) d = applyChatoyancy(mk())
+  if (opts.isGodTier) d = applyAsterism(mk())
+  if (rng() < 0.04) d = applySpeckles(mk())
+  return d
+}
 
 function cloneTemplate(data: string[]): string[][] {
   return data.map((row) => row.split(''))
@@ -161,7 +215,7 @@ export function rollMetalInclusions(area?: Area): MetalInclusion[] {
   else if (nRoll < 0.86) num = 2
   else num = 3
 
-  const names = Object.keys(METALS) as MetalName[]
+  const names = MINEABLE_METALS.filter((n) => METALS[n] != null)
   const picked: MetalInclusion[] = []
   const used = new Set<MetalName>()
 
@@ -237,13 +291,8 @@ export function createRandomGem(
 ): Gem {
   const isGodTier = Math.random() < 0.12
 
-  let palette
-  if (Math.random() < 0.09) {
-    palette = PALETTES.find((p) => p.name === 'Citrin') ?? PALETTES[0]
-  } else {
-    const normalPalettes = PALETTES.filter((p) => p.name !== 'Citrin')
-    palette = normalPalettes[Math.floor(Math.random() * normalPalettes.length)]
-  }
+  const palette = pickWeightedRandomPalette()
+  const gemId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
   const templateObj = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)]
 
@@ -291,6 +340,8 @@ export function createRandomGem(
     finalData = addMetalInclusionMarks(finalData, slotChars)
   }
 
+  finalData = applyPalettePatternPasses(finalData, palette, gemId, { isGodTier })
+
   const isFlawless = purity >= 3
   finalData = mutateGemData(finalData, isFlawless)
 
@@ -305,8 +356,10 @@ export function createRandomGem(
   const magicProperties = rollMagicProperties()
 
   const gem: Gem = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: `${templateObj.shapeName} ${palette.name}`,
+    id: gemId,
+    name: '',
+    shapeName: templateObj.shapeName,
+    paletteName: palette.name,
     purity,
     karat,
     data: finalData,
@@ -317,13 +370,15 @@ export function createRandomGem(
     magicProperties,
     goldValue: 0,
   }
+  gem.name = deriveGemName(gem)
   gem.goldValue = computeGoldValue(gem, depth, valueCharms)
   return gem
 }
 
 /** Preload: ingen legendary magic; lavere metal-chance uden area-bonus. */
 export function createPreloadGem(i: number, depth = 0): Gem {
-  const palette = PALETTES[Math.floor(Math.random() * PALETTES.length)]
+  const palette = pickWeightedRandomPalette()
+  const gemId = `${Date.now()}-${i}`
   const templateObj = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)]
   const hasGold = Math.random() < 0.07
   let purity = hasGold ? 4 : Math.random() < 0.25 ? 3 : Math.random() < 0.7 ? 2 : 1
@@ -360,6 +415,8 @@ export function createPreloadGem(i: number, depth = 0): Gem {
     data = addMetalInclusionMarks(data, slotChars)
   }
 
+  data = applyPalettePatternPasses(data, palette, gemId, { isGodTier: false })
+
   if (Math.random() < 0.48) {
     data = mirrorGemDataHorizontally(data)
   }
@@ -367,8 +424,10 @@ export function createPreloadGem(i: number, depth = 0): Gem {
   const magicProperties = rollMagicProperties({ excludeLegendary: true })
 
   const gem: Gem = {
-    id: `${Date.now()}-${i}`,
-    name: `${templateObj.shapeName} ${palette.name}`,
+    id: gemId,
+    name: '',
+    shapeName: templateObj.shapeName,
+    paletteName: palette.name,
     purity,
     karat,
     data,
@@ -379,6 +438,7 @@ export function createPreloadGem(i: number, depth = 0): Gem {
     magicProperties,
     goldValue: 0,
   }
+  gem.name = deriveGemName(gem)
   gem.goldValue = computeGoldValue(gem, depth)
   return gem
 }

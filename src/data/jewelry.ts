@@ -1,6 +1,7 @@
 import type { Gem, Jewelry, MetalName, PixelItem } from '../types'
 import { METALS } from './metals'
 import { darkenColor, makeIngotPixelItem } from './oreTemplates'
+import { resolveColor } from '../gem/colorResolver'
 
 export type JewelryRecipe = {
   id: string
@@ -106,10 +107,10 @@ export function primaryMetalForRecipe(ingot: Partial<Record<MetalName, number>>)
 
 export function makeJewelryPixelItem(gem: Gem, rimMetal: MetalName): PixelItem {
   const raw =
-    gem.colorMap.G ??
-    gem.colorMap['1'] ??
-    gem.colorMap['D'] ??
-    gem.colorMap['L'] ??
+    resolveColor('G', gem.colorMap) ??
+    resolveColor('1', gem.colorMap) ??
+    resolveColor('D', gem.colorMap) ??
+    resolveColor('L', gem.colorMap) ??
     '#c084fc'
   const gemHue = typeof raw === 'string' && raw.startsWith('#') ? raw : '#c084fc'
   const rim = METALS[rimMetal].pixelColor

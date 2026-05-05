@@ -2,12 +2,63 @@ import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe } from '../
 import { makePickaxe } from '../data/pickaxes'
 import { migrateJewelry } from '../data/jewelry'
 import { METALS } from '../data/metals'
+import { PALETTES } from '../data/palettes'
 import { computeGoldValue } from '../gem/generate'
+import { deriveGemName } from '../gem/naming'
 
-export const CURRENT_STATE_VERSION = 8
+export const CURRENT_STATE_VERSION = 9
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
+
+const PALETTE_NAME_SET = new Set(PALETTES.map((p) => p.name))
+
+const LEGACY_MAGIC_PREFIXES = [
+  'Naturens ',
+  'Flamme-',
+  'Frost-',
+  'Lyn-',
+  'Gift-',
+  'Liv-',
+  'Sjæle-',
+  'Tids-',
+  'Aske-',
+].sort((a, b) => b.length - a.length)
+
+function inferLegacyShapePalette(
+  name: string,
+  storedShape?: unknown,
+  storedPalette?: unknown,
+): { shapeName: string; paletteName: string } {
+  if (typeof storedShape === 'string' && storedShape && typeof storedPalette === 'string' && storedPalette) {
+    return { shapeName: storedShape, paletteName: storedPalette }
+  }
+  const head = name.split(' med ')[0]?.trim() ?? name
+  let s = head.replace(/^Guddommelig\s+/, '').replace(/^(Klar|Uplettet)\s+/, '')
+  s = s.replace(/^\d+K-/, '')
+  for (const p of LEGACY_MAGIC_PREFIXES) {
+    if (s.startsWith(p)) {
+      s = s.slice(p.length)
+      break
+    }
+  }
+  s = s.trim()
+  const words = s.split(/\s+/).filter(Boolean)
+  if (words.length >= 2) {
+    const last = words[words.length - 1]!
+    if (PALETTE_NAME_SET.has(last)) {
+      return { shapeName: words.slice(0, -1).join(' '), paletteName: last }
+    }
+  }
+  if (words.length === 1 && PALETTE_NAME_SET.has(words[0]!)) {
+    return { shapeName: 'Brilliant', paletteName: words[0]! }
+  }
+  const last = words[words.length - 1] ?? 'Rubin'
+  const pal = PALETTE_NAME_SET.has(last) ? last : 'Rubin'
+  const shape =
+    words.length > 1 && pal === last ? words.slice(0, -1).join(' ') : words.filter((w) => w !== pal).join(' ')
+  return { shapeName: shape || 'Brilliant', paletteName: pal }
+}
 
 export function migrateGem(raw: unknown): Gem {
   if (!raw || typeof raw !== 'object') {
@@ -45,9 +96,14 @@ export function migrateGem(raw: unknown): Gem {
       ? [{ ...METALS.Guld, pixelColor: (colorMap.X as string) || METALS.Guld.pixelColor }]
       : []
 
+  const rawName = String(base.name ?? 'Ædelsten')
+  const taxonomy = inferLegacyShapePalette(rawName, base.shapeName, base.paletteName)
+
   const gem: Gem = {
     id: String(base.id ?? `${Date.now()}-migrated`),
-    name: String(base.name ?? 'Ædelsten'),
+    name: rawName,
+    shapeName: taxonomy.shapeName,
+    paletteName: taxonomy.paletteName,
     purity: typeof base.purity === 'number' ? base.purity : 2,
     karat: base.karat === null || typeof base.karat === 'number' ? base.karat : null,
     data: Array.isArray(base.data) ? (base.data as string[]) : [],
@@ -62,6 +118,8 @@ export function migrateGem(raw: unknown): Gem {
         : [],
     goldValue: typeof gv === 'number' ? gv : 0,
   }
+
+  gem.name = deriveGemName(gem)
 
   if (!gem.goldValue || gem.goldValue < 1) {
     gem.goldValue = computeGoldValue(gem, 0)
@@ -232,6 +290,15 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
 
   if (!next.pickaxes.some((p) => p.id === next.activePickaxeId) && next.pickaxes[0]) {
     next.activePickaxeId = next.pickaxes[0].id
+  }
+
+  if (version < 9) {
+    console.warn(
+      '[GemSimulator] Save migrated to v9: gems, rough stones, and total gems found were reset for compatibility.',
+    )
+    next.gems = []
+    next.roughStones = []
+    next.totalGemsFound = 0
   }
 
   return next

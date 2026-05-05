@@ -6,14 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "typescript": "~6.0.2",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -22,6 +24,7 @@
     "@types/three": "^0.184.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "simplex-noise": "^4.0.3",
     "tailwindcss": "^4.2.4",
     "three": "^0.184.0"
   }

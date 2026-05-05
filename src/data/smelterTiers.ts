@@ -20,21 +20,21 @@ export const SMELTER_TIERS: SmelterTier[] = [
   {
     tier: 3,
     name: 'Smedeovn',
-    allowedMetals: ['Tin', 'Kobber', 'Jern', 'Sølv', 'Guld'],
+    allowedMetals: ['Tin', 'Kobber', 'Jern', 'Sølv', 'Guld', 'Titanium'],
     speedMultiplier: 1.5,
     upgradeCost: 8000,
   },
   {
     tier: 4,
     name: 'Mithril-Smelter',
-    allowedMetals: ['Tin', 'Kobber', 'Jern', 'Sølv', 'Guld', 'Mithril'],
+    allowedMetals: ['Tin', 'Kobber', 'Jern', 'Sølv', 'Guld', 'Titanium', 'Platin', 'Mithril'],
     speedMultiplier: 1.85,
     upgradeCost: 50000,
   },
   {
     tier: 5,
     name: 'Rune-Forge',
-    allowedMetals: ['Tin', 'Kobber', 'Jern', 'Sølv', 'Guld', 'Mithril', 'Runestål'],
+    allowedMetals: ['Tin', 'Kobber', 'Jern', 'Sølv', 'Guld', 'Titanium', 'Platin', 'Mithril', 'Runestål'],
     speedMultiplier: 2.5,
     upgradeCost: 250000,
   },
@@ -47,8 +47,12 @@ export const ORE_PER_INGOT: Record<MetalName, number> = {
   Bronze: 0,
   Sølv: 4,
   Guld: 5,
+  Titanium: 6,
+  Platin: 7,
   Mithril: 8,
   Runestål: 12,
+  Orichalcum: 0,
+  Elektrum: 0,
 }
 
 export const NUGGET_PER_INGOT: Record<MetalName, number> = {
@@ -58,8 +62,12 @@ export const NUGGET_PER_INGOT: Record<MetalName, number> = {
   Bronze: 0,
   Sølv: 1,
   Guld: 1,
+  Titanium: 1,
+  Platin: 1,
   Mithril: 1,
   Runestål: 1,
+  Orichalcum: 0,
+  Elektrum: 0,
 }
 
 export const SMELT_TIME_MS: Record<MetalName, number> = {
@@ -69,8 +77,12 @@ export const SMELT_TIME_MS: Record<MetalName, number> = {
   Bronze: 6000,
   Sølv: 12000,
   Guld: 18000,
+  Titanium: 22000,
+  Platin: 42000,
   Mithril: 30000,
   Runestål: 60000,
+  Orichalcum: 0,
+  Elektrum: 0,
 }
 
 export const NUGGET_SMELT_TIME_MULTIPLIER = 0.5

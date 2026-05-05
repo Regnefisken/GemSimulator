@@ -19,6 +19,8 @@ import { applyEligibleUnlocks } from './unlocks'
 import { XP_REWARDS } from './leveling'
 import { startSmeltingJob } from '../gem/smelting'
 import { craftAlloy, craftGemFromRoughStone } from '../gem/crafting'
+import { createRandomGem } from '../gem/generate'
+import { ENABLE_DEV_CHEATS } from '../dev/featureFlags'
 import {
   findJewelryRecipe,
   gemMatchesRecipe,
@@ -90,6 +92,8 @@ export type Action =
   | { type: 'PRUNE_EXPIRED_EFFECTS' }
   | { type: 'UNLOCK_ACHIEVEMENTS'; ids: string[] }
   | { type: 'CLEAR_GAME_NOTICE' }
+  /** Dev: tilføj tilfældige gems uden XP/præmier (FPS/stres-test). Kun når dev-cheats er slået til. */
+  | { type: 'DEV_BULK_RANDOM_GEMS'; count: number }
 
 function addEssence(state: GameState, essenceId: string, quantity: number): GameState {
   if (quantity <= 0) return state
@@ -771,6 +775,22 @@ export function reducer(state: GameState, action: Action): GameState {
       if (action.ids.length === 0) return state
       const set = new Set([...state.achievementsUnlocked, ...action.ids])
       return { ...state, achievementsUnlocked: [...set].sort() }
+    }
+    case 'DEV_BULK_RANDOM_GEMS': {
+      if (!ENABLE_DEV_CHEATS) return state
+      const maxAdd = Math.min(Math.max(0, action.count), 300)
+      let next = state
+      for (let i = 0; i < maxAdd; i++) {
+        if (next.gems.length >= next.inventoryCapacity.gems) break
+        const gem = createRandomGem(next.depth)
+        next = {
+          ...next,
+          gems: [gem, ...next.gems],
+          totalGemsFound: next.totalGemsFound + 1,
+          gameNotice: null,
+        }
+      }
+      return next
     }
     default:
       return state

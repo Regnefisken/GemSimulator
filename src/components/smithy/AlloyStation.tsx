@@ -69,7 +69,9 @@ export default function AlloyStation({ state, dispatch }: Props) {
           </button>
         </div>
       )}
-      <p className="mt-3 text-xs text-slate-500">Opskrift: Kobber + Tin → 1 Bronze-bar.</p>
+      <p className="mt-3 text-xs text-slate-500">
+        Opskrifter: Kobber + Tin → Bronze · Guld + Mithril → Orichalcum · Guld + Sølv → Elektrum.
+      </p>
     </section>
   )
 }

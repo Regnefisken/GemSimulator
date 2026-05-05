@@ -1,3 +1,20 @@
+/**
+ * Grid-tegn til ædelsten-pixeldata (ColorMap nøgler):
+ * | Char | Betydning              | Pligtig | Fallback hvis mangler i palette |
+ * |------|------------------------|---------|----------------------------------|
+ * | .    | Tom (transparent)      | —       | —                                |
+ * | O    | Outer rim (silhuet)    | Ja      | —                                |
+ * | D    | Dark (skyggefacet)     | Ja      | —                                |
+ * | G    | Gem base               | Ja      | —                                |
+ * | L    | Light (lysfacet)       | Ja      | —                                |
+ * | W    | White / sparkle        | Ja      | —                                |
+ * | 1–3  | Metal-inklusion slot   | Kun metal | Skip celle                     |
+ * | X    | Guld-inklusion         | Kun guld  | Skip celle                     |
+ * | P    | Pattern / sekundær base| Nej     | G                                |
+ * | V    | Vein / åre             | Nej     | L                                |
+ * | S    | Star / asterism        | Nej     | W                                |
+ * | C    | Crack / fraktur        | Nej     | O                                |
+ */
 export type ColorMap = Record<string, string>
 
 export type MagicProperty = {
@@ -17,19 +34,24 @@ export type MetalName =
   | 'Guld'
   | 'Mithril'
   | 'Runestål'
+  | 'Titanium'
+  | 'Platin'
+  | 'Orichalcum'
+  | 'Elektrum'
 
-// Bronze er en LEGERING — den kan eksistere som ingot (lavet i AlloyStation)
-// og som inklusion i ædelsten, men aldrig som rå malm eller metalklump fra mining.
 export const MINEABLE_METALS: MetalName[] = [
   'Tin',
   'Kobber',
   'Jern',
   'Sølv',
+  'Titanium',
   'Guld',
+  'Platin',
   'Mithril',
   'Runestål',
 ]
-export const ALLOY_ONLY_METALS: MetalName[] = ['Bronze']
+
+export const ALLOY_ONLY_METALS: MetalName[] = ['Bronze', 'Orichalcum', 'Elektrum']
 
 export type MetalInclusion = {
   name: MetalName
@@ -42,6 +64,8 @@ export type MetalInclusion = {
 export type Gem = {
   id: string
   name: string
+  shapeName: string
+  paletteName: string
   purity: number
   karat: number | null
   data: string[]
@@ -209,5 +233,21 @@ export type GameState = {
   version: number
 }
 
-export type Palette = { name: string; colorMap: ColorMap }
+export type PaletteCategory = 'classic' | 'neon' | 'pastel' | 'gradient' | 'metallic'
+export type PaletteEffectTag =
+  | 'iridescent'
+  | 'opalescent'
+  | 'starry'
+  | 'banded'
+  | 'veined'
+  | 'cracked'
+  | 'chatoyant'
+
+export type Palette = {
+  name: string
+  category: PaletteCategory
+  colorMap: ColorMap
+  effectTags?: PaletteEffectTag[]
+}
+
 export type Template = { shapeName: string; data: string[] }

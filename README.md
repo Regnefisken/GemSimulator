@@ -6,14 +6,23 @@ Generér smukke, unikke ædelsten med forskellige former, farver, renheder og ma
 
 ## 🎮 Features
 
-- **14 forskellige ædelstenstyper**
+- **34 paletter** (klassisk, neon, pastel, gradient, metallisk) med valgfrie grid-effekter (årer, striber, stjerner, revner, opal-pletter m.m.)
+- **12 metaller** (9 minebare + 3 legeringer: Bronze, Orichalcum, Elektrum) med inklusioner i ædelsten
+- **Udvidet grid-tegn** `P`, `V`, `S`, `C` med automatisk farve-fallback på ældre paletter (2D + 3D)
 - Procedurally genererede voxel-former
 - Interaktiv 3D-visning med **Three.js**
 - Forskellige renhedsniveauer (1–4 stjerner + God Tier)
 - Specielle **magiske egenskaber** (med glow-effekter)
+- Data-drevet **navngivning** fra form, palette, metal, magi og renhed
 - Samlingssystem med historik
 - Download ædelsten som PNG
 - Smuk, moderne UI med Tailwind CSS
+
+## 🧪 Tests
+
+```bash
+npm test
+```
 
 ## 🚀 Sådan kører du spillet
 

@@ -45,6 +45,7 @@ export const AREAS: Area[] = [
       { metal: 'Sølv', weight: 50 },
       { metal: 'Jern', weight: 35 },
       { metal: 'Kobber', weight: 15 },
+      { metal: 'Titanium', weight: 8 },
     ],
   },
   {
@@ -61,6 +62,8 @@ export const AREAS: Area[] = [
       { metal: 'Guld', weight: 45 },
       { metal: 'Sølv', weight: 35 },
       { metal: 'Jern', weight: 20 },
+      { metal: 'Titanium', weight: 5 },
+      { metal: 'Platin', weight: 6 },
     ],
   },
   {
@@ -77,6 +80,7 @@ export const AREAS: Area[] = [
       { metal: 'Mithril', weight: 40 },
       { metal: 'Guld', weight: 35 },
       { metal: 'Sølv', weight: 25 },
+      { metal: 'Platin', weight: 12 },
     ],
   },
   {
@@ -93,6 +97,7 @@ export const AREAS: Area[] = [
       { metal: 'Runestål', weight: 35 },
       { metal: 'Mithril', weight: 35 },
       { metal: 'Guld', weight: 30 },
+      { metal: 'Platin', weight: 10 },
     ],
   },
   {

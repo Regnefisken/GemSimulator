@@ -9,6 +9,7 @@ import {
   mutateGemData,
   rollMagicProperties,
 } from './generate'
+import { deriveGemName } from './naming'
 
 const SLOT_CHARS = ['1', '2', '3'] as const
 
@@ -67,7 +68,9 @@ export function craftGemFromRoughStone(
 
   const gem: Gem = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: `${templateObj.shapeName} ${palette.name}`,
+    name: '',
+    shapeName: templateObj.shapeName,
+    paletteName: palette.name,
     purity,
     karat: null,
     data,
@@ -78,16 +81,22 @@ export function craftGemFromRoughStone(
     magicProperties,
     goldValue: 0,
   }
+  gem.name = deriveGemName(gem)
   gem.goldValue = computeGoldValue(gem, depth, valueCharms)
   return gem
 }
 
 export function craftAlloy(input: { a: MetalName; b: MetalName }): MetalName | null {
-  if (
-    (input.a === 'Kobber' && input.b === 'Tin') ||
-    (input.a === 'Tin' && input.b === 'Kobber')
-  ) {
-    return 'Bronze'
+  const [x, y] = [input.a, input.b].sort((a, b) => a.localeCompare(b, 'da'))
+  const set = `${x}+${y}`
+  switch (set) {
+    case 'Kobber+Tin':
+      return 'Bronze'
+    case 'Guld+Mithril':
+      return 'Orichalcum'
+    case 'Guld+Sølv':
+      return 'Elektrum'
+    default:
+      return null
   }
-  return null
 }

@@ -5,6 +5,7 @@ import { OrbitControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
 import type { ColorMap } from '../types'
+import { resolveColor } from '../gem/colorResolver'
 import { useDisplayRenderGlFallback } from './layout/DisplayRenderContext'
 
 const dummy = new THREE.Object3D()
@@ -40,7 +41,7 @@ function VoxelMesh({ data, colorMap }: { data: string[]; colorMap: ColorMap }) {
         dummy.scale.set(1, 1, 1)
         dummy.updateMatrix()
         mesh.setMatrixAt(idx, dummy.matrix)
-        _color.set(colorMap[ch] ?? '#000000')
+        _color.set(resolveColor(ch, colorMap) ?? '#000000')
         mesh.setColorAt(idx, _color)
         idx++
       }

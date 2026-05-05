@@ -30,7 +30,7 @@ export default function SettingsMenu({ onClose, state, dispatch }: Props) {
       <div className="fixed inset-0 z-[55]" onClick={onClose} aria-hidden />
 
       <div
-        className="absolute right-0 top-12 z-[56] w-64 rounded-xl border border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur-md p-3 flex flex-col gap-2"
+        className="absolute right-0 top-12 z-[56] w-[min(22rem,calc(100vw-1.5rem))] max-h-[min(86vh,32rem)] overflow-y-auto rounded-xl border border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur-md p-3 flex flex-col gap-2"
         role="menu"
         aria-label="Indstillinger"
         onClick={(e) => e.stopPropagation()}

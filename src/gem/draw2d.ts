@@ -1,4 +1,5 @@
 import type { ColorMap } from '../types'
+import { resolveColor } from './colorResolver'
 
 export function drawGem(canvas: HTMLCanvasElement, data: string[], colorMap: ColorMap, scale = 20): void {
   const ctx = canvas.getContext('2d')
@@ -14,7 +15,7 @@ export function drawGem(canvas: HTMLCanvasElement, data: string[], colorMap: Col
     for (let x = 0; x < width; x++) {
       const char = data[y][x]
       if (char !== '.') {
-        ctx.fillStyle = colorMap[char] ?? '#000000'
+        ctx.fillStyle = resolveColor(char, colorMap) ?? '#000000'
         ctx.fillRect(x * scale, y * scale, scale, scale)
       }
     }
