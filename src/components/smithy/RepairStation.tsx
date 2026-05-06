@@ -85,12 +85,14 @@ export default function RepairStation({ state, dispatch }: Props) {
 
           <div className="relative flex flex-col items-center gap-3">
             <div className="relative w-full h-48 sm:h-52 rounded-xl bg-slate-950/60 border border-slate-700 overflow-hidden">
-              <div
-                key={swing}
-                className="absolute top-2 left-1/2 z-10 hammer-strike text-6xl sm:text-7xl leading-none select-none drop-shadow-[0_4px_6px_rgba(0,0,0,0.45)]"
-                aria-hidden
-              >
-                🔨
+              <div className="absolute top-2 left-1/2 z-10 -translate-x-1/2">
+                <div
+                  key={swing}
+                  className="repair-hammer-strike text-6xl sm:text-7xl leading-none select-none drop-shadow-[0_4px_6px_rgba(0,0,0,0.45)]"
+                  aria-hidden
+                >
+                  🔨
+                </div>
               </div>
 
               <svg

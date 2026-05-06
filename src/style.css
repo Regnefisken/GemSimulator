@@ -116,23 +116,27 @@
   }
 }
 
-@keyframes hammer-strike {
+/** Reparationsbænk: ydre div centreres; indre div roterer om skaftet og slår nedad */
+@keyframes repair-hammer-strike {
   0% {
-    transform: translateX(-50%) rotate(-20deg);
+    transform: translateY(0) rotate(-8deg);
   }
-  40% {
-    transform: translateX(-50%) rotate(35deg);
+  32% {
+    transform: translateY(-10px) rotate(-52deg);
   }
-  60% {
-    transform: translateX(-50%) rotate(35deg);
+  48% {
+    transform: translateY(18px) rotate(18deg);
+  }
+  62% {
+    transform: translateY(12px) rotate(10deg);
   }
   100% {
-    transform: translateX(-50%) rotate(-20deg);
+    transform: translateY(0) rotate(-8deg);
   }
 }
-.hammer-strike {
-  animation: hammer-strike 250ms ease-out;
-  transform-origin: top center;
+.repair-hammer-strike {
+  animation: repair-hammer-strike 300ms cubic-bezier(0.33, 0, 0.2, 1) forwards;
+  transform-origin: 58% 82%;
 }
 
 @keyframes spark-fly {
