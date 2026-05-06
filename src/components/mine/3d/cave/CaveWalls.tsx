@@ -8,6 +8,18 @@ type Props = {
   seed: number
 }
 
+/** Halv bredde af gulv/loft (22×22). */
+const HALF_ROOM = 11
+/**
+ * Flyt vægge lidt ind mod midten så de overlapper gulv/loft bedre (displacement + lige vægkant).
+ */
+const WALL_INSET = 0.14
+/** Højere end rum 5.2 + ca. 2× udjævning (~0.35) så der ikke er lys-sprækker mod loft/gulv. */
+const WALL_PLANE_HEIGHT = 6.25
+const WALL_Y_CENTER = 2.6
+
+const wallEdge = HALF_ROOM - WALL_INSET
+
 export default function CaveWalls({ caveConfig, seed }: Props) {
   const noise = useMemo(() => createCaveNoise(seed ^ 0x51eded01), [seed])
 
@@ -19,19 +31,33 @@ export default function CaveWalls({ caveConfig, seed }: Props) {
     () => makeHorizontalPlane(noise, seed ^ 0x11111ab1, 'ceil'),
     [noise, seed],
   )
-  const northGeo = useMemo(() => makeWallPlane(noise, seed ^ 0xabad1dea), [noise, seed])
-  const westGeo = useMemo(() => makeWallPlane(noise, seed ^ 0xcafebabe), [noise, seed])
-  const eastGeo = useMemo(() => makeWallPlane(noise, seed ^ 0xdecafbad), [noise, seed])
+  const northGeo = useMemo(
+    () => makeWallPlane(noise, seed ^ 0xabad1dea, WALL_PLANE_HEIGHT),
+    [noise, seed],
+  )
+  const southGeo = useMemo(
+    () => makeWallPlane(noise, seed ^ 0x50c10e5, WALL_PLANE_HEIGHT),
+    [noise, seed],
+  )
+  const westGeo = useMemo(
+    () => makeWallPlane(noise, seed ^ 0xcafebabe, WALL_PLANE_HEIGHT),
+    [noise, seed],
+  )
+  const eastGeo = useMemo(
+    () => makeWallPlane(noise, seed ^ 0xdecafbad, WALL_PLANE_HEIGHT),
+    [noise, seed],
+  )
 
   useLayoutEffect(() => {
     return () => {
       floorGeo.dispose()
       ceilGeo.dispose()
       northGeo.dispose()
+      southGeo.dispose()
       westGeo.dispose()
       eastGeo.dispose()
     }
-  }, [floorGeo, ceilGeo, northGeo, westGeo, eastGeo])
+  }, [floorGeo, ceilGeo, northGeo, southGeo, westGeo, eastGeo])
 
   const wallMat = {
     roughness: 0.9,
@@ -58,14 +84,18 @@ export default function CaveWalls({ caveConfig, seed }: Props) {
           side={THREE.DoubleSide}
         />
       </mesh>
-      {/* PlaneGeometry ligger i XY; ingen rotation — ellers bliver væggen et vandret bånd ved y≈2.6 */}
-      <mesh position={[0, 2.6, -11]} geometry={northGeo}>
+      {/* PlaneGeometry i XY, normal +Z — nord vender ind i rummet; syd drejes 180° om Y. */}
+      <mesh position={[0, WALL_Y_CENTER, -wallEdge]} geometry={northGeo}>
         <meshStandardMaterial {...wallMat} />
       </mesh>
-      <mesh position={[-11, 2.6, 0]} rotation={[Math.PI / 2, Math.PI / 2, 0]} geometry={westGeo}>
+      <mesh position={[0, WALL_Y_CENTER, wallEdge]} rotation={[0, Math.PI, 0]} geometry={southGeo}>
         <meshStandardMaterial {...wallMat} />
       </mesh>
-      <mesh position={[11, 2.6, 0]} rotation={[Math.PI / 2, -Math.PI / 2, 0]} geometry={eastGeo}>
+      {/* Kun rotation om Y — [π/2, π/2, 0] bytter 22 og 6.25 så væggen kun blev ~6 m bred i z. */}
+      <mesh position={[-wallEdge, WALL_Y_CENTER, 0]} rotation={[0, Math.PI / 2, 0]} geometry={westGeo}>
+        <meshStandardMaterial {...wallMat} />
+      </mesh>
+      <mesh position={[wallEdge, WALL_Y_CENTER, 0]} rotation={[0, -Math.PI / 2, 0]} geometry={eastGeo}>
         <meshStandardMaterial {...wallMat} />
       </mesh>
     </>
@@ -91,8 +121,12 @@ function makeHorizontalPlane(noise: (x: number, y: number) => number, salt: numb
   return geom
 }
 
-function makeWallPlane(noise: (x: number, y: number) => number, salt: number) {
-  const geom = new THREE.PlaneGeometry(22, 5.4, 8, 4)
+function makeWallPlane(
+  noise: (x: number, y: number) => number,
+  salt: number,
+  planeHeight: number,
+) {
+  const geom = new THREE.PlaneGeometry(22, planeHeight, 8, 4)
   const pos = geom.attributes.position as THREE.BufferAttribute
   const arr = pos.array as Float32Array
   for (let i = 0; i < arr.length; i += 3) {
