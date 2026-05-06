@@ -17,8 +17,7 @@ import { findBlueprint } from '../../data/blueprints'
 import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
 import { useToast } from '../ui/ToastContext'
 import ChestScene from './ChestScene'
-import Rock3DScene from './Rock3DScene'
-import PickaxeOverlay from './PickaxeOverlay'
+import MiningCave3D from './3d/MiningCave3D'
 import DamageNumbers, { type DamageFloater } from './DamageNumbers'
 import MineHUD from './MineHUD'
 import RockDropBanner, { type DropNotice } from './RockDropBanner'
@@ -53,7 +52,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const [rockHp, setRockHp] = useState(0)
   const [maxHp, setMaxHp] = useState(0)
   const [hitPulse, setHitPulse] = useState(0)
-  const [striking, setStriking] = useState(false)
   const [floaters, setFloaters] = useState<DamageFloater[]>([])
   const [dropNotice, setDropNotice] = useState<DropNotice | null>(null)
   const [rockEvent, setRockEvent] = useState<RockEvent>(() => rollRockEvent(area))
@@ -179,8 +177,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     playMineHit()
     if (useDynamite) dispatch({ type: 'CONSUME_DYNAMITE' })
     setHitPulse((n) => n + 1)
-    setStriking(true)
-    window.setTimeout(() => setStriking(false), 220)
     pushFloater(dmg, isCrit)
 
     const nextHp = rockHp - dmg
@@ -254,7 +250,9 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
           <span>{area.icon}</span> {area.name}
         </h2>
-        <p className="text-slate-500 text-sm mt-0.5">Klik på klippen for at hugge.</p>
+        <p className="text-slate-500 text-sm mt-0.5">
+          Gå ind i grotten og venstreklik på den aktive malm for at hugge.
+        </p>
       </div>
 
       <MineHUD
@@ -316,16 +314,17 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
             tier={rockEvent.chestTier ?? 'wood'}
           />
         ) : (
-          <Rock3DScene
+          <MiningCave3D
+            area={area}
             hp={rockHp}
             maxHp={maxHp}
             hitPulse={hitPulse}
-            onMineHit={handleMineHit}
-            disabled={mineDisabled}
             rockType={rockEvent.type}
+            disabled={mineDisabled}
+            depth={state.depth}
+            onMineHit={handleMineHit}
           />
         )}
-        <PickaxeOverlay striking={striking} />
         <DamageNumbers items={floaters} />
         {dropNotice && (
           <RockDropBanner
