@@ -7,10 +7,10 @@ import * as THREE from 'three'
 import type { ColorMap, Voxel3DGrid } from '../types'
 import { resolveColor } from '../gem/colorResolver'
 import { useDisplayRenderGlFallback } from './layout/DisplayRenderContext'
+import VoxelMesh, { MAX_VOXEL_INSTANCES } from './VoxelMesh'
 
 const dummy = new THREE.Object3D()
 const _color = new THREE.Color()
-const MAX_INSTANCES = 1024
 
 export type VoxelSceneProps2D = {
   mode?: '2d'
@@ -30,48 +30,6 @@ export type VoxelSceneProps3D = {
 }
 
 export type VoxelSceneProps = VoxelSceneProps2D | VoxelSceneProps3D
-
-function VoxelMesh({ data, colorMap }: { data: string[]; colorMap: ColorMap }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null)
-  const geo = useMemo(() => new THREE.BoxGeometry(1, 1, 1), [])
-  const mat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        roughness: 0.4,
-        metalness: 0.15,
-        flatShading: true,
-      }),
-    [],
-  )
-
-  useEffect(() => {
-    const mesh = meshRef.current
-    if (!mesh || !data.length) return
-    const h = data.length
-    const w = data[0].length
-    let idx = 0
-    outer: for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const ch = data[y][x]
-        if (ch === '.') continue
-        if (idx >= MAX_INSTANCES) break outer
-        dummy.position.set(x - (w - 1) / 2, -y + (h - 1) / 2, 0)
-        dummy.rotation.set(0, 0, 0)
-        dummy.scale.set(1, 1, 1)
-        dummy.updateMatrix()
-        mesh.setMatrixAt(idx, dummy.matrix)
-        _color.set(resolveColor(ch, colorMap) ?? '#000000')
-        mesh.setColorAt(idx, _color)
-        idx++
-      }
-    }
-    mesh.count = idx
-    mesh.instanceMatrix.needsUpdate = true
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-  }, [data, colorMap])
-
-  return <instancedMesh ref={meshRef} args={[geo, mat, MAX_INSTANCES]} />
-}
 
 function VoxelMesh3D({ voxel3d }: { voxel3d: Voxel3DGrid }) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
@@ -99,7 +57,7 @@ function VoxelMesh3D({ voxel3d }: { voxel3d: Voxel3DGrid }) {
         for (let x = 0; x < w; x++) {
           const ch = layer[y]![x]!
           if (ch === '.') continue
-          if (idx >= MAX_INSTANCES) break outer
+          if (idx >= MAX_VOXEL_INSTANCES) break outer
           dummy.position.set(x - (w - 1) / 2, -y + (h - 1) / 2, z - (depth - 1) / 2)
           dummy.rotation.set(0, 0, 0)
           dummy.scale.set(1, 1, 1)
@@ -116,7 +74,7 @@ function VoxelMesh3D({ voxel3d }: { voxel3d: Voxel3DGrid }) {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   }, [voxel3d])
 
-  return <instancedMesh ref={meshRef} args={[geo, mat, MAX_INSTANCES]} />
+  return <instancedMesh ref={meshRef} args={[geo, mat, MAX_VOXEL_INSTANCES]} />
 }
 
 function AdaptiveCamera({ data }: { data: string[] }) {

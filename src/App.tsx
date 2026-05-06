@@ -121,6 +121,10 @@ function AppContent() {
     }
   }
 
+  const currentAreaDef = AREAS.find((a) => a.id === state.currentArea)
+  const isFullscreenMine =
+    tab === 'map' && state.viewMode !== 'map' && currentAreaDef?.kind === 'mine'
+
   let screen: ReactNode
 
   if (tab === 'inventory') {
@@ -172,7 +176,13 @@ function AppContent() {
           </button>
         </div>
       )}
-      <AppShell state={state} dispatch={dispatch} tab={tab} onTabChange={handleTabChange}>
+      <AppShell
+        state={state}
+        dispatch={dispatch}
+        tab={tab}
+        onTabChange={handleTabChange}
+        fullscreen={isFullscreenMine}
+      >
         {screen}
       </AppShell>
     </>

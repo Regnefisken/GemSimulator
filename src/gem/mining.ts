@@ -89,6 +89,41 @@ export function rollChestReward(area: Area, depth: number, tier: ChestTier): num
   return Math.max(5, scaled)
 }
 
+export type ChestLootResult = {
+  gold: number
+  items: MineDrop[]
+  blueprintId: string | null
+}
+
+export function rollChestLoot(
+  area: Area,
+  depth: number,
+  tier: ChestTier,
+  activeCharms: string[],
+): ChestLootResult {
+  const gold = rollChestReward(area, depth, tier)
+  let rarityAdd = 0
+  let min = 2
+  let max = 3
+  if (tier === 'silver') {
+    min = 3
+    max = 4
+    rarityAdd = 0.05
+  }
+  if (tier === 'gold') {
+    min = 4
+    max = 6
+    rarityAdd = 0.12
+  }
+  const n = min + Math.floor(Math.random() * (max - min + 1))
+  const items: MineDrop[] = []
+  for (let i = 0; i < n; i++) {
+    items.push(rollMineDrop(area, depth, activeCharms, 'normal', rarityAdd))
+  }
+  const blueprintId = rollBlueprintFromGoldChest(area.id, tier)
+  return { gold, items, blueprintId }
+}
+
 /** Sjælden blueprint kun fra **guld**-kiste i Mithrilbjerget / Rune-Dybet (ikke fra klippe-drop). */
 export function rollBlueprintFromGoldChest(areaId: LocationId, tier: ChestTier): string | null {
   if (tier !== 'gold') return null
@@ -102,13 +137,14 @@ export function rollMineDrop(
   depth: number,
   activeCharms: string[] = [],
   rockType: RockType = 'normal',
+  rarityBonusAdd = 0,
 ): MineDrop {
   if (area.kind !== 'mine' || !area.metalPool?.length) {
     return { kind: 'nothing' }
   }
 
   const r = Math.random()
-  const bonus = area.rarityBonus
+  const bonus = area.rarityBonus + rarityBonusAdd
   const lucky = activeCharms.includes(CHARM_IDS.luckyMiner) ? 0.05 : 0
   const valueCharms = {
     smithEye: activeCharms.includes(CHARM_IDS.smithEye),

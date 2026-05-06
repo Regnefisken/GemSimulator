@@ -9,10 +9,26 @@ type Props = {
   dispatch: Dispatch<Action>
   tab: Tab
   onTabChange: (tab: Tab) => void
+  fullscreen?: boolean
   children: ReactNode
 }
 
-export default function AppShell({ state, dispatch, tab, onTabChange, children }: Props) {
+export default function AppShell({
+  state,
+  dispatch,
+  tab,
+  onTabChange,
+  fullscreen = false,
+  children,
+}: Props) {
+  if (fullscreen) {
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col bg-slate-900 text-slate-100 overflow-hidden">
+        {children}
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-100 pb-20 pt-14">
       <LevelBadge state={state} dispatch={dispatch} />

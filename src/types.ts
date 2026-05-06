@@ -128,6 +128,48 @@ export type LocationId =
   | 'butikken'
   | 'smykkevaerkstedet'
 
+export type CaveConfig = {
+  oreSlots: [number, number, number][]
+  bounds: number
+  fogColor: string
+  fogNear: number
+  fogFar: number
+  ambientColor: string
+  ambientIntensity: number
+  floorColor: string
+  ceilingColor: string
+  wallColor: string
+  crystalMetal?: MetalName
+  stalactiteRange: [number, number]
+  stalagmiteRange: [number, number]
+  crystalClusterRange: [number, number]
+  depthFogScale: boolean
+}
+
+/** Fallback for miner uden `caveConfig` — matcher legacy statisk grotte. */
+export const DEFAULT_CAVE_CONFIG: CaveConfig = {
+  oreSlots: [
+    [5, 0.48, -2],
+    [-4.2, 0.48, 4.5],
+    [1.2, 0.48, -6.5],
+    [-6.2, 0.48, -3],
+    [6.5, 0.48, 5],
+  ],
+  bounds: 9,
+  fogColor: '#1a1a28',
+  fogNear: 6,
+  fogFar: 34,
+  ambientColor: '#ffffff',
+  ambientIntensity: 0.14,
+  floorColor: '#252018',
+  ceilingColor: '#151820',
+  wallColor: '#1e242e',
+  stalactiteRange: [6, 10],
+  stalagmiteRange: [4, 7],
+  crystalClusterRange: [8, 15],
+  depthFogScale: false,
+}
+
 export type Area = {
   id: LocationId
   kind: 'mine' | 'smedje' | 'butik' | 'smykke'
@@ -139,11 +181,16 @@ export type Area = {
   metalPool?: { metal: MetalName; weight: number }[]
   depthMultiplier: number
   rarityBonus: number
+  caveConfig?: CaveConfig
   requirement?: {
     level?: number
     reputation?: number
     gold?: number
   }
+}
+
+export function getCaveConfig(area: Area): CaveConfig {
+  return area.caveConfig ?? DEFAULT_CAVE_CONFIG
 }
 
 export type ActiveEffect = { id: string; expiresAt?: number; chargesLeft?: number }

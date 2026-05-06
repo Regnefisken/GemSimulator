@@ -5,12 +5,15 @@ import * as THREE from 'three'
 
 const MOVE_SPEED = 4.5
 const EYE_Y = 1.55
-const BOUND = 9
+
+type Props = {
+  bounds?: number
+}
 
 /**
  * Førstepersons WASD + PointerLockControls (mus look). Bevægelse kun når pointer er låst.
  */
-export default function PlayerControls() {
+export default function PlayerControls({ bounds = 9 }: Props) {
   const { camera } = useThree()
   const keys = useRef({ w: false, a: false, s: false, d: false })
   const forward = useRef(new THREE.Vector3())
@@ -66,8 +69,8 @@ export default function PlayerControls() {
     }
 
     camera.position.y = EYE_Y
-    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -BOUND, BOUND)
-    camera.position.z = THREE.MathUtils.clamp(camera.position.z, -BOUND, BOUND)
+    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -bounds, bounds)
+    camera.position.z = THREE.MathUtils.clamp(camera.position.z, -bounds, bounds)
   })
 
   return <PointerLockControls />

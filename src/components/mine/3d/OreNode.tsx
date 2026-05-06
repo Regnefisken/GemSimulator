@@ -1,6 +1,6 @@
-import { useMemo, useRef, useEffect } from 'react'
+import { useMemo, useRef, useEffect, type MutableRefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
-import type { Group } from 'three'
+import type { Group, Mesh } from 'three'
 import type { MetalName, RockType } from '../../../types'
 
 type Props = {
@@ -15,6 +15,10 @@ type Props = {
   onMineHit?: () => void
   /** Dominant metal til svag emissive (aktiv node) */
   accentMetal?: MetalName
+  /** Kun aktiv node: raycast hit-mod mesh */
+  hitTargetRef?: MutableRefObject<Mesh | null>
+  /** Hugget ud — ingen synlig bund under verdens-loot */
+  depleted?: boolean
 }
 
 const ROCK_TYPE_COLOR: Record<RockType, [number, number]> = {
@@ -48,11 +52,17 @@ export default function OreNode({
   interactive,
   onMineHit,
   accentMetal,
+  hitTargetRef,
+  depleted,
 }: Props) {
   const meshRef = useRef<Group>(null)
   const shake = useRef(0)
   const pct = interactive && maxHp > 0 ? hp / maxHp : 1
   const isLowHp = interactive && pct < 0.25
+
+  useEffect(() => {
+    if (!interactive && hitTargetRef) hitTargetRef.current = null
+  }, [interactive, hitTargetRef])
 
   useEffect(() => {
     if (!interactive) return
@@ -61,7 +71,12 @@ export default function OreNode({
 
   useFrame((_, delta) => {
     const m = meshRef.current
-    if (!m || !interactive) return
+    if (!m) return
+    if (!interactive) {
+      m.rotation.set(0, 0, 0)
+      m.position.set(0, 0, 0)
+      return
+    }
     shake.current *= Math.pow(0.92, delta * 50)
     const t = performance.now() * 0.008
     const amp = isLowHp ? shake.current * 1.5 : shake.current
@@ -85,28 +100,52 @@ export default function OreNode({
   const emissiveIntensity =
     !interactive ? 0 : isLowHp ? 0.45 * (1 - pct / 0.25) : accentMetal ? 0.12 : 0
 
+  if (depleted) {
+    return (
+      <group position={position}>
+        <group ref={meshRef} />
+      </group>
+    )
+  }
+
   return (
     <group position={position}>
       <group ref={meshRef}>
-        <mesh
-          onClick={(e) => {
-            e.stopPropagation()
-            if (!interactive || disabled || !onMineHit) return
-            onMineHit()
-          }}
-          onPointerDown={(e) => {
-            if (interactive) e.stopPropagation()
-          }}
-        >
-          <boxGeometry args={[1.1, 0.95, 1.05]} />
-          <meshStandardMaterial
-            color={color}
-            roughness={interactive ? (isLowHp ? 0.65 : 0.88) : 0.92}
-            metalness={interactive ? 0.1 : 0.04}
-            emissive={interactive ? emissiveInteractive : '#000000'}
-            emissiveIntensity={emissiveIntensity}
-          />
-        </mesh>
+        {interactive ? (
+          <mesh
+            ref={(node) => {
+              if (hitTargetRef) hitTargetRef.current = interactive ? node : null
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!interactive || disabled || !onMineHit) return
+              onMineHit()
+            }}
+            onPointerDown={(e) => {
+              if (interactive) e.stopPropagation()
+            }}
+          >
+            <boxGeometry args={[1.1, 0.95, 1.05]} />
+            <meshStandardMaterial
+              color={color}
+              roughness={interactive ? (isLowHp ? 0.65 : 0.88) : 0.92}
+              metalness={interactive ? 0.1 : 0.04}
+              emissive={interactive ? emissiveInteractive : '#000000'}
+              emissiveIntensity={emissiveIntensity}
+            />
+          </mesh>
+        ) : (
+          <mesh>
+            <boxGeometry args={[1.1, 0.95, 1.05]} />
+            <meshStandardMaterial
+              color={color}
+              roughness={0.92}
+              metalness={0.04}
+              emissive="#000000"
+              emissiveIntensity={0}
+            />
+          </mesh>
+        )}
       </group>
     </group>
   )
