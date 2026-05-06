@@ -1,12 +1,13 @@
 import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe } from '../types'
 import { makePickaxe } from '../data/pickaxes'
-import { migrateJewelry } from '../data/jewelry'
+import { blueprintFromLegacyRecipeId, migrateJewelry } from '../data/jewelry'
+import { STARTER_BLUEPRINT_IDS } from '../data/blueprints'
 import { METALS } from '../data/metals'
 import { PALETTES } from '../data/palettes'
 import { computeGoldValue } from '../gem/generate'
 import { deriveGemName } from '../gem/naming'
 
-export const CURRENT_STATE_VERSION = 9
+export const CURRENT_STATE_VERSION = 11
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -179,6 +180,8 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     reputation: typeof r.reputation === 'number' ? r.reputation : base.reputation,
     depth: typeof r.depth === 'number' ? r.depth : base.depth,
     totalGemsFound: typeof r.totalGemsFound === 'number' ? r.totalGemsFound : base.totalGemsFound,
+    totalJewelryCrafted:
+      typeof r.totalJewelryCrafted === 'number' ? r.totalJewelryCrafted : base.totalJewelryCrafted,
     totalEssencesCollected:
       typeof r.totalEssencesCollected === 'number' ? r.totalEssencesCollected : base.totalEssencesCollected,
     achievementsUnlocked: Array.isArray(r.achievementsUnlocked)
@@ -228,6 +231,9 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       ? (r.activeEffects as GameState['activeEffects'])
       : base.activeEffects,
     jewelry,
+    unlockedBlueprints: Array.isArray(r.unlockedBlueprints)
+      ? (r.unlockedBlueprints as unknown[]).filter((x): x is string => typeof x === 'string')
+      : base.unlockedBlueprints,
     essences: Array.isArray(r.essences)
       ? (r.essences as GameState['essences']).filter(
           (e) =>
@@ -299,6 +305,27 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     next.gems = []
     next.roughStones = []
     next.totalGemsFound = 0
+  }
+
+  if (version < 10) {
+    if (!Array.isArray(next.unlockedBlueprints)) {
+      next.unlockedBlueprints = [...STARTER_BLUEPRINT_IDS]
+    }
+    next.jewelry = next.jewelry.map((j) => {
+      if (j.blueprintId && Array.isArray(j.gemsUsed) && j.gemsUsed.length > 0) return j
+      const blueprintId = blueprintFromLegacyRecipeId(j.recipeId ?? '')
+      return {
+        ...j,
+        blueprintId,
+        gemsUsed: j.gemUsed ? [j.gemUsed] : [],
+      }
+    })
+  }
+
+  if (version < 11) {
+    if (typeof next.totalJewelryCrafted !== 'number' || next.totalJewelryCrafted === 0) {
+      next.totalJewelryCrafted = next.jewelry.length
+    }
   }
 
   return next

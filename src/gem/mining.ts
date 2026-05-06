@@ -3,6 +3,7 @@ import {
   type ActiveEffect,
   type Area,
   type Gem,
+  type LocationId,
   type MetalName,
   type MetalNugget,
   type RawOre,
@@ -29,6 +30,8 @@ export type MineDrop =
   | { kind: 'rough-stone'; stone: RoughStone }
   | { kind: 'gem'; gem: Gem }
   | { kind: 'chest'; gold: number; tier: ChestTier }
+  /** Kun fra guldkiste i udvalgte miner (ikke fra almindelig klippe-drop). */
+  | { kind: 'blueprint'; blueprintId: string }
   | { kind: 'nothing' }
 
 const ROCK_EVENT_WEIGHTS: Record<RockType, number> = {
@@ -84,6 +87,14 @@ export function rollChestReward(area: Area, depth: number, tier: ChestTier): num
     base * area.depthMultiplier * (0.8 + Math.random() * 0.4) * CHEST_TIER_GOLD_MULT[tier],
   )
   return Math.max(5, scaled)
+}
+
+/** Sjælden blueprint kun fra **guld**-kiste i Mithrilbjerget / Rune-Dybet (ikke fra klippe-drop). */
+export function rollBlueprintFromGoldChest(areaId: LocationId, tier: ChestTier): string | null {
+  if (tier !== 'gold') return null
+  if (areaId === 'mithrilbjerget' && Math.random() < 0.05) return 'celestial_pendant'
+  if (areaId === 'rune-dybet' && Math.random() < 0.03) return 'dragonscale_bracelet'
+  return null
 }
 
 export function rollMineDrop(

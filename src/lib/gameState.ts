@@ -20,14 +20,20 @@ import { XP_REWARDS } from './leveling'
 import { startSmeltingJob } from '../gem/smelting'
 import { craftAlloy, craftGemFromRoughStone } from '../gem/crafting'
 import { createRandomGem } from '../gem/generate'
+import { buildJewelryVoxel3d } from '../gem/drawJewelry3d'
 import { ENABLE_DEV_CHEATS } from '../dev/featureFlags'
 import {
+  blueprintFromLegacyRecipeId,
+  blueprintIngotRequirements,
   findJewelryRecipe,
+  gemMatchesBlueprint,
   gemMatchesRecipe,
-  makeJewelryPixelItem,
+  makeJewelryPixelItemV2,
+  primaryMetalForBlueprint,
   primaryMetalForRecipe,
   recipeIngotRequirements,
 } from '../data/jewelry'
+import { findBlueprint, STARTER_BLUEPRINT_IDS } from '../data/blueprints'
 import {
   CHARM_IDS,
   findCharm,
@@ -78,8 +84,11 @@ export type Action =
   | { type: 'BUY_CONSUMABLE'; id: string }
   | { type: 'EXPAND_INVENTORY'; packId: string }
   | { type: 'BUY_CHARM'; charmId: string }
+  | { type: 'BUY_BLUEPRINT'; blueprintId: string }
+  | { type: 'UNLOCK_BLUEPRINT'; blueprintId: string }
   | { type: 'CONSUME_DYNAMITE' }
   | { type: 'CRAFT_JEWELRY'; recipeId: string; gemId: string; essenceId?: string }
+  | { type: 'CRAFT_JEWELRY_V2'; blueprintId: string; gemIds: string[]; essenceId?: string }
   | { type: 'SELL_JEWELRY'; id: string }
   | { type: 'SELL_GEM'; id: string }
   | { type: 'SELL_GEMS_BULK'; ids: string[] }
@@ -211,6 +220,7 @@ export const initialState: GameState = {
   reputation: 0,
   depth: 0,
   totalGemsFound: 0,
+  totalJewelryCrafted: 0,
   totalEssencesCollected: 0,
   achievementsUnlocked: [],
   activePickaxeId: starter.id,
@@ -231,6 +241,7 @@ export const initialState: GameState = {
   instantBreakNextRock: false,
   roughCraftPurityBonus: 0,
   jewelry: [],
+  unlockedBlueprints: [...STARTER_BLUEPRINT_IDS],
   essences: [],
   gameNotice: null,
   version: CURRENT_STATE_VERSION,
@@ -559,6 +570,35 @@ export function reducer(state: GameState, action: Action): GameState {
         gameNotice: null,
       }
     }
+    case 'BUY_BLUEPRINT': {
+      const bp = findBlueprint(action.blueprintId)
+      if (!bp) return state
+      if (bp.unlockMethod !== 'shop') {
+        return { ...state, gameNotice: 'Dette blueprint kan ikke købes.' }
+      }
+      if (state.unlockedBlueprints.includes(bp.id)) {
+        return { ...state, gameNotice: 'Du ejer allerede dette blueprint.' }
+      }
+      if (state.level < bp.requires.level) {
+        return { ...state, gameNotice: `Kræver level ${bp.requires.level}.` }
+      }
+      if (state.gold < bp.shopPrice) {
+        return { ...state, gameNotice: 'Ikke nok guld.' }
+      }
+      return {
+        ...state,
+        gold: state.gold - bp.shopPrice,
+        unlockedBlueprints: [...state.unlockedBlueprints, bp.id],
+        gameNotice: null,
+      }
+    }
+    case 'UNLOCK_BLUEPRINT': {
+      if (state.unlockedBlueprints.includes(action.blueprintId)) return state
+      return {
+        ...state,
+        unlockedBlueprints: [...state.unlockedBlueprints, action.blueprintId],
+      }
+    }
     case 'CONSUME_DYNAMITE':
       if (!state.instantBreakNextRock) return state
       return { ...state, instantBreakNextRock: false }
@@ -606,23 +646,119 @@ export function reducer(state: GameState, action: Action): GameState {
       const gems = next.gems.filter((g) => g.id !== gem.id)
       next = { ...next, gems }
       const rim = primaryMetalForRecipe(recipe.requires.ingot)
+      const blueprintId = blueprintFromLegacyRecipeId(recipe.id)
       const timestamp = new Date().toLocaleTimeString('da-DK', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
       })
+      const gemRef = { id: gem.id, name: gem.name }
       const piece: Jewelry = {
         id: `jewelry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         recipeId: recipe.id,
+        blueprintId,
         name: recipe.name,
-        gemUsed: { id: gem.id, name: gem.name },
+        gemUsed: gemRef,
+        gemsUsed: [gemRef],
         ingotsUsed: needs,
         goldValue: Math.floor(recipe.goldValue * goldMult),
         reputationValue: recipe.reputation,
-        pixelItem: makeJewelryPixelItem(gem, rim),
+        pixelItem: makeJewelryPixelItemV2(blueprintId, [gem], rim),
+        voxelData: buildJewelryVoxel3d(blueprintId, [gem], rim),
         timestamp,
       }
-      next = { ...next, jewelry: [piece, ...next.jewelry], gameNotice: null }
+      next = {
+        ...next,
+        jewelry: [piece, ...next.jewelry],
+        totalJewelryCrafted: next.totalJewelryCrafted + 1,
+        gameNotice: null,
+      }
+      return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.jewelryCrafted))
+    }
+    case 'CRAFT_JEWELRY_V2': {
+      const bp = findBlueprint(action.blueprintId)
+      if (!bp) return state
+      if (!state.unlockedBlueprints.includes(bp.id)) {
+        return { ...state, gameNotice: 'Blueprint ikke låst op.' }
+      }
+      if (state.level < bp.requires.level) {
+        return { ...state, gameNotice: `Kræver level ${bp.requires.level}.` }
+      }
+      if (action.gemIds.length !== bp.gemSlots) {
+        return { ...state, gameNotice: `Vælg præcis ${bp.gemSlots} ædelsten.` }
+      }
+      if (new Set(action.gemIds).size !== action.gemIds.length) {
+        return { ...state, gameNotice: 'Samme ædelsten kan ikke bruges flere gange.' }
+      }
+      const gems = action.gemIds.map((id) => state.gems.find((g) => g.id === id)).filter(Boolean) as Gem[]
+      if (gems.length !== action.gemIds.length) {
+        return { ...state, gameNotice: 'En eller flere ædelsten findes ikke.' }
+      }
+      for (const g of gems) {
+        if (!gemMatchesBlueprint(g, bp)) {
+          return { ...state, gameNotice: 'Mindst én sten opfylder ikke blueprintets krav (renhed/magi).' }
+        }
+      }
+      const essenceIdToUse = action.essenceId
+      let goldMult = 1
+      if (essenceIdToUse) {
+        const ed = getEssenceDef(essenceIdToUse)
+        if (!ed || ed.useKind !== 'jewelry_gold_boost' || ed.id !== ESSENCE_IDS.aetherMote) {
+          return { ...state, gameNotice: 'Essensen passer ikke til smykkesmedning.' }
+        }
+        if ((state.essences.find((e) => e.essenceId === essenceIdToUse)?.quantity ?? 0) < 1) {
+          return { ...state, gameNotice: 'Mangler Æterisk kime.' }
+        }
+        goldMult = 1.1
+      }
+      const needs = blueprintIngotRequirements(bp)
+      for (const { metalName, quantity } of needs) {
+        const row = state.metalIngots.find((i) => i.metalName === metalName)
+        if (!row || row.quantity < quantity) {
+          return { ...state, gameNotice: 'Ikke nok metalbarer til opskriften.' }
+        }
+      }
+      let next = state
+      for (const { metalName, quantity } of needs) {
+        const c = consumeIngot(next, metalName, quantity)
+        if (!c) return { ...state, gameNotice: 'Ikke nok metalbarer til opskriften.' }
+        next = c
+      }
+      if (essenceIdToUse) {
+        const c = consumeEssence(next, essenceIdToUse, 1)
+        if (!c) return { ...state, gameNotice: 'Mangler Æterisk kime.' }
+        next = c
+      }
+      const gemIdSet = new Set(action.gemIds)
+      next = { ...next, gems: next.gems.filter((g) => !gemIdSet.has(g.id)) }
+      const rim = primaryMetalForBlueprint(bp)
+      const timestamp = new Date().toLocaleTimeString('da-DK', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+      const gemsUsed = gems.map((g) => ({ id: g.id, name: g.name }))
+      const gemUsed = gemsUsed[0]!
+      const piece: Jewelry = {
+        id: `jewelry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        recipeId: bp.id,
+        blueprintId: bp.id,
+        name: bp.name,
+        gemUsed,
+        gemsUsed,
+        ingotsUsed: needs,
+        goldValue: Math.floor(bp.goldValue * goldMult),
+        reputationValue: bp.reputation,
+        pixelItem: makeJewelryPixelItemV2(bp.id, gems, rim),
+        voxelData: buildJewelryVoxel3d(bp.id, gems, rim),
+        timestamp,
+      }
+      next = {
+        ...next,
+        jewelry: [piece, ...next.jewelry],
+        totalJewelryCrafted: next.totalJewelryCrafted + 1,
+        gameNotice: null,
+      }
       return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.jewelryCrafted))
     }
     case 'SELL_JEWELRY': {
@@ -774,7 +910,11 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'UNLOCK_ACHIEVEMENTS': {
       if (action.ids.length === 0) return state
       const set = new Set([...state.achievementsUnlocked, ...action.ids])
-      return { ...state, achievementsUnlocked: [...set].sort() }
+      let unlockedBlueprints = state.unlockedBlueprints
+      if (action.ids.includes('master_jeweler') && !unlockedBlueprints.includes('tiara')) {
+        unlockedBlueprints = [...unlockedBlueprints, 'tiara'].sort()
+      }
+      return { ...state, achievementsUnlocked: [...set].sort(), unlockedBlueprints }
     }
     case 'DEV_BULK_RANDOM_GEMS': {
       if (!ENABLE_DEV_CHEATS) return state

@@ -66,7 +66,14 @@ export const SHOP_CHARMS = [
   },
 ] as const
 
-export type ShopTabId = 'pickaxes' | 'smelter' | 'consumables' | 'inventory' | 'charms' | 'sell'
+export type ShopTabId =
+  | 'pickaxes'
+  | 'smelter'
+  | 'consumables'
+  | 'inventory'
+  | 'charms'
+  | 'blueprints'
+  | 'sell'
 
 export const SHOP_TAB_LABELS: Record<ShopTabId, string> = {
   pickaxes: 'Hakker',
@@ -74,6 +81,7 @@ export const SHOP_TAB_LABELS: Record<ShopTabId, string> = {
   consumables: 'Forbrug',
   inventory: 'Lager',
   charms: 'Charms',
+  blueprints: '💍 Blueprints',
   sell: '💰 Sælg',
 }
 

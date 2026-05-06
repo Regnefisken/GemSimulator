@@ -14,6 +14,7 @@ import {
 } from '../../data/shop'
 import { playGoldSpend } from '../../lib/sounds'
 import SellTab from './SellTab'
+import BlueprintShopTab from '../jewelry/BlueprintShopTab'
 
 type Props = {
   state: GameState
@@ -272,6 +273,8 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
             })}
           </ul>
         )}
+
+        {tab === 'blueprints' && <BlueprintShopTab state={state} dispatch={dispatch} />}
 
         {tab === 'sell' && <SellTab state={state} dispatch={dispatch} />}
       </div>

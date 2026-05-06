@@ -70,7 +70,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     title: 'Guldsmed',
     description: 'Lav dit første smykke.',
     icon: '💍',
-    check: (s) => s.jewelry.length >= 1,
+    check: (s) => s.totalJewelryCrafted >= 1,
+  },
+  {
+    id: 'master_jeweler',
+    title: 'Mester-juveler',
+    description: 'Smed 10 smykker i alt.',
+    icon: '👑',
+    check: (s) => s.totalJewelryCrafted >= 10,
   },
   {
     id: 'level_10',

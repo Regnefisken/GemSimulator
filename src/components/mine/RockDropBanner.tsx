@@ -9,6 +9,9 @@ export type DropNotice = {
   drop: MineDrop
   essenceId: string | null
   essenceName: string | null
+  /** Valgfri blueprint fra guldkiste (Mithril / Rune). */
+  chestBlueprintId?: string | null
+  chestBlueprintName?: string | null
 }
 
 type Props = {
@@ -39,6 +42,8 @@ function borderClassForDrop(drop: MineDrop): string {
       return 'border-fuchsia-600/70'
     case 'chest':
       return borderClassForChestTier(drop.tier)
+    case 'blueprint':
+      return 'border-violet-400/70'
     case 'nothing':
       return 'border-slate-700/40'
     default:
@@ -158,6 +163,13 @@ export default function RockDropBanner({ notice, onDone }: Props) {
       badgeText = `${tierLabel}kiste`
       break
     }
+    case 'blueprint': {
+      icon = '📜'
+      title = <>Blueprint: {drop.blueprintId}</>
+      badgeClass = 'text-violet-300'
+      badgeText = 'Blueprint'
+      break
+    }
     case 'nothing':
     default:
       icon = '—'
@@ -195,6 +207,11 @@ export default function RockDropBanner({ notice, onDone }: Props) {
         {notice.essenceName != null && (
           <p className="text-xs text-cyan-300">
             <span aria-hidden>🌟 </span>Essens: {notice.essenceName}
+          </p>
+        )}
+        {notice.chestBlueprintName != null && (
+          <p className="text-xs text-violet-300">
+            <span aria-hidden>📜 </span>Kisten gemte også en tegning: {notice.chestBlueprintName}
           </p>
         )}
       </div>

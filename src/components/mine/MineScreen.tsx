@@ -6,12 +6,14 @@ import { XP_REWARDS } from '../../lib/leveling'
 import {
   rockHpForDepth,
   rollBonusMineEssence,
+  rollBlueprintFromGoldChest,
   rollChestReward,
   rollMineDrop,
   rollRockEvent,
   type MineDrop,
 } from '../../gem/mining'
 import { ESSENCE_IDS, getEssenceDef, MOON_TEAR_EFFECT_ID } from '../../data/essences'
+import { findBlueprint } from '../../data/blueprints'
 import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
 import { useToast } from '../ui/ToastContext'
 import ChestScene from './ChestScene'
@@ -37,6 +39,8 @@ function extraMaterialsFromDrop(drop: MineDrop): number {
     case 'rough-stone':
       return 1
     case 'chest':
+      return 0
+    case 'blueprint':
       return 0
     default:
       return 0
@@ -101,6 +105,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           break
         case 'chest':
           break
+        case 'blueprint':
+          break
         default:
           break
       }
@@ -122,14 +128,41 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       playEssenceFound()
     }
     const ess = bonusEss ? getEssenceDef(bonusEss) : null
+
+    const rolledBpId = rollBlueprintFromGoldChest(area.id, tier)
+    let chestBlueprintId: string | null = null
+    let chestBlueprintName: string | null = null
+    if (rolledBpId) {
+      const def = findBlueprint(rolledBpId)
+      chestBlueprintId = rolledBpId
+      chestBlueprintName = def?.name ?? rolledBpId
+      if (!state.unlockedBlueprints.includes(rolledBpId)) {
+        dispatch({ type: 'UNLOCK_BLUEPRINT', blueprintId: rolledBpId })
+        showToast(`📜 Blueprint: ${chestBlueprintName}`, 'success', 5500)
+      } else {
+        showToast(`${chestBlueprintName} — du har allerede denne blueprint.`, 'info', 4000)
+      }
+    }
+
     setDropNotice({
       id: noticeId.current++,
       drop: { kind: 'chest', gold, tier },
       essenceId: bonusEss ?? null,
       essenceName: ess?.name ?? null,
+      chestBlueprintId,
+      chestBlueprintName,
     })
     dispatch({ type: 'INCREMENT_DEPTH' })
-  }, [area, state.depth, state.activeEffects, state.activeCharms, dispatch, rockEvent])
+  }, [
+    area,
+    state.depth,
+    state.activeEffects,
+    state.activeCharms,
+    state.unlockedBlueprints,
+    dispatch,
+    rockEvent,
+    showToast,
+  ])
 
   const handleMineHit = useCallback(() => {
     if (!pickaxe || pickaxe.durability <= 0) {

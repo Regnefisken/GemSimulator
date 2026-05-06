@@ -149,15 +149,72 @@ export type ActiveEffect = { id: string; expiresAt?: number; chargesLeft?: numbe
 
 export type EssenceStack = { essenceId: string; quantity: number }
 
+export type BlueprintCategory =
+  | 'ring'
+  | 'necklace'
+  | 'earring'
+  | 'bracelet'
+  | 'brooch'
+  | 'headpiece'
+  | 'amulet'
+
+export type BlueprintUnlockMethod = 'starter' | 'shop' | 'achievement' | 'mine-loot'
+
+export type Blueprint = {
+  /** Unik nøgle. Bruges som `baseShape` i jewelryTemplates.ts. */
+  id: string
+  name: string
+  category: BlueprintCategory
+  /** Antal gem-slots (1-3). Validering: gemSlots === antal 'g'/'h'/'i'-grupper i grid. */
+  gemSlots: 1 | 2 | 3
+  requires: {
+    gemPurityMin: number
+    gemMagicMin?: number
+    /** Mindste mængde af hvert metal (Partial). */
+    ingot: Partial<Record<MetalName, number>>
+    level: number
+  }
+  /** Pris i butikken (kun relevant hvis 'shop' i unlockMethod). */
+  shopPrice: number
+  /** Salgsværdi når smykket er craftet og sælges. */
+  goldValue: number
+  reputation: number
+  /** Hvordan blueprintet bliver tilgængeligt for spilleren. */
+  unlockMethod: BlueprintUnlockMethod
+  description: string
+  /** Emoji / kort tegn til UI-ikon. */
+  icon: string
+}
+
+/**
+ * 3D-voxel format. Encoded som flade lag (z=0 forrest, z=depth-1 bagest).
+ * Hvert lag er et 2D-grid (string[]) med samme dimensioner.
+ */
+export type Voxel3DGrid = {
+  /** Antal Z-lag (typisk 3). */
+  depth: number
+  /** layers.length === depth. Alle layers har samme bredde/højde. */
+  layers: string[][]
+  colorMap: ColorMap
+}
+
 export type Jewelry = {
   id: string
+  /** @deprecated v10: brug blueprintId. Bevares til legacy save-migration. */
   recipeId: string
+  /** v10+: nøgle til Blueprint i blueprints.ts. */
+  blueprintId: string
   name: string
+  /** v10+: array (1-3 stk) — første gem er primær. Legacy: enkelt gem. */
+  gemsUsed: { id: string; name: string }[]
+  /** @deprecated v10: brug gemsUsed[0]. */
   gemUsed: { id: string; name: string }
   ingotsUsed: { metalName: MetalName; quantity: number }[]
   goldValue: number
   reputationValue: number
   pixelItem: PixelItem
+  /** v10+: 3D voxel-data, lazily computed på craft eller første visning. */
+  voxelData?: Voxel3DGrid
   timestamp: string
 }
 
@@ -193,6 +250,8 @@ export type GameState = {
   depth: number
   /** Antal ædelsten fundet eller skåret i alt. */
   totalGemsFound: number
+  /** Livsvarigt antal smykker smedet (V1 + V2). Bruges til præstationer. */
+  totalJewelryCrafted: number
   /** Livsvarigt antal essenser modtaget (mined, smelt, køb). */
   totalEssencesCollected: number
   /** Låste præstation-id'er (persist). */
@@ -224,6 +283,9 @@ export type GameState = {
   roughCraftPurityBonus: number
 
   jewelry: Jewelry[]
+
+  /** v10+: Blueprint-IDs som spilleren har låst op (køb, achievement, drop). */
+  unlockedBlueprints: string[]
 
   essences: EssenceStack[]
 

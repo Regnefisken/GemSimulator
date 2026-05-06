@@ -3,16 +3,18 @@ import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
 import type { Dispatch } from 'react'
 import GemInventoryTab from './GemInventoryTab'
+import JewelryInventoryTab from './JewelryInventoryTab'
 import MaterialsInventoryTab from './MaterialsInventoryTab'
 import ToolsInventoryTab from './ToolsInventoryTab'
 
 import EssencesInventoryTab from './EssencesInventoryTab'
 import AchievementsTab from './AchievementsTab'
 
-type InvTab = 'gems' | 'materials' | 'essences' | 'tools' | 'achievements'
+type InvTab = 'gems' | 'jewelry' | 'materials' | 'essences' | 'tools' | 'achievements'
 
 const TABS: { id: InvTab; label: string }[] = [
   { id: 'gems', label: 'Ædelsten' },
+  { id: 'jewelry', label: 'Smykker' },
   { id: 'materials', label: 'Råvarer' },
   { id: 'essences', label: 'Essenser' },
   { id: 'tools', label: 'Redskaber' },
@@ -52,6 +54,7 @@ export default function InventoryScreen({
       </div>
 
       {sub === 'gems' && <GemInventoryTab state={state} />}
+      {sub === 'jewelry' && <JewelryInventoryTab state={state} dispatch={dispatch} />}
       {sub === 'materials' && <MaterialsInventoryTab state={state} />}
       {sub === 'essences' && <EssencesInventoryTab state={state} />}
       {sub === 'tools' && <ToolsInventoryTab state={state} dispatch={dispatch} />}
