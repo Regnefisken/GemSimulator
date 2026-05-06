@@ -133,6 +133,7 @@ export type Area = {
   kind: 'mine' | 'smedje' | 'butik' | 'smykke'
   name: string
   icon: string
+  image?: string
   description: string
   unlockedByDefault: boolean
   metalPool?: { metal: MetalName; weight: number }[]

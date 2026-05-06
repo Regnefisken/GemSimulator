@@ -21,7 +21,7 @@ export default function MapScreen({ state, dispatch }: Props) {
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-100">Verdenskort</h1>
         <p className="text-slate-400 text-sm mt-1">Vælg en lokation at besøge.</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {AREAS.map((area) => (
           <LocationCard key={area.id} area={area} state={state} onEnter={handleEnter} />
         ))}
