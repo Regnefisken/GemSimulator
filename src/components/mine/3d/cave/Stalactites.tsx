@@ -64,7 +64,11 @@ export default function Stalactites({ caveConfig, seed }: Props) {
   return (
     <group>
       {items.map((it) => (
-        <mesh key={it.key} position={it.position} rotation={[0, it.yRot, 0]}>
+        <mesh
+          key={it.key}
+          position={it.position}
+          rotation={[it.fromCeiling ? Math.PI : 0, it.yRot, 0]}
+        >
           <coneGeometry args={[it.radius, it.height, 6]} />
           <meshStandardMaterial color={caveConfig.wallColor} roughness={0.88} metalness={0.06} />
         </mesh>

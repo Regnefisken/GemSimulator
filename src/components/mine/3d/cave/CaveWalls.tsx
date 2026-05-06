@@ -58,7 +58,8 @@ export default function CaveWalls({ caveConfig, seed }: Props) {
           side={THREE.DoubleSide}
         />
       </mesh>
-      <mesh position={[0, 2.6, -11]} rotation={[Math.PI / 2, 0, 0]} geometry={northGeo}>
+      {/* PlaneGeometry ligger i XY; ingen rotation — ellers bliver væggen et vandret bånd ved y≈2.6 */}
+      <mesh position={[0, 2.6, -11]} geometry={northGeo}>
         <meshStandardMaterial {...wallMat} />
       </mesh>
       <mesh position={[-11, 2.6, 0]} rotation={[Math.PI / 2, Math.PI / 2, 0]} geometry={westGeo}>
