@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type Dispatch } from 'react'
+import { useId, useRef, useState, type CSSProperties, type Dispatch } from 'react'
 import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
 import PixelItemCard from '../PixelItemCard'
@@ -12,6 +12,7 @@ type Props = {
 }
 
 export default function RepairStation({ state, dispatch }: Props) {
+  const anvilGradId = useId().replace(/:/g, '')
   const [sparks, setSparks] = useState<{ id: number; x: number; y: number; dx: string; dy: string }[]>([])
   const [floats, setFloats] = useState<{ id: number; amount: number }[]>([])
   const [swing, setSwing] = useState(0)
@@ -35,8 +36,8 @@ export default function RepairStation({ state, dispatch }: Props) {
       const dy = `${-28 - Math.random() * 36}px`
       return {
         id: ++idRef.current,
-        x: 50 + (Math.random() - 0.5) * 60,
-        y: 50 + (Math.random() - 0.5) * 30,
+        x: 50 + (Math.random() - 0.5) * 14,
+        y: 72 + (Math.random() - 0.5) * 8,
         dx,
         dy,
       }
@@ -86,16 +87,86 @@ export default function RepairStation({ state, dispatch }: Props) {
             <div className="relative w-full h-48 sm:h-52 rounded-xl bg-slate-950/60 border border-slate-700 overflow-hidden">
               <div
                 key={swing}
-                className="absolute top-3 left-1/2 hammer-strike text-6xl sm:text-7xl leading-none select-none"
+                className="absolute top-2 left-1/2 z-10 hammer-strike text-6xl sm:text-7xl leading-none select-none drop-shadow-[0_4px_6px_rgba(0,0,0,0.45)]"
                 aria-hidden
               >
                 🔨
               </div>
 
+              <svg
+                className="absolute bottom-1 left-1/2 w-[min(88%,240px)] h-auto -translate-x-1/2 pointer-events-none select-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)]"
+                viewBox="0 0 200 78"
+                aria-hidden
+              >
+                <defs>
+                  <linearGradient id={`${anvilGradId}-top`} x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#94a3b8" />
+                    <stop offset="50%" stopColor="#cbd5e1" />
+                    <stop offset="100%" stopColor="#7c8c9f" />
+                  </linearGradient>
+                  <linearGradient id={`${anvilGradId}-body`} x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#64748b" />
+                    <stop offset="55%" stopColor="#475569" />
+                    <stop offset="100%" stopColor="#334155" />
+                  </linearGradient>
+                  <linearGradient id={`${anvilGradId}-base`} x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#3f4a55" />
+                    <stop offset="100%" stopColor="#1e293b" />
+                  </linearGradient>
+                </defs>
+                {/* Fod */}
+                <path
+                  d="M 26 66 L 174 66 L 170 78 H 30 Z"
+                  fill={`url(#${anvilGradId}-base)`}
+                  stroke="#0f172a"
+                  strokeWidth="0.75"
+                  strokeLinejoin="round"
+                />
+                {/* Skaft / midte */}
+                <path
+                  d="M 54 66 V 46 H 146 V 66"
+                  fill={`url(#${anvilGradId}-body)`}
+                  stroke="#1e293b"
+                  strokeWidth="0.6"
+                />
+                {/* Bulk under slagflade */}
+                <path
+                  d="M 42 46 L 40 28 L 48 24 H 152 L 158 28 L 156 46 Z"
+                  fill={`url(#${anvilGradId}-body)`}
+                  stroke="#1e293b"
+                  strokeWidth="0.6"
+                  strokeLinejoin="round"
+                />
+                {/* Horn (venstre) */}
+                <path
+                  d="M 40 28 L 12 32 L 8 40 L 38 36 Z"
+                  fill="#526077"
+                  stroke="#1e293b"
+                  strokeWidth="0.5"
+                  strokeLinejoin="round"
+                />
+                {/* Slagflade set forfra */}
+                <path
+                  d="M 28 24 L 34 16 H 166 L 172 24 Z"
+                  fill={`url(#${anvilGradId}-top)`}
+                  stroke="#334155"
+                  strokeWidth="0.85"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M 34 16 L 38 12 H 162 L 166 16"
+                  fill="none"
+                  stroke="#f1f5f9"
+                  strokeWidth="1.1"
+                  strokeLinecap="round"
+                  opacity="0.35"
+                />
+              </svg>
+
               {sparks.map((sp) => (
                 <span
                   key={sp.id}
-                  className="absolute w-1.5 h-1.5 rounded-full bg-amber-300 spark-fly pointer-events-none"
+                  className="absolute w-1.5 h-1.5 rounded-full bg-amber-300 z-20 spark-fly pointer-events-none"
                   style={
                     {
                       left: `${sp.x}%`,
@@ -110,7 +181,7 @@ export default function RepairStation({ state, dispatch }: Props) {
               {floats.map((fl) => (
                 <span
                   key={fl.id}
-                  className="absolute left-1/2 top-1/2 text-emerald-300 font-bold text-lg float-up pointer-events-none"
+                  className="absolute left-1/2 top-[72%] text-emerald-300 font-bold text-lg float-up pointer-events-none"
                 >
                   +{fl.amount}
                 </span>

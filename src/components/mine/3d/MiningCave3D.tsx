@@ -115,13 +115,15 @@ function CaveContent({
 
   return (
     <>
-      <color attach="background" args={['#07070c']} />
+      <color attach="background" args={['#0c0c14']} />
       <fog attach="fog" args={[cfg.fogColor, fogNear, fogFar]} />
 
       <ambientLight color={cfg.ambientColor} intensity={cfg.ambientIntensity} />
-      <pointLight position={[3, 3.5, 2]} intensity={22} distance={22} decay={2} color="#ffaa66" />
-      <pointLight position={[-4, 2.8, -5]} intensity={14} distance={18} decay={2} color="#6688cc" />
-      <pointLight position={[0, 4, -8]} intensity={10} distance={20} decay={2} color="#ffe0c0" />
+      <hemisphereLight color="#c4ccdc" groundColor="#4a4036" intensity={0.32} />
+      <pointLight position={[3, 3.5, 2]} intensity={30} distance={26} decay={2} color="#ffcc88" />
+      <pointLight position={[-4, 2.8, -5]} intensity={20} distance={22} decay={2} color="#88a8dd" />
+      <pointLight position={[0, 4, -8]} intensity={14} distance={24} decay={2} color="#fff0dc" />
+      <pointLight position={[0, 2.2, 6]} intensity={12} distance={24} decay={2} color="#e8ddd0" />
 
       <ProceduralCave
         caveConfig={cfg}
