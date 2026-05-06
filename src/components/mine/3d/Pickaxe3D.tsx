@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { PixelItem } from '../../../types'
 import VoxelMesh from '../../VoxelMesh'
+import { DEFAULT_PICKAXE_TRANSFORM } from './pickaxeDefaults'
 
 type Props = {
   pixelItem: PixelItem
@@ -11,10 +12,8 @@ type Props = {
   visible: boolean
 }
 
-const BASE_ROT = new THREE.Euler(0.15, -0.2, 0.05)
-const BASE_POS = new THREE.Vector3(0.42, -0.48, -0.72)
-
 export default function Pickaxe3D({ pixelItem, swingTrigger, disabled, visible }: Props) {
+  const t = DEFAULT_PICKAXE_TRANSFORM
   const { camera } = useThree()
   const groupRef = useRef<THREE.Group>(null)
   const swingPhase = useRef<'idle' | 'down' | 'return'>('idle')
@@ -30,9 +29,16 @@ export default function Pickaxe3D({ pixelItem, swingTrigger, disabled, visible }
     const w = pixelItem.data[0]?.length ?? 12
     const h = pixelItem.data.length ?? 12
     const m = Math.max(w, h)
-    /** Lidt større end før — lettere at se i førsteperson */
     return Math.min(0.15, 3.4 / m)
   }, [pixelItem.data])
+
+  const pivotXZ = useMemo(() => {
+    const w = pixelItem.data[0]?.length ?? 12
+    const h = pixelItem.data.length
+    const pivotY = h <= 1 ? 0 : (h - 1) / 2
+    const pivotX = (w - 1) / 2 - t.gripColumn
+    return [pivotX, pivotY] as const
+  }, [pixelItem.data, t.gripColumn])
 
   useEffect(() => {
     if (swingTrigger !== lastTrigRef.current && !disabled && visible) {
@@ -42,10 +48,6 @@ export default function Pickaxe3D({ pixelItem, swingTrigger, disabled, visible }
     }
   }, [swingTrigger, disabled, visible])
 
-  /**
-   * Placer hakken i world space foran kameraet hver frame.
-   * `camera.add(mesh)` brudt R3F/reconciliation — gruppen ender ofte usynlig eller forkert parentet.
-   */
   useFrame(({ clock }) => {
     const g = groupRef.current
     if (!g) return
@@ -53,13 +55,13 @@ export default function Pickaxe3D({ pixelItem, swingTrigger, disabled, visible }
     g.visible = visible
     if (!visible) return
 
-    const t = clock.elapsedTime
-    const rx0 = BASE_ROT.x
+    const rx0 = t.baseRot[0]
     let rotX = rx0
     let bobLocalY = 0
 
+    const tClock = clock.elapsedTime
     if (disabled) {
-      bobLocalY = Math.sin(t * 2.2) * 0.002
+      bobLocalY = Math.sin(tClock * 2.2) * 0.002
     } else {
       const now = performance.now() / 1000
 
@@ -76,30 +78,28 @@ export default function Pickaxe3D({ pixelItem, swingTrigger, disabled, visible }
         rotX = THREE.MathUtils.lerp(1.35, rx0, ease)
         if (p >= 1) swingPhase.current = 'idle'
       } else {
-        bobLocalY = Math.sin(t * 2.2) * 0.002
+        bobLocalY = Math.sin(tClock * 2.2) * 0.002
       }
     }
 
-    eulerTmp.current.set(rotX, BASE_ROT.y, BASE_ROT.z)
+    eulerTmp.current.set(rotX, t.baseRot[1], t.baseRot[2])
     quatLocal.current.setFromEuler(eulerTmp.current)
 
-    localPick.current.set(BASE_POS.x, BASE_POS.y + bobLocalY, BASE_POS.z)
+    localPick.current.set(t.basePos[0], t.basePos[1] + bobLocalY, t.basePos[2])
     localPick.current.applyQuaternion(camera.quaternion)
     offsetWorld.current.copy(camera.position).add(localPick.current)
 
     g.position.copy(offsetWorld.current)
     g.quaternion.copy(camera.quaternion).multiply(quatLocal.current)
-    g.scale.setScalar(voxelScale)
+    g.scale.setScalar(voxelScale * 0.945)
   })
 
   return (
     <group ref={groupRef} visible={visible} frustumCulled={false} renderOrder={1000}>
-      {/*
-        Hakken ligger tæt på kamera og mellem spiller og malm — globale punktlys rammer den svagt.
-        Lokalt lys holder paletten læsbar uden at dominere grotten.
-      */}
-      <pointLight intensity={18} distance={3.2} decay={2} position={[0.28, -0.12, 0.22]} color="#fff8f0" />
-      <VoxelMesh data={pixelItem.data} colorMap={pixelItem.colorMap} frustumCulled={false} />
+      <pointLight intensity={22} distance={4} decay={2} position={[0.15, 0.06, 0.24]} color="#fff8f0" />
+      <group position={[pivotXZ[0], pivotXZ[1], 0]} rotation={t.meshOrient}>
+        <VoxelMesh data={pixelItem.data} colorMap={pixelItem.colorMap} frustumCulled={false} unlit />
+      </group>
     </group>
   )
 }
