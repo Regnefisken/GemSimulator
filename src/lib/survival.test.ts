@@ -6,6 +6,7 @@ import {
   applySafeZoneRegen,
   clampPlayerSurvival,
   isInActiveMineRun,
+  NEUTRAL_MANA_MAX,
 } from './survival'
 
 function mineRunStub(mineId: GameState['currentArea']): NonNullable<GameState['mineRun']> {
@@ -77,7 +78,7 @@ describe('applySafeZoneRegen + reducer', () => {
     expect(next.playerMana).toBe(5)
   })
 
-  it('MINE_RUN_ENTER sætter fuld HP/mana', () => {
+  it('MINE_RUN_ENTER sætter fuld HP/mana (neutral eller brew-max)', () => {
     const low: GameState = {
       ...initialState,
       playerHp: 12,
@@ -90,34 +91,53 @@ describe('applySafeZoneRegen + reducer', () => {
     expect(next.playerHp).toBe(next.playerHpMax)
     expect(next.playerMana).toBe(next.playerManaMax)
   })
+
+  it('MINE_RUN_ENTER med aktiv brew fylder mana op til brew-cap', () => {
+    const low: GameState = {
+      ...initialState,
+      playerHp: 12,
+      playerMana: 3,
+      playerManaMax: 65,
+      activeBrewId: 'brew_solar_vigor',
+      mineRun: null,
+      currentArea: 'kobbermine',
+    }
+    const next = reducer(low, { type: 'MINE_RUN_ENTER', mineId: 'kobbermine' })
+    expect(next.playerMana).toBe(65)
+    expect(next.playerManaMax).toBe(65)
+  })
 })
 
 describe('clampPlayerSurvival', () => {
   it('klamper HP og mana til max og min 1 på max-felter', () => {
     const s = clampPlayerSurvival({
       ...initialState,
+      activeBrewId: null,
       playerHpMax: 0,
       playerManaMax: 0,
       playerHp: 500,
       playerMana: 999,
     })
     expect(s.playerHpMax).toBe(1)
-    expect(s.playerManaMax).toBe(1)
+    expect(s.playerManaMax).toBe(NEUTRAL_MANA_MAX)
     expect(s.playerHp).toBe(1)
-    expect(s.playerMana).toBe(1)
+    expect(s.playerMana).toBe(NEUTRAL_MANA_MAX)
   })
 })
 
 describe('applySafeZoneRegen', () => {
-  it('sætter current til max', () => {
+  it('sætter HP til max og neutral mana; rydder aktiv brew (hub)', () => {
     const s = applySafeZoneRegen({
       ...initialState,
       playerHp: 1,
       playerHpMax: 80,
       playerMana: 2,
-      playerManaMax: 40,
+      playerManaMax: 65,
+      activeBrewId: 'brew_solar_vigor',
     })
     expect(s.playerHp).toBe(80)
-    expect(s.playerMana).toBe(40)
+    expect(s.playerMana).toBe(NEUTRAL_MANA_MAX)
+    expect(s.playerManaMax).toBe(NEUTRAL_MANA_MAX)
+    expect(s.activeBrewId).toBeNull()
   })
 })

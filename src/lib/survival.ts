@@ -1,4 +1,5 @@
 import { AREAS } from '../data/areas'
+import { findBrew } from '../data/brews'
 import type { GameState } from '../types'
 
 /** D38: neutral mana før brews. */
@@ -18,18 +19,31 @@ export function isInActiveMineRun(state: GameState): boolean {
   return state.mineRun.mineId === state.currentArea
 }
 
-/** D16/D17: fuld HP og mana i hub / på kort / ikke-mine lokationer. */
+/** D38: effektiv mana-ceiling fra aktiv brew eller neutral baseline. */
+export function effectiveManaMax(state: GameState): number {
+  if (state.activeBrewId) {
+    const b = findBrew(state.activeBrewId)
+    if (b) return Math.max(1, b.manaMax)
+  }
+  return NEUTRAL_MANA_MAX
+}
+
+/**
+ * D16/D17 + Fase 4 D36: fuld HP og mana i hub; aktiv brew nulstilles (`until_swap` slutter ved hub).
+ */
 export function applySafeZoneRegen(state: GameState): GameState {
   return {
     ...state,
+    activeBrewId: null,
     playerHp: state.playerHpMax,
-    playerMana: state.playerManaMax,
+    playerManaMax: NEUTRAL_MANA_MAX,
+    playerMana: NEUTRAL_MANA_MAX,
   }
 }
 
 export function clampPlayerSurvival(state: GameState): GameState {
   const hpM = Math.max(1, state.playerHpMax)
-  const manaM = Math.max(1, state.playerManaMax)
+  const manaM = Math.max(1, effectiveManaMax(state))
   return {
     ...state,
     playerHpMax: hpM,

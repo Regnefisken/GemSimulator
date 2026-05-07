@@ -10,8 +10,9 @@ import { deriveGemName } from '../gem/naming'
 import { computeWorldTier } from './worldTier'
 import { clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './survival'
 import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
+import { STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
 
-export const CURRENT_STATE_VERSION = 15
+export const CURRENT_STATE_VERSION = 16
 
 const MINE_LOCATION_IDS: LocationId[] = [
   'kobbermine',
@@ -290,6 +291,9 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     unlockedBlueprints: Array.isArray(r.unlockedBlueprints)
       ? (r.unlockedBlueprints as unknown[]).filter((x): x is string => typeof x === 'string')
       : base.unlockedBlueprints,
+    unlockedAlchemyRecipes: Array.isArray(r.unlockedAlchemyRecipes)
+      ? (r.unlockedAlchemyRecipes as unknown[]).filter((x): x is string => typeof x === 'string')
+      : base.unlockedAlchemyRecipes,
     essences: Array.isArray(r.essences)
       ? (r.essences as GameState['essences']).filter(
           (e) =>
@@ -328,6 +332,12 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     playerHpMax: typeof r.playerHpMax === 'number' ? r.playerHpMax : base.playerHpMax,
     playerMana: typeof r.playerMana === 'number' ? r.playerMana : base.playerMana,
     playerManaMax: typeof r.playerManaMax === 'number' ? r.playerManaMax : base.playerManaMax,
+    activeBrewId:
+      typeof r.activeBrewId === 'string'
+        ? r.activeBrewId
+        : r.activeBrewId === null
+          ? null
+          : base.activeBrewId,
     gameNotice: typeof r.gameNotice === 'string' ? r.gameNotice : null,
     version: CURRENT_STATE_VERSION,
   }
@@ -474,6 +484,15 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     const ul = next.unlockedLocations.filter((id): id is LocationId => typeof id === 'string')
     if (!ul.includes('alkymistvaerkstedet')) {
       next.unlockedLocations = [...ul, 'alkymistvaerkstedet']
+    }
+  }
+
+  if (version < 16) {
+    if (!Array.isArray(next.unlockedAlchemyRecipes)) {
+      next.unlockedAlchemyRecipes = [...STARTER_UNLOCKED_ALCHEMY_RECIPES]
+    }
+    if (typeof next.activeBrewId !== 'string' && next.activeBrewId !== null) {
+      next.activeBrewId = null
     }
   }
 

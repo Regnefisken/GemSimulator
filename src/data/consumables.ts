@@ -2,9 +2,9 @@ import type { PixelItem } from '../types'
 
 export type WorkshopTabId = 'food' | 'potion' | 'ingredient'
 
-export type ConsumableEffectKind = 'heal_hp' | 'heal_mana'
+export type ConsumableEffectKind = 'heal_hp' | 'heal_mana' | 'apply_brew'
 
-export type ConsumableDef = {
+type ConsumableDefBase = {
   id: string
   name: string
   description: string
@@ -12,11 +12,20 @@ export type ConsumableDef = {
   /** Guldpris i alkymist-værkstedet. */
   price: number
   kind: 'food' | 'potion'
-  effect: ConsumableEffectKind
-  /** Effekt-værdi (HP eller mana). */
-  value: number
   pixelItem: PixelItem
 }
+
+export type ConsumableDef =
+  | (ConsumableDefBase & {
+      effect: 'heal_hp' | 'heal_mana'
+      /** Effekt-værdi (HP eller mana). */
+      value: number
+    })
+  | (ConsumableDefBase & {
+      effect: 'apply_brew'
+      /** Matcher `BrewDef.id` i brews.ts (Fase 4). */
+      brewId: string
+    })
 
 const BREAD_PIXEL: PixelItem = {
   data: ['..OO..', '.OOOO.', 'OOOOOO', '.OOOO.', '..OO..'],
@@ -31,6 +40,11 @@ const VIAL_PIXEL: PixelItem = {
 const MOSS_PIXEL: PixelItem = {
   data: ['..MM..', '.MMMM.', '.MMMM.', '..MM..'],
   colorMap: { M: '#4ade80', '.': 'transparent' },
+}
+
+const GOLDEN_VIAL_PIXEL: PixelItem = {
+  data: ['..YY..', '.YGYY.', '.YGGY.', '.YGYY.', '..YY..'],
+  colorMap: { Y: '#fcd34d', G: '#f59e0b', '.': 'transparent' },
 }
 
 /** Fase 3: mad / potions / placeholder-ingrediens til værkstedet. */
@@ -60,13 +74,24 @@ export const CONSUMABLE_DEFS: ConsumableDef[] = [
   {
     id: 'ing_glow_moss',
     name: 'Glød-mos',
-    description: 'Alkymisk råvare — blanding kommer i senere fase.',
+    description: 'Alkymisk råvare til sol-eliksir og andre blandinger.',
     tab: 'ingredient',
     price: 15,
     kind: 'food',
     effect: 'heal_hp',
     value: 3,
     pixelItem: MOSS_PIXEL,
+  },
+  {
+    id: 'cons_brew_solar_vigor',
+    name: 'Sol-eliksir',
+    description: 'Skifter din aktive bryg til Sol-vigor (hard overskriv, D20).',
+    tab: 'potion',
+    price: 120,
+    kind: 'potion',
+    effect: 'apply_brew',
+    brewId: 'brew_solar_vigor',
+    pixelItem: GOLDEN_VIAL_PIXEL,
   },
 ]
 

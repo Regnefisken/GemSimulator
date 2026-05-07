@@ -58,3 +58,42 @@ describe('Fase 3 alkymi & forbrug', () => {
     expect(row?.quantity).toBe(1)
   })
 })
+
+describe('Fase 4 alkymi brew & blandning', () => {
+  it('CRAFT_ALCHEMY_RECIPE forbruger ingredienser og giver sol-eliksir', () => {
+    const base: GameState = {
+      ...initialState,
+      consumables: [{ consumableId: 'ing_glow_moss', quantity: 5 }],
+    }
+    const next = reducer(base, { type: 'CRAFT_ALCHEMY_RECIPE', recipeId: 'recipe_solar_elixir' })
+    expect(next.consumables.find((c) => c.consumableId === 'ing_glow_moss')?.quantity).toBe(2)
+    expect(next.consumables.find((c) => c.consumableId === 'cons_brew_solar_vigor')?.quantity).toBe(1)
+  })
+
+  it('USE_CONSUMABLE sol-eliksir sætter aktiv brew og manaMax', () => {
+    const area = AREAS.find((a) => a.id === 'kobbermine')!
+    const run = createInitialMineRun({ area, mineId: 'kobbermine', activeCharms: [] })
+    const base: GameState = {
+      ...initialState,
+      viewMode: 'location',
+      currentArea: 'kobbermine',
+      mineRun: run,
+      playerMana: 40,
+      consumables: [{ consumableId: 'cons_brew_solar_vigor', quantity: 1 }],
+      consumableQuickSlots: ['cons_brew_solar_vigor', null, null],
+    }
+    const next = reducer(base, { type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: 0 })
+    expect(next.activeBrewId).toBe('brew_solar_vigor')
+    expect(next.playerManaMax).toBe(65)
+    expect(next.playerMana).toBeLessThanOrEqual(65)
+  })
+
+  it('UNLOCK_ALCHEMY_RECIPE tilføjer id', () => {
+    const base: GameState = {
+      ...initialState,
+      unlockedAlchemyRecipes: [],
+    }
+    const next = reducer(base, { type: 'UNLOCK_ALCHEMY_RECIPE', recipeId: 'recipe_solar_elixir' })
+    expect(next.unlockedAlchemyRecipes).toContain('recipe_solar_elixir')
+  })
+})

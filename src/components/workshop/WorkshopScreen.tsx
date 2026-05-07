@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Dispatch } from 'react'
 import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
-import { CONSUMABLE_DEFS, type WorkshopTabId } from '../../data/consumables'
+import { ALCHEMY_RECIPES } from '../../data/alchemyRecipes'
+import { CONSUMABLE_DEFS, findConsumableDef, type WorkshopTabId } from '../../data/consumables'
+import { computeWorldTier } from '../../lib/worldTier'
 import { playGoldSpend } from '../../lib/sounds'
 import VoxelScene from '../VoxelScene'
 
@@ -23,9 +25,26 @@ export default function WorkshopScreen({ state, dispatch, onBack }: Props) {
 
   const defs = CONSUMABLE_DEFS.filter((d) => d.tab === tab)
 
+  const worldTier = useMemo(() => computeWorldTier(state), [state.depth, state.unlockedDepths])
+
+  const visibleRecipes = useMemo(
+    () => ALCHEMY_RECIPES.filter((r) => state.unlockedAlchemyRecipes.includes(r.id)),
+    [state.unlockedAlchemyRecipes],
+  )
+
   function buy(id: string) {
     playGoldSpend()
     dispatch({ type: 'BUY_WORKSHOP_CONSUMABLE', consumableId: id, quantity: 1 })
+  }
+
+  function craft(recipeId: string) {
+    dispatch({ type: 'CRAFT_ALCHEMY_RECIPE', recipeId })
+  }
+
+  function ingredientLine(consumableId: string, qty: number): string {
+    const def = findConsumableDef(consumableId)
+    const owned = state.consumables.find((c) => c.consumableId === consumableId)?.quantity ?? 0
+    return `${def?.name ?? consumableId} ×${qty} (har ${owned})`
   }
 
   return (
@@ -47,6 +66,69 @@ export default function WorkshopScreen({ state, dispatch, onBack }: Props) {
               op igen når du forlader minen.
             </p>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-violet-800/40 bg-slate-950/70 p-4 mb-6">
+          <h2 className="text-sm font-bold text-violet-200 mb-2">Bland eliksirer</h2>
+          <p className="text-xs text-slate-500 mb-3">
+            World tier <span className="font-mono text-slate-300">{worldTier}</span> (D10). Opskrifter låses bl.a.
+            op via kiste-blueprints — smykke-blueprints er et andet system (§8b).
+          </p>
+          {visibleRecipes.length === 0 ? (
+            <p className="text-sm text-slate-500">Ingen alkymi-opskrifter endnu.</p>
+          ) : (
+            <ul className="space-y-3">
+              {visibleRecipes.map((rec) => {
+                const outDef = findConsumableDef(rec.outputConsumableId)
+                const tierOk = worldTier >= rec.requiredWorldTier
+                const entries = Object.entries(rec.ingredients).filter(([, q]) => (q ?? 0) > 0)
+                const hasAll = entries.every(([id, q]) => {
+                  const need = q ?? 0
+                  const row = state.consumables.find((c) => c.consumableId === id)
+                  return row != null && row.quantity >= need
+                })
+                const canCraft = tierOk && hasAll
+                return (
+                  <li
+                    key={rec.id}
+                    className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-700/80 bg-slate-900/60 p-3"
+                  >
+                    <div className="w-14 h-14 shrink-0 rounded-lg bg-slate-900 overflow-hidden border border-slate-600/50">
+                      {outDef && (
+                        <VoxelScene
+                          data={outDef.pixelItem.data}
+                          colorMap={outDef.pixelItem.colorMap}
+                          className="!block !max-w-none scale-90"
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-[200px]">
+                      <p className="font-semibold text-slate-100">{rec.name}</p>
+                      <p className="text-xs text-slate-500">{rec.description}</p>
+                      <ul className="text-[11px] text-slate-400 mt-1 space-y-0.5">
+                        {entries.map(([id, q]) => (
+                          <li key={`${rec.id}-${id}`}>{ingredientLine(id, q ?? 0)}</li>
+                        ))}
+                      </ul>
+                      {!tierOk && (
+                        <p className="text-[11px] text-amber-400 mt-1">
+                          Kræver world tier {rec.requiredWorldTier}+
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!canCraft}
+                      onClick={() => craft(rec.id)}
+                      className="min-h-[44px] px-4 rounded-lg bg-violet-800/80 hover:bg-violet-700/90 disabled:opacity-40 disabled:cursor-not-allowed text-violet-50 text-sm font-semibold border border-violet-600/40"
+                    >
+                      Bland
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2 mb-6">

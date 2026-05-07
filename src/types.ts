@@ -363,8 +363,15 @@ export type GameState = {
 
   jewelry: Jewelry[]
 
-  /** v10+: Blueprint-IDs som spilleren har låst op (køb, achievement, drop). */
+  /**
+   * v10+: Smykke-blueprint-IDs (køb, achievement, kiste-drop).
+   * Planen (§3.6 / Fase 3) kalder konceptuelt `unlockedRecipes` — **samme felt i koden**;
+   * Fase 4 brew-/blande-opskrifter har eget felt (`unlockedAlchemyRecipes`) jf. §8b.
+   */
   unlockedBlueprints: string[]
+
+  /** Fase 4: låste alkymi-opskrifter (`AlchemyRecipeDef.id`); ikke smykke-blueprints. */
+  unlockedAlchemyRecipes: string[]
 
   essences: EssenceStack[]
 
@@ -379,8 +386,10 @@ export type GameState = {
   playerHp: number
   playerHpMax: number
   playerMana: number
-  /** I MVP = `NEUTRAL_MANA_MAX`; senere brew (D38). */
+  /** Afledt af neutral baseline eller aktiv brew (D38); holdes synk. via `clampPlayerSurvival` / brew-skift. */
   playerManaMax: number
+  /** Fase 4 (D36): aktiv brew i minen; hub-regen nulstiller til `null`. */
+  activeBrewId: string | null
 
   /** Kort bruger-feedback fra reducer (fx fuldt lager); nulstilles af UI. */
   gameNotice: string | null

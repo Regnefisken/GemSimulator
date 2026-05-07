@@ -71,6 +71,10 @@ type PlayerSurvivalProps = {
   hpMax: number
   mana: number
   manaMax: number
+  /** Fase 4: brew-themed mana (hex); default neutral gradient hvis udeladt. */
+  manaAccentColor?: string
+  /** Tooltip på mana-sektionen — aktiv evne. */
+  manaAbilityHint?: string | null
 }
 
 /** Spiller-Liv og mana (Fase 1.5) — kun i aktiv mine, ikke på hub/kort. */
@@ -81,12 +85,18 @@ export function HUDPlayerSurvival({
   hpMax,
   mana,
   manaMax,
+  manaAccentColor,
+  manaAbilityHint,
 }: PlayerSurvivalProps) {
   if (!visible) return null
   const hpPct = hpMax > 0 ? Math.max(0, (hp / hpMax) * 100) : 0
   const manaPct = manaMax > 0 ? Math.max(0, (mana / manaMax) * 100) : 0
+  const themedMana = Boolean(manaAccentColor && manaAccentColor !== '')
   return (
-    <div className={`px-3 py-2 space-y-2 bg-slate-950/70 border-b border-slate-800/80 ${className}`}>
+    <div
+      className={`px-3 py-2 space-y-2 bg-slate-950/70 border-b border-slate-800/80 ${className}`}
+      title={manaAbilityHint ?? undefined}
+    >
       <div>
         <div className="flex justify-between text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">
           <span>Liv</span>
@@ -110,8 +120,18 @@ export function HUDPlayerSurvival({
         </div>
         <div className="h-2 rounded-full bg-slate-900 overflow-hidden">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-indigo-900 to-violet-400 transition-[width] duration-150"
-            style={{ width: `${manaPct}%` }}
+            className={
+              'h-full rounded-full transition-[width] duration-150 ' +
+              (themedMana ? '' : 'bg-gradient-to-r from-indigo-900 to-violet-400')
+            }
+            style={
+              themedMana
+                ? {
+                    width: `${manaPct}%`,
+                    background: `linear-gradient(to right, ${manaAccentColor}99, ${manaAccentColor})`,
+                  }
+                : { width: `${manaPct}%` }
+            }
           />
         </div>
       </div>

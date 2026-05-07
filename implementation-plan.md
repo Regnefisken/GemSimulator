@@ -1,8 +1,8 @@
 # GemSimulator — Samlet implementeringsplan
 
-**Status:** Master-plan, ny sandhed for mine-spor, survival/alkymi-spor og equipment/combat-spor.
+**Status:** Master-plan, ny sandhed for mine-spor, survival/alkymi-spor og equipment/combat-spor. **Fase 3 leveret i kode; næste planlagte leverance: Fase 4.** Hop-ind til ny chat: **§8b**.
 **Erstatter:** [`mine-layers-implementation-guide.md`](./mine-layers-implementation-guide.md) og [`alchemist-workshop-survival-concept.md`](./alchemist-workshop-survival-concept.md) som ledende kilde til *implementeringsrækkefølge*. Konceptdokumentet `mine-layers-depth-target-concept.md` v2.1 er stadig den narrative/produktmæssige sandhed; ved konflikt opdateres beslutningsloggen her **og** der.
-**Version:** 1.3 (2026-05-07)
+**Version:** 1.4 (2026-05-07)
 
 ---
 
@@ -257,7 +257,7 @@ Faserne er rækkefølge-følsomme. Hver fase skal kunne shippes selvstændigt og
 **Fase 1 — tilpasninger i forhold til skitse ovenfor (implementeret i kode):**
 
 - **Målvalg (D13):** Udover frit målskift uden cooldown er **minimap** gjort klikbar med ordentlige hitfelter, og **3D-klik på en anden klippe** sætter den som aktivt mål (samme reducer-handling som minimap). Den oprindelige formulering «primært mål» gjaldt persistens af *skade pr. felt*, ikke at andre felter skulle være uden for interaktion.
-- **`mineRun` livscyklus:** Ved **forladelse af mine-scenen** (`MineScreen` unmount, fx tilbage til kort) køres `MINE_RUN_EXIT` → `mineRun = null`. Næste besøg i samme mine starter et **nyt lag** (`MINE_RUN_ENTER`). Det er en bevidst UX-/testvenlig model før fuld **run suspend / hub-inventory**-adskillelse (D7/D8); når run-inventory og safe ascend implementeres, kan exit-adfærden justeres (fx kun nulstille ved død eller ved «afslut run»), uden at ændre D1–D14.
+- **`mineRun` livscyklus:** `MINE_RUN_EXIT` køres fra **`App.tsx` → `goToMapView()`** når spilleren trykker **Tilbage** i en lokation og der findes en aktiv `mineRun` (så `mineRun` nulstilles og D39-workshop-restock kører). **`MineScreen` unmount** (fx fremtidigt tab til lager uden at forlade lokation) kører **ikke** længere automatisk `MINE_RUN_EXIT` — det gør det muligt at genbesøge samme run uden at rive scenen ned af et sideeffekt-unmount. Næste **nye** minebesøg efter `MINE_RUN_ENTER` starter stadig et frisk lag (D1). Se **§8b** for Fase 4-noter.
 - **Fade:** Lag-skift bruger i dag primært **Canvas-nøgle + toast**; egentlig fade-animation kan tilføjes senere uden at ændre datarækkefølgen D4→…→nyt lag.
 
 ### Fase 1.5 — Survival MVP (HP + neutral mana)
@@ -400,7 +400,7 @@ Gennemgå alle stier der tidligere har øget global dybde eller antaget ét akti
 - [ ] Consumable medbringes til mine via run-start (D8-pipeline omvendt).
 - [ ] Drik/spis i mine via quick-slot restorer korrekt mængde, forbruger én stack.
 - [ ] Død i mine taber consumable (D7); ingen er soul-bound (D37); blueprints overlever altid (D26).
-- [ ] Blueprint pickup tilføjer til `unlockedRecipes` og viser toast.
+- [ ] Blueprint pickup tilføjer permanent unlock og viser toast (**kodefelt:** `GameState.unlockedBlueprints` — se §8b).
 - [ ] Blueprint drop-rate skalerer med depth (D34).
 - [ ] Auto-pickup af consumable/blueprint/kul ved fade (D22 / D4).
 - [ ] Quick-slot binding (3 slots) bevares mellem runs (D33).
@@ -419,6 +419,36 @@ Gennemgå alle stier der tidligere har øget global dybde eller antaget ét akti
 - [ ] Armour er **ikke** synlig på character-modellen (D35).
 - [ ] Armour slides ved player-hit; repareres med kul i smedjen (D24, D25, D28).
 - [ ] Armour-pixel-sprite vises i inventory og character-panel.
+
+---
+
+## 8b. Status & noter til næste chat (Fase 4)
+
+*Sidst opdateret sammen med lille teknisk oprydning (2026-05-07). Brug dette afsnit som hop-ind for en frisk tråd.*
+
+### Kode vs. plan (navngivning)
+
+| Plan / §3 | Implementeret i kode |
+|-----------|-------------------------|
+| `PermanentProgress.unlockedRecipes` (koncept) | `GameState.unlockedBlueprints: string[]` — smykke-blueprints + kiste-`UNLOCK_BLUEPRINT`. Fase 4 *brew-opskrifter* bør enten genbruge et separat felt (fx `unlockedAlchemyRecipes`) eller dokumentere et alias; **undgå at omdøbe `unlockedBlueprints` uden migration.** |
+
+### `mineRun` og `MINE_RUN_EXIT`
+
+- **Afslut run / tilbage til kort:** `goToMapView()` i `src/App.tsx` dispatcher **`MINE_RUN_EXIT` kun hvis `state.mineRun != null`**, derefter `SET_VIEW_MODE` til `map`.
+- **Reducer:** `MINE_RUN_EXIT` sætter `mineRun: null`, kører safe-zone-regen og **restocker alkymi-hylder** (`restockWorkshopShelf`, D39).
+- **`src/components/mine/MineScreen.tsx`:** ingen `MINE_RUN_EXIT` i `useEffect`-cleanup længere (undgår tab-/unmount-falsk positiv).
+
+### Fase 4 — foreslået rækkefølge (kort)
+
+1. Brew-typer + `activeBrewId` (eller tilsvarende) i `GameState` + migration.
+2. `applyBrew` / drik-consumable med `effect: 'apply_brew'` fra værksted eller drop.
+3. Themed mana-bar + `manaMax` fra aktiv brew (D38); clamp ved skift (D19–D20).
+4. Blande-UI på `WorkshopScreen` + ingrediens-`Material` hvis ikke allerede dækket af consumables.
+
+### Kendte begrænsninger (bevidst ikke løst her)
+
+- **D7/D8 run-inventory** adskilt fra hub er ikke implementeret; `consumables` lever i meta-state som i Fase 3.
+- **Hot reload / crash** midt i mine kan efterlade `mineRun`; bruger kan trykke Tilbage eller genindlæse.
 
 ---
 
@@ -452,3 +482,4 @@ Når denne plans beslutningslog (§2) ændres:
 - **v1.1 (2026-05-07)** — Tilføjer equipment/combat-spor (sværd, loadout-toggle, durability), kul som repair-materiale, blueprints som chest-loot, mad/potions som mine-loot, separate butiks-faner, consumable quick-slots i mine-HUD, og armour som Fase 5. Låser D23–D27. Reviderer D21.
 - **v1.2 (2026-05-07)** — Låser de 12 sidste åbne beslutninger som D28–D39: smedjen er allerede den eksisterende facilitet (kun item-input + kul-flow mangler), hakke-slid pr. cleared slot, depth-vægtet kul- og blueprint-drop, sværd kan ikke bryde rocks, HUD-bars skjulte på overflade, 3 quick-slots, armour usynlig på character med swap kun på overflade, brew `until_swap`, ingen soul-bound, manaMax fra brew, restock efter hvert run. Trimmer §9 til reelle fremtids-overvejelser.
 - **v1.3 (2026-05-07)** — Dokumenterer Fase 1-kodejusteringer: `MINE_RUN_EXIT` ved forladelse af mine-scene (frisk lag ved genbesøg), målvalg via minimap + 3D-klik på klipper, note om fade vs. plan. **Næste leverance i planen:** Fase 1.5 (survival MVP, §6).
+- **v1.4 (2026-05-07)** — Teknisk oprydning: `MINE_RUN_EXIT` flyttet fra `MineScreen`-unmount til `goToMapView()` (kun når `mineRun` findes). Ny **§8b** med noter til Fase 4-frisk chat (`unlockedBlueprints` vs. planens `unlockedRecipes`, D39, foreslået implementeringsrækkefølge). JSDoc på `unlockedBlueprints` i `types.ts`.

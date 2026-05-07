@@ -113,6 +113,9 @@ function AppContent() {
   }
 
   function goToMapView() {
+    if (stateRef.current.mineRun) {
+      dispatch({ type: 'MINE_RUN_EXIT' })
+    }
     dispatch({ type: 'SET_VIEW_MODE', viewMode: 'map' })
   }
 

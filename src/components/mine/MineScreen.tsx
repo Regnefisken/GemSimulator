@@ -15,6 +15,7 @@ import {
 import { canDescendFromLayer } from '../../gem/mineLayer'
 import { ESSENCE_IDS, getEssenceDef, MOON_TEAR_EFFECT_ID } from '../../data/essences'
 import { findConsumableDef } from '../../data/consumables'
+import { findBrew } from '../../data/brews'
 import { findBlueprint } from '../../data/blueprints'
 import { METALS } from '../../data/metals'
 import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
@@ -135,6 +136,10 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   )
 
   const essenceTotal = state.essences.reduce((s, e) => s + e.quantity, 0)
+  const activeBrew = useMemo(
+    () => (state.activeBrewId ? findBrew(state.activeBrewId) : undefined),
+    [state.activeBrewId],
+  )
   const cfgSlots = getCaveConfig(area).oreSlots.length
   const domMetal = dominantMetal(area)
 
@@ -146,13 +151,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       dispatch({ type: 'MINE_RUN_ENTER', mineId: area.id })
     }
   }, [area.id, area.kind, state.mineRun?.mineId, dispatch])
-
-  /** Nyt lag ved hvert besøg: smid run når minen forlades (undgår genbrug af gamle slots). */
-  useEffect(() => {
-    return () => {
-      dispatch({ type: 'MINE_RUN_EXIT' })
-    }
-  }, [dispatch])
 
   useLayoutEffect(() => {
     setEntered(false)
@@ -629,6 +627,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           hpMax={state.playerHpMax}
           mana={state.playerMana}
           manaMax={state.playerManaMax}
+          manaAccentColor={activeBrew?.color}
+          manaAbilityHint={activeBrew?.abilityDescription ?? null}
         />
         {activeSlot?.kind === 'mob' && !activeSlot.cleared && (
           <div className="pointer-events-none shrink-0 px-3 py-2 bg-red-950/70 border-b border-red-800/60">

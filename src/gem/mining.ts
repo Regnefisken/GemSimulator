@@ -31,7 +31,9 @@ export const SCROLL_PIXEL: PixelItem = {
 const LOOTABLE_SHOP_BLUEPRINT_IDS: string[] = BLUEPRINTS.filter((b) => b.unlockMethod === 'shop').map((b) => b.id)
 
 function rollLootConsumable(rng: () => number): MineDrop | null {
-  const pool = CONSUMABLE_DEFS.filter((c) => c.tab !== 'ingredient')
+  const pool = CONSUMABLE_DEFS.filter(
+    (c) => c.tab !== 'ingredient' && (c.effect === 'heal_hp' || c.effect === 'heal_mana'),
+  )
   if (pool.length === 0) return null
   const d = pool[Math.floor(rng() * pool.length)]!
   return { kind: 'consumable', consumableId: d.id, quantity: 1, pixelItem: d.pixelItem }

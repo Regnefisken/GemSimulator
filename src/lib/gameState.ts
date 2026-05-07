@@ -14,6 +14,8 @@ import type {
 import { AREAS } from '../data/areas'
 import { makePickaxe } from '../data/pickaxes'
 import { makeSword } from '../data/swords'
+import { findAlchemyRecipe, STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
+import { findBrew } from '../data/brews'
 import { findConsumableDef, WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 import { makeIngotPixelItem } from '../data/oreTemplates'
 import { CURRENT_STATE_VERSION } from './migrations'
@@ -33,6 +35,7 @@ import {
   applyDamageToPlayer,
   clampPlayerSurvival,
   DEFAULT_PLAYER_HP_MAX,
+  effectiveManaMax,
   NEUTRAL_MANA_MAX,
   isInActiveMineRun,
 } from './survival'
@@ -100,6 +103,8 @@ export type Action =
   | { type: 'BUY_WORKSHOP_CONSUMABLE'; consumableId: string; quantity?: number }
   | { type: 'SET_CONSUMABLE_QUICK_SLOT'; slotIndex: number; consumableId: string | null }
   | { type: 'USE_CONSUMABLE_QUICK_SLOT'; slotIndex: number }
+  | { type: 'CRAFT_ALCHEMY_RECIPE'; recipeId: string }
+  | { type: 'UNLOCK_ALCHEMY_RECIPE'; recipeId: string }
   | { type: 'OPEN_CHEST'; gold: number }
   | { type: 'CONSUME_ORE'; metalName: MetalName; quantity: number }
   | { type: 'CONSUME_NUGGET'; metalName: MetalName; quantity: number }
@@ -279,6 +284,50 @@ function addConsumableToState(state: GameState, consumableId: string, qty: numbe
   return { ...state, consumables, gameNotice: null }
 }
 
+function pruneConsumableQuickSlots(state: GameState): GameState {
+  const qs = [...state.consumableQuickSlots] as [string | null, string | null, string | null]
+  let dirty = false
+  for (let i = 0; i < 3; i++) {
+    const id = qs[i]
+    if (!id) continue
+    const ok = state.consumables.some((c) => c.consumableId === id && c.quantity > 0)
+    if (!ok) {
+      qs[i] = null
+      dirty = true
+    }
+  }
+  return dirty ? { ...state, consumableQuickSlots: qs } : state
+}
+
+function subtractConsumableStacks(
+  state: GameState,
+  ingredients: Partial<Record<string, number>>,
+): GameState | null {
+  let consumables = [...state.consumables]
+  for (const [id, need] of Object.entries(ingredients)) {
+    const n = need ?? 0
+    if (n <= 0) continue
+    const idx = consumables.findIndex((c) => c.consumableId === id)
+    if (idx < 0) return null
+    const row = consumables[idx]!
+    if (row.quantity < n) return null
+    const left = row.quantity - n
+    if (left <= 0) consumables = consumables.filter((_, i) => i !== idx)
+    else consumables[idx] = { ...row, quantity: left }
+  }
+  return pruneConsumableQuickSlots({ ...state, consumables })
+}
+
+function applyBrewToState(state: GameState, brewId: string): GameState {
+  const brew = findBrew(brewId)
+  if (!brew) return state
+  return clampPlayerSurvival({
+    ...state,
+    activeBrewId: brewId,
+    playerMana: Math.min(state.playerMana, brew.manaMax),
+  })
+}
+
 function applyConsumableDefToState(
   state: GameState,
   def: NonNullable<ReturnType<typeof findConsumableDef>>,
@@ -289,7 +338,11 @@ function applyConsumableDefToState(
   }
   if (def.effect === 'heal_mana') {
     const add = Math.max(0, def.value)
-    return { ...state, playerMana: Math.min(state.playerManaMax, state.playerMana + add) }
+    const cap = effectiveManaMax(state)
+    return { ...state, playerMana: Math.min(cap, state.playerMana + add) }
+  }
+  if (def.effect === 'apply_brew') {
+    return applyBrewToState(state, def.brewId)
   }
   return state
 }
@@ -333,6 +386,7 @@ export const initialState: GameState = {
   roughCraftPurityBonus: 0,
   jewelry: [],
   unlockedBlueprints: [...STARTER_BLUEPRINT_IDS],
+  unlockedAlchemyRecipes: [...STARTER_UNLOCKED_ALCHEMY_RECIPES],
   essences: [],
   consumables: [],
   workshopStock: { ...WORKSHOP_DEFAULT_STOCK },
@@ -341,6 +395,7 @@ export const initialState: GameState = {
   playerHpMax: DEFAULT_PLAYER_HP_MAX,
   playerMana: NEUTRAL_MANA_MAX,
   playerManaMax: NEUTRAL_MANA_MAX,
+  activeBrewId: null,
   gameNotice: null,
   version: CURRENT_STATE_VERSION,
 }
@@ -474,10 +529,11 @@ export function reducer(state: GameState, action: Action): GameState {
         }),
         gameNotice: null,
       }
+      const manaCap = effectiveManaMax(withRun)
       return clampPlayerSurvival({
         ...withRun,
         playerHp: withRun.playerHpMax,
-        playerMana: withRun.playerManaMax,
+        playerMana: manaCap,
       })
     }
     case 'MINE_RUN_EXIT':
@@ -611,6 +667,29 @@ export function reducer(state: GameState, action: Action): GameState {
       let consumableQuickSlots = [...next.consumableQuickSlots] as [string | null, string | null, string | null]
       if (nq <= 0 && consumableQuickSlots[slotIndex] === consumableId) consumableQuickSlots[slotIndex] = null
       return { ...next, consumableQuickSlots }
+    }
+    case 'CRAFT_ALCHEMY_RECIPE': {
+      const recipe = findAlchemyRecipe(action.recipeId)
+      if (!recipe || !state.unlockedAlchemyRecipes.includes(recipe.id)) return state
+      if (computeWorldTier(state) < recipe.requiredWorldTier) {
+        return { ...state, gameNotice: `Kræver world tier ${recipe.requiredWorldTier}.` }
+      }
+      const without = subtractConsumableStacks(state, recipe.ingredients)
+      if (!without) return { ...state, gameNotice: 'Mangler ingredienser.' }
+      if (!canAddConsumableUnits(without, 1)) {
+        return { ...state, gameNotice: `Forbrugs-lager fuldt (${CONSUMABLE_BAG_MAX} stk. max).` }
+      }
+      return addConsumableToState(without, recipe.outputConsumableId, 1)
+    }
+    case 'UNLOCK_ALCHEMY_RECIPE': {
+      const recipe = findAlchemyRecipe(action.recipeId)
+      if (!recipe) return state
+      if (state.unlockedAlchemyRecipes.includes(action.recipeId)) return state
+      return {
+        ...state,
+        unlockedAlchemyRecipes: [...state.unlockedAlchemyRecipes, action.recipeId].sort(),
+        gameNotice: null,
+      }
     }
     case 'OPEN_CHEST': {
       const next = applyXpGain(

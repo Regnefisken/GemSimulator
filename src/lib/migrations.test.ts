@@ -158,3 +158,18 @@ describe('migrateGameState v15 consumables & alkymi', () => {
     expect(next.unlockedLocations).toContain('alkymistvaerkstedet')
   })
 })
+
+describe('migrateGameState v16 brew / alkymi-opskrifter', () => {
+  it('tilføjer unlockedAlchemyRecipes på v15-save', () => {
+    const raw = {
+      ...initialState,
+      version: 15,
+    } as Record<string, unknown>
+    delete raw.unlockedAlchemyRecipes
+    delete raw.activeBrewId
+    const next = migrateGameState(raw, initialState)
+    expect(next.version).toBe(CURRENT_STATE_VERSION)
+    expect(next.unlockedAlchemyRecipes).toContain('recipe_solar_elixir')
+    expect(next.activeBrewId).toBeNull()
+  })
+})
