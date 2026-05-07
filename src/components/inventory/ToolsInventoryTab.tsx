@@ -24,18 +24,28 @@ function CapacityLine({ used, max, label }: { used: number; max: number; label: 
   )
 }
 
+function armourBonusSubtitle(a: { bonuses: { hpMax?: number; manaMax?: number } }): string {
+  const bits = [
+    a.bonuses.hpMax ? `+${a.bonuses.hpMax} liv` : null,
+    a.bonuses.manaMax ? `+${a.bonuses.manaMax} mana` : null,
+  ].filter(Boolean)
+  return bits.join(' · ') || 'Ingen bonus'
+}
+
 export default function ToolsInventoryTab({ state, dispatch }: { state: GameState; dispatch: Dispatch<Action> }) {
   const [previewId, setPreviewId] = useState<string | null>(null)
-  const [previewKind, setPreviewKind] = useState<'pickaxe' | 'sword'>('pickaxe')
+  const [previewKind, setPreviewKind] = useState<'pickaxe' | 'sword' | 'armour'>('pickaxe')
   const cap = state.inventoryCapacity.tools
-  const used = state.pickaxes.length + state.swords.length
+  const used = state.pickaxes.length + state.swords.length + state.armours.length
   const previewPick = previewKind === 'pickaxe' ? state.pickaxes.find((p) => p.id === previewId) ?? null : null
   const previewSw = previewKind === 'sword' ? state.swords.find((s) => s.id === previewId) ?? null : null
-  const preview = previewPick ?? previewSw
+  const previewArm = previewKind === 'armour' ? state.armours.find((a) => a.id === previewId) ?? null : null
+  const previewWeapon = previewPick ?? previewSw
+  const preview = previewWeapon ?? previewArm
 
   return (
     <div>
-      <CapacityLine used={used} max={cap} label="Værktøj (hakker + sværd)" />
+      <CapacityLine used={used} max={cap} label="Værktøj (hakker + sværd + rustning)" />
       <h3 className="text-sm font-semibold text-slate-200 mb-2">Hakker</h3>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
         {state.pickaxes.map((p) => (
@@ -58,7 +68,7 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
       </div>
 
       <h3 className="text-sm font-semibold text-slate-200 mb-2">Sværd</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
         {state.swords.map((s) => (
           <PixelItemCard
             key={s.id}
@@ -78,42 +88,66 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
         ))}
       </div>
 
-      {preview && (
+      <h3 className="text-sm font-semibold text-slate-200 mb-2">Rustning</h3>
+      <p className="text-xs text-slate-500 mb-2">
+        Kun på overfladen/hub — ikke midt i mine-run (D35). Rustning er kun 2D-ikon her; ingen model-skift.
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        {state.armours.map((a) => (
+          <PixelItemCard
+            key={a.id}
+            item={a.pixelItem}
+            label={a.name}
+            subtitle={
+              a.durability === 0
+                ? '⚠️ Ødelagt — ingen bonus · reparér i smedjen'
+                : `${armourBonusSubtitle(a)} · ${a.durability}/${a.maxDurability}`
+            }
+            highlighted={a.id === state.activeArmourId}
+            onClick={() => {
+              setPreviewKind('armour')
+              setPreviewId(a.id)
+            }}
+          />
+        ))}
+      </div>
+
+      {preview && previewKind !== 'armour' && previewWeapon && (
         <ItemPreviewModal
           open
           onClose={() => setPreviewId(null)}
-          item={preview.pixelItem}
-          title={preview.name}
+          item={previewWeapon.pixelItem}
+          title={previewWeapon.name}
           subtitleLines={[
-            `Skade: ${preview.damage}`,
-            `Holdbarhed: ${preview.durability} / ${preview.maxDurability}`,
-            `Tier: ${preview.tier}`,
+            `Skade: ${previewWeapon.damage}`,
+            `Holdbarhed: ${previewWeapon.durability} / ${previewWeapon.maxDurability}`,
+            `Tier: ${previewWeapon.tier}`,
             previewKind === 'pickaxe'
-              ? preview.id === state.activePickaxeId
+              ? previewWeapon.id === state.activePickaxeId
                 ? 'Status: Aktiv hakke i minen'
                 : 'Status: Ikke valgt som aktiv hakke'
-              : preview.id === state.activeSwordId
+              : previewWeapon.id === state.activeSwordId
                 ? 'Status: Aktivt sværd i minen'
                 : 'Status: Ikke valgt som aktivt sværd',
           ]}
           footer={
             <div className="flex flex-col gap-3 w-full">
-              {previewKind === 'pickaxe' && preview.id !== state.activePickaxeId ? (
+              {previewKind === 'pickaxe' && previewWeapon.id !== state.activePickaxeId ? (
                 <button
                   type="button"
                   onClick={() => {
-                    dispatch({ type: 'SET_ACTIVE_PICKAXE', id: preview.id })
+                    dispatch({ type: 'SET_ACTIVE_PICKAXE', id: previewWeapon.id })
                     setPreviewId(null)
                   }}
                   className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold"
                 >
                   Sæt som aktiv hakke
                 </button>
-              ) : previewKind === 'sword' && preview.id !== state.activeSwordId ? (
+              ) : previewKind === 'sword' && previewWeapon.id !== state.activeSwordId ? (
                 <button
                   type="button"
                   onClick={() => {
-                    dispatch({ type: 'SET_ACTIVE_SWORD', id: preview.id })
+                    dispatch({ type: 'SET_ACTIVE_SWORD', id: previewWeapon.id })
                     setPreviewId(null)
                   }}
                   className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold"
@@ -125,13 +159,66 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
                   <span className="text-sm text-emerald-400 font-medium">
                     {previewKind === 'pickaxe' ? 'Aktiv hakke' : 'Aktivt sværd'}
                   </span>
-                  {preview.durability < preview.maxDurability && (
+                  {previewWeapon.durability < previewWeapon.maxDurability && (
                     <p className="text-xs text-slate-400 leading-relaxed">
                       Gå til <strong className="text-amber-200/90">smedjen</strong> og brug reparationsbænken med{' '}
                       <strong className="text-amber-200/90">kul</strong>.
                     </p>
                   )}
                 </div>
+              )}
+            </div>
+          }
+        />
+      )}
+
+      {previewArm && previewKind === 'armour' && (
+        <ItemPreviewModal
+          open
+          onClose={() => setPreviewId(null)}
+          item={previewArm.pixelItem}
+          title={previewArm.name}
+          subtitleLines={[
+            armourBonusSubtitle(previewArm),
+            `Holdbarhed: ${previewArm.durability} / ${previewArm.maxDurability}`,
+            `Tier: ${previewArm.tier}`,
+            previewArm.id === state.activeArmourId
+              ? 'Status: Bærer denne rustning (bonus aktiv mens den holder)'
+              : 'Status: Ikke påklædt',
+          ]}
+          footer={
+            <div className="flex flex-col gap-3 w-full">
+              {previewArm.id !== state.activeArmourId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    dispatch({ type: 'SET_ACTIVE_ARMOUR', id: previewArm.id })
+                    setPreviewId(null)
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-600 hover:bg-slate-500 text-white text-sm font-semibold"
+                >
+                  Tag rustning på
+                </button>
+              ) : (
+                <>
+                  <span className="text-sm text-emerald-400 font-medium">Aktiv rustning</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch({ type: 'SET_ACTIVE_ARMOUR', id: null })
+                      setPreviewId(null)
+                    }}
+                    className="px-4 py-2 rounded-xl border border-slate-600 text-slate-200 text-sm font-semibold hover:bg-slate-800"
+                  >
+                    Afmonter
+                  </button>
+                  {previewArm.durability < previewArm.maxDurability && (
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Reparér i <strong className="text-amber-200/90">smedjen</strong> med{' '}
+                      <strong className="text-amber-200/90">kul</strong>.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           }

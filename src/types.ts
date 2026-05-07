@@ -130,6 +130,22 @@ export type Sword = {
   pixelItem: PixelItem
 }
 
+/** Fase 5 (D35): rustning — kun 2D-ikon; bonus til hpMax/manaMax mens durability > 0. */
+export type ArmourBonuses = {
+  hpMax?: number
+  manaMax?: number
+}
+
+export type Armour = {
+  id: string
+  tier: number
+  name: string
+  durability: number
+  maxDurability: number
+  bonuses: ArmourBonuses
+  pixelItem: PixelItem
+}
+
 export type EquippedWeaponKind = 'pickaxe' | 'sword'
 
 export type LocationId =
@@ -337,6 +353,9 @@ export type GameState = {
   equippedWeapon: EquippedWeaponKind
   activeSwordId: string | null
   swords: Sword[]
+  /** Fase 5 (D35): ejet rustning; én aktiv via `activeArmourId`. */
+  armours: Armour[]
+  activeArmourId: string | null
 
   gems: Gem[]
   roughStones: RoughStone[]

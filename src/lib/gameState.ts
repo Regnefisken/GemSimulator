@@ -13,6 +13,7 @@ import type {
 } from '../types'
 import { AREAS } from '../data/areas'
 import { makePickaxe } from '../data/pickaxes'
+import { makeArmour } from '../data/armour'
 import { makeSword } from '../data/swords'
 import { findAlchemyRecipe, STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
 import { findBrew } from '../data/brews'
@@ -35,7 +36,8 @@ import {
   applyDamageToPlayer,
   clampPlayerSurvival,
   DEFAULT_PLAYER_HP_MAX,
-  effectiveManaMax,
+  effectiveTotalHpMax,
+  effectiveTotalManaMax,
   NEUTRAL_MANA_MAX,
   isInActiveMineRun,
 } from './survival'
@@ -58,6 +60,7 @@ import {
   findInventoryPack,
   findPickaxeOffer,
   findSwordOffer,
+  findArmourOffer,
   SHOP_CONSUMABLE_IDS,
   smelterNextUpgradeCost,
 } from '../data/shop'
@@ -90,7 +93,9 @@ export type Action =
   | { type: 'DAMAGE_SWORD'; amount: number }
   | { type: 'PLAYER_TAKE_DAMAGE'; amount: number; source?: string }
   | { type: 'BUY_SWORD'; tier: number }
-  | { type: 'REPAIR_TOOL_WITH_COAL'; tool: 'pickaxe' | 'sword'; id: string }
+  | { type: 'BUY_ARMOUR'; tier: number }
+  | { type: 'SET_ACTIVE_ARMOUR'; id: string | null }
+  | { type: 'REPAIR_TOOL_WITH_COAL'; tool: 'pickaxe' | 'sword' | 'armour'; id: string }
   | { type: 'INCREMENT_DEPTH' }
   | { type: 'MINE_RUN_ENTER'; mineId: LocationId }
   | { type: 'MINE_RUN_EXIT' }
@@ -319,12 +324,10 @@ function subtractConsumableStacks(
 }
 
 function applyBrewToState(state: GameState, brewId: string): GameState {
-  const brew = findBrew(brewId)
-  if (!brew) return state
+  if (!findBrew(brewId)) return state
   return clampPlayerSurvival({
     ...state,
     activeBrewId: brewId,
-    playerMana: Math.min(state.playerMana, brew.manaMax),
   })
 }
 
@@ -334,11 +337,12 @@ function applyConsumableDefToState(
 ): GameState {
   if (def.effect === 'heal_hp') {
     const add = Math.max(0, def.value)
-    return { ...state, playerHp: Math.min(state.playerHpMax, state.playerHp + add) }
+    const cap = effectiveTotalHpMax(state)
+    return { ...state, playerHp: Math.min(cap, state.playerHp + add) }
   }
   if (def.effect === 'heal_mana') {
     const add = Math.max(0, def.value)
-    const cap = effectiveManaMax(state)
+    const cap = effectiveTotalManaMax(state)
     return { ...state, playerMana: Math.min(cap, state.playerMana + add) }
   }
   if (def.effect === 'apply_brew') {
@@ -369,6 +373,8 @@ export const initialState: GameState = {
   equippedWeapon: 'pickaxe',
   activeSwordId: starterSword.id,
   swords: [starterSword],
+  armours: [],
+  activeArmourId: null,
   gems: [],
   roughStones: [],
   rawOre: [],
@@ -464,6 +470,16 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'SET_ACTIVE_SWORD':
       if (!state.swords.some((s) => s.id === action.id)) return state
       return { ...state, activeSwordId: action.id, gameNotice: null }
+    case 'SET_ACTIVE_ARMOUR': {
+      if (isInActiveMineRun(state)) {
+        return { ...state, gameNotice: 'Rustning kan kun skiftes på overfladen / i hub.' }
+      }
+      if (action.id === null) {
+        return clampPlayerSurvival({ ...state, activeArmourId: null, gameNotice: null })
+      }
+      if (!state.armours.some((a) => a.id === action.id)) return state
+      return clampPlayerSurvival({ ...state, activeArmourId: action.id, gameNotice: null })
+    }
     case 'DAMAGE_SWORD': {
       if (action.amount <= 0) return state
       const swords = state.swords.map((s) =>
@@ -529,10 +545,11 @@ export function reducer(state: GameState, action: Action): GameState {
         }),
         gameNotice: null,
       }
-      const manaCap = effectiveManaMax(withRun)
+      const manaCap = effectiveTotalManaMax(withRun)
+      const hpCap = effectiveTotalHpMax(withRun)
       return clampPlayerSurvival({
         ...withRun,
-        playerHp: withRun.playerHpMax,
+        playerHp: hpCap,
         playerMana: manaCap,
       })
     }
@@ -716,8 +733,13 @@ export function reducer(state: GameState, action: Action): GameState {
       return { ...state, pickaxes }
     }
     case 'REPAIR_TOOL_WITH_COAL': {
-      const tool = action.tool === 'pickaxe' ? state.pickaxes.find((p) => p.id === action.id) : state.swords.find((s) => s.id === action.id)
-      if (!tool) return { ...state, gameNotice: 'Våben ikke fundet.' }
+      const tool =
+        action.tool === 'pickaxe'
+          ? state.pickaxes.find((p) => p.id === action.id)
+          : action.tool === 'sword'
+            ? state.swords.find((s) => s.id === action.id)
+            : state.armours.find((a) => a.id === action.id)
+      if (!tool) return { ...state, gameNotice: 'Udstyr ikke fundet.' }
       const missing = tool.maxDurability - tool.durability
       if (missing <= 0) return { ...state, gameNotice: 'Allerede fuld holdbarhed.' }
       const cost = Math.max(1, Math.ceil(missing * (0.1 + tool.tier * 0.055)))
@@ -730,8 +752,12 @@ export function reducer(state: GameState, action: Action): GameState {
         )
         return { ...state, pickaxes, coal: state.coal - cost, gameNotice: null }
       }
-      const swords = state.swords.map((s) => (s.id === action.id ? { ...s, durability: s.maxDurability } : s))
-      return { ...state, swords, coal: state.coal - cost, gameNotice: null }
+      if (action.tool === 'sword') {
+        const swords = state.swords.map((s) => (s.id === action.id ? { ...s, durability: s.maxDurability } : s))
+        return { ...state, swords, coal: state.coal - cost, gameNotice: null }
+      }
+      const armours = state.armours.map((a) => (a.id === action.id ? { ...a, durability: a.maxDurability } : a))
+      return clampPlayerSurvival({ ...state, armours, coal: state.coal - cost, gameNotice: null })
     }
     case 'SET_ACTIVE_PICKAXE':
       if (!state.pickaxes.some((p) => p.id === action.id)) return state
@@ -894,7 +920,10 @@ export function reducer(state: GameState, action: Action): GameState {
       if (state.pickaxes.some((p) => p.tier === action.tier)) {
         return { ...state, gameNotice: 'Du ejer allerede denne hakke. Reparér den i smedjen.' }
       }
-      if (state.pickaxes.length + state.swords.length >= state.inventoryCapacity.tools) {
+      if (
+        state.pickaxes.length + state.swords.length + state.armours.length >=
+        state.inventoryCapacity.tools
+      ) {
         return { ...state, gameNotice: 'Værktøjslager er fuldt.' }
       }
       const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -917,7 +946,10 @@ export function reducer(state: GameState, action: Action): GameState {
       if (state.swords.some((s) => s.tier === action.tier)) {
         return { ...state, gameNotice: 'Du ejer allerede dette sværd. Reparér det i smedjen.' }
       }
-      if (state.pickaxes.length + state.swords.length >= state.inventoryCapacity.tools) {
+      if (
+        state.pickaxes.length + state.swords.length + state.armours.length >=
+        state.inventoryCapacity.tools
+      ) {
         return { ...state, gameNotice: 'Værktøjslager er fuldt.' }
       }
       const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -929,6 +961,32 @@ export function reducer(state: GameState, action: Action): GameState {
         activeSwordId: sword.id,
         gameNotice: null,
       }
+    }
+    case 'BUY_ARMOUR': {
+      const offer = findArmourOffer(action.tier)
+      if (!offer) return state
+      if (state.level < offer.minLevel) {
+        return { ...state, gameNotice: `Kræver level ${offer.minLevel}.` }
+      }
+      if (state.gold < offer.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.armours.some((a) => a.tier === action.tier)) {
+        return { ...state, gameNotice: 'Du ejer allerede denne rustning. Reparér den i smedjen.' }
+      }
+      if (
+        state.pickaxes.length + state.swords.length + state.armours.length >=
+        state.inventoryCapacity.tools
+      ) {
+        return { ...state, gameNotice: 'Værktøjslager er fuldt.' }
+      }
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const armour = makeArmour(offer.tier, unique)
+      return clampPlayerSurvival({
+        ...state,
+        gold: state.gold - offer.price,
+        armours: [...state.armours, armour],
+        activeArmourId: armour.id,
+        gameNotice: null,
+      })
     }
     case 'UPGRADE_SMELTER': {
       const cost = smelterNextUpgradeCost(state.smelterTier)

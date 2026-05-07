@@ -28,28 +28,61 @@ export function effectiveManaMax(state: GameState): number {
   return NEUTRAL_MANA_MAX
 }
 
+function equippedArmourPiece(state: GameState): import('../types').Armour | undefined {
+  if (!state.activeArmourId) return undefined
+  const a = state.armours.find((x) => x.id === state.activeArmourId)
+  if (!a || a.durability <= 0) return undefined
+  return a
+}
+
+/** Bonus HP fra aktiv rustning med durability > 0 (D35). */
+export function armourHpBonus(state: GameState): number {
+  const a = equippedArmourPiece(state)
+  return Math.max(0, a?.bonuses.hpMax ?? 0)
+}
+
+/** Bonus mana-cap fra aktiv rustning (D35). */
+export function armourManaBonus(state: GameState): number {
+  const a = equippedArmourPiece(state)
+  return Math.max(0, a?.bonuses.manaMax ?? 0)
+}
+
+/** Samlet HP-loft: intrinsisk `playerHpMax` + rustning. */
+export function effectiveTotalHpMax(state: GameState): number {
+  const intrinsic = Math.max(1, state.playerHpMax)
+  return intrinsic + armourHpBonus(state)
+}
+
+/** Samlet mana-loft: brew/neutral + rustning. */
+export function effectiveTotalManaMax(state: GameState): number {
+  return Math.max(1, effectiveManaMax(state) + armourManaBonus(state))
+}
+
 /**
  * D16/D17 + Fase 4 D36: fuld HP og mana i hub; aktiv brew nulstilles (`until_swap` slutter ved hub).
  */
 export function applySafeZoneRegen(state: GameState): GameState {
+  const cleared = { ...state, activeBrewId: null }
+  const hpCap = effectiveTotalHpMax(cleared)
+  const manaCap = effectiveTotalManaMax(cleared)
   return {
-    ...state,
-    activeBrewId: null,
-    playerHp: state.playerHpMax,
-    playerManaMax: NEUTRAL_MANA_MAX,
-    playerMana: NEUTRAL_MANA_MAX,
+    ...cleared,
+    playerHp: hpCap,
+    playerManaMax: manaCap,
+    playerMana: manaCap,
   }
 }
 
 export function clampPlayerSurvival(state: GameState): GameState {
-  const hpM = Math.max(1, state.playerHpMax)
-  const manaM = Math.max(1, effectiveManaMax(state))
+  const hpIntrinsic = Math.max(1, state.playerHpMax)
+  const hpCap = effectiveTotalHpMax(state)
+  const manaCap = effectiveTotalManaMax(state)
   return {
     ...state,
-    playerHpMax: hpM,
-    playerManaMax: manaM,
-    playerHp: Math.min(Math.max(0, state.playerHp), hpM),
-    playerMana: Math.min(Math.max(0, state.playerMana), manaM),
+    playerHpMax: hpIntrinsic,
+    playerManaMax: manaCap,
+    playerHp: Math.min(Math.max(0, state.playerHp), hpCap),
+    playerMana: Math.min(Math.max(0, state.playerMana), manaCap),
   }
 }
 
@@ -61,5 +94,19 @@ export function applyDamageToPlayer(state: GameState, amount: number, _source?: 
   if (!isInActiveMineRun(state) || amount <= 0) return state
   const dmg = Math.floor(amount)
   const hp = Math.max(0, state.playerHp - dmg)
-  return { ...state, playerHp: hp }
+  let next: GameState = { ...state, playerHp: hp }
+  if (dmg > 0 && next.activeArmourId) {
+    const loss = Math.max(1, Math.min(5, Math.ceil(dmg / 6)))
+    next = damageEquippedArmourDurability(next, loss)
+  }
+  return next
+}
+
+function damageEquippedArmourDurability(state: GameState, loss: number): GameState {
+  const id = state.activeArmourId
+  if (!id || loss <= 0) return state
+  const armours = state.armours.map((a) =>
+    a.id === id ? { ...a, durability: Math.max(0, a.durability - loss) } : a,
+  )
+  return clampPlayerSurvival({ ...state, armours })
 }

@@ -16,6 +16,10 @@ import { canDescendFromLayer } from '../../gem/mineLayer'
 import { ESSENCE_IDS, getEssenceDef, MOON_TEAR_EFFECT_ID } from '../../data/essences'
 import { findConsumableDef } from '../../data/consumables'
 import { findBrew } from '../../data/brews'
+import {
+  effectiveTotalHpMax,
+  effectiveTotalManaMax,
+} from '../../lib/survival'
 import { findBlueprint } from '../../data/blueprints'
 import { METALS } from '../../data/metals'
 import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
@@ -624,9 +628,9 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           className="pointer-events-none shrink-0"
           visible
           hp={state.playerHp}
-          hpMax={state.playerHpMax}
+          hpMax={effectiveTotalHpMax(state)}
           mana={state.playerMana}
-          manaMax={state.playerManaMax}
+          manaMax={effectiveTotalManaMax(state)}
           manaAccentColor={activeBrew?.color}
           manaAbilityHint={activeBrew?.abilityDescription ?? null}
         />

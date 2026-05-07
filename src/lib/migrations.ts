@@ -1,4 +1,4 @@
-import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe, Sword, LocationId } from '../types'
+import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe, Sword, Armour, LocationId } from '../types'
 import { makePickaxe } from '../data/pickaxes'
 import { makeSword } from '../data/swords'
 import { blueprintFromLegacyRecipeId, migrateJewelry } from '../data/jewelry'
@@ -12,7 +12,7 @@ import { clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './
 import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 import { STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
 
-export const CURRENT_STATE_VERSION = 16
+export const CURRENT_STATE_VERSION = 17
 
 const MINE_LOCATION_IDS: LocationId[] = [
   'kobbermine',
@@ -246,6 +246,22 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       r.equippedWeapon === 'pickaxe' || r.equippedWeapon === 'sword' ? r.equippedWeapon : base.equippedWeapon,
     activeSwordId: typeof r.activeSwordId === 'string' ? r.activeSwordId : base.activeSwordId,
     swords: swords.length > 0 ? swords : base.swords,
+    armours: Array.isArray(r.armours)
+      ? (r.armours as Armour[]).filter(
+          (a) =>
+            a &&
+            typeof a === 'object' &&
+            typeof a.id === 'string' &&
+            typeof a.durability === 'number' &&
+            typeof a.maxDurability === 'number',
+        )
+      : base.armours,
+    activeArmourId:
+      typeof r.activeArmourId === 'string'
+        ? r.activeArmourId
+        : r.activeArmourId === null
+          ? null
+          : base.activeArmourId,
     gems,
     roughStones: Array.isArray(r.roughStones) ? (r.roughStones as GameState['roughStones']) : base.roughStones,
     rawOre: Array.isArray(r.rawOre) ? (r.rawOre as GameState['rawOre']) : base.rawOre,
@@ -406,6 +422,10 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     next.activeSwordId = next.swords[0].id
   }
 
+  if (next.activeArmourId && !next.armours.some((a) => a.id === next.activeArmourId)) {
+    next.activeArmourId = null
+  }
+
   if (version < 9) {
     console.warn(
       '[GemSimulator] Save migrated to v9: gems, rough stones, and total gems found were reset for compatibility.',
@@ -493,6 +513,13 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     }
     if (typeof next.activeBrewId !== 'string' && next.activeBrewId !== null) {
       next.activeBrewId = null
+    }
+  }
+
+  if (version < 17) {
+    if (!Array.isArray(next.armours)) next.armours = []
+    if (typeof next.activeArmourId !== 'string' && next.activeArmourId !== null) {
+      next.activeArmourId = null
     }
   }
 

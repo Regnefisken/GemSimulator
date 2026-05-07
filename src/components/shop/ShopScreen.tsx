@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
+import { makeArmour } from '../../data/armour'
 import { makePickaxe } from '../../data/pickaxes'
 import { makeSword } from '../../data/swords'
 import { SMELTER_TIERS } from '../../data/smelterTiers'
 import {
+  SHOP_ARMOUR_OFFERS,
   SHOP_CHARMS,
   SHOP_CONSUMABLES,
   SHOP_INVENTORY_PACKS,
@@ -31,6 +33,8 @@ function goldOk(state: GameState, price: number) {
 export default function ShopScreen({ state, dispatch, onBack }: Props) {
   const [tab, setTab] = useState<ShopTabId>('pickaxes')
 
+  const gearUsed = state.pickaxes.length + state.swords.length + state.armours.length
+
   const nextSmelterCost = smelterNextUpgradeCost(state.smelterTier)
   const nextSmelterDef =
     state.smelterTier < SMELTER_TIERS.length ? SMELTER_TIERS[state.smelterTier] : null
@@ -43,6 +47,11 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
   function buySword(tier: number) {
     playGoldSpend()
     dispatch({ type: 'BUY_SWORD', tier })
+  }
+
+  function buyArmour(tier: number) {
+    playGoldSpend()
+    dispatch({ type: 'BUY_ARMOUR', tier })
   }
 
   function buySmelter() {
@@ -112,14 +121,14 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
               const p = makePickaxe(o.tier)
               const canLevel = state.level >= o.minLevel
               const canGold = goldOk(state, o.price)
-              const canTools = state.pickaxes.length + state.swords.length < state.inventoryCapacity.tools
+              const canTools = gearUsed < state.inventoryCapacity.tools
               const disabled = !canLevel || !canGold || !canTools
               const why = !canLevel
                 ? `Krav ikke opfyldt: lvl ${o.minLevel} kræves.`
                 : !canGold
                   ? `Krav ikke opfyldt: ${o.price} g kræves.`
                   : !canTools
-                    ? `Lager fuldt: Værktøj (${state.pickaxes.length + state.swords.length}/${state.inventoryCapacity.tools}).`
+                    ? `Lager fuldt: Værktøj (${gearUsed}/${state.inventoryCapacity.tools}).`
                     : ''
               return (
                 <li
@@ -156,14 +165,14 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
               const s = makeSword(o.tier)
               const canLevel = state.level >= o.minLevel
               const canGold = goldOk(state, o.price)
-              const canTools = state.pickaxes.length + state.swords.length < state.inventoryCapacity.tools
+              const canTools = gearUsed < state.inventoryCapacity.tools
               const disabled = !canLevel || !canGold || !canTools
               const why = !canLevel
                 ? `Krav ikke opfyldt: lvl ${o.minLevel} kræves.`
                 : !canGold
                   ? `Krav ikke opfyldt: ${o.price} g kræves.`
                   : !canTools
-                    ? `Lager fuldt: Værktøj (${state.pickaxes.length + state.swords.length}/${state.inventoryCapacity.tools}).`
+                    ? `Lager fuldt: Værktøj (${gearUsed}/${state.inventoryCapacity.tools}).`
                     : ''
               return (
                 <li
@@ -185,6 +194,54 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
                     title={why}
                     onClick={() => buySword(o.tier)}
                     className="min-h-[44px] px-4 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-bold text-sm shrink-0"
+                  >
+                    Køb
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {tab === 'armour' && (
+          <ul className="space-y-3">
+            {SHOP_ARMOUR_OFFERS.map((o) => {
+              const a = makeArmour(o.tier)
+              const canLevel = state.level >= o.minLevel
+              const canGold = goldOk(state, o.price)
+              const canTools = gearUsed < state.inventoryCapacity.tools
+              const disabled = !canLevel || !canGold || !canTools
+              const bonusBits = [
+                a.bonuses.hpMax ? `+${a.bonuses.hpMax} liv` : null,
+                a.bonuses.manaMax ? `+${a.bonuses.manaMax} mana` : null,
+              ].filter(Boolean)
+              const why = !canLevel
+                ? `Krav ikke opfyldt: lvl ${o.minLevel} kræves.`
+                : !canGold
+                  ? `Krav ikke opfyldt: ${o.price} g kræves.`
+                  : !canTools
+                    ? `Lager fuldt: Værktøj (${gearUsed}/${state.inventoryCapacity.tools}).`
+                    : ''
+              return (
+                <li
+                  key={o.tier}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4"
+                >
+                  <div>
+                    <div className="font-semibold text-slate-100">{a.name}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {bonusBits.join(' · ') || 'Bonus'} · Holdbarhed {a.maxDurability}
+                    </div>
+                    <div className="text-sm text-amber-200/90 mt-1">
+                      Pris {o.price.toLocaleString('da-DK')} g · Krav lvl {o.minLevel}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    title={why}
+                    onClick={() => buyArmour(o.tier)}
+                    className="min-h-[44px] px-4 rounded-lg bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-50 font-bold text-sm shrink-0"
                   >
                     Køb
                   </button>

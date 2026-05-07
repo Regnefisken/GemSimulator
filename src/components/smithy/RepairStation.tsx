@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef, useState, type CSSProperties, type Dispatch } from 'react'
-import type { GameState, Pickaxe, Sword } from '../../types'
+import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
 import PixelItemCard from '../PixelItemCard'
 import { playAnvilStrike } from '../../lib/sounds'
@@ -9,7 +9,9 @@ type Props = {
   dispatch: Dispatch<Action>
 }
 
-function coalForFullRepair(tool: Pickaxe | Sword): number {
+type DurabilityPiece = { tier: number; durability: number; maxDurability: number }
+
+function coalForFullRepair(tool: DurabilityPiece): number {
   const missing = tool.maxDurability - tool.durability
   if (missing <= 0) return 0
   return Math.max(1, Math.ceil(missing * (0.1 + tool.tier * 0.055)))
@@ -30,11 +32,17 @@ export default function RepairStation({ state, dispatch }: Props) {
     () => state.swords.find((s) => s.id === state.activeSwordId) ?? state.swords[0] ?? null,
     [state.swords, state.activeSwordId],
   )
+  const arm = useMemo(
+    () => state.armours.find((a) => a.id === state.activeArmourId) ?? null,
+    [state.armours, state.activeArmourId],
+  )
 
   const pickCost = pick ? coalForFullRepair(pick) : 0
   const swordCost = sw ? coalForFullRepair(sw) : 0
+  const armCost = arm ? coalForFullRepair(arm) : 0
   const pickFull = pick ? pick.durability >= pick.maxDurability : true
   const swordFull = sw ? sw.durability >= sw.maxDurability : true
+  const armFull = arm ? arm.durability >= arm.maxDurability : true
 
   function sparkBurst() {
     const newSparks = Array.from({ length: 4 + Math.floor(Math.random() * 3) }, () => {
@@ -54,7 +62,7 @@ export default function RepairStation({ state, dispatch }: Props) {
     }, 450)
   }
 
-  function repairWithCoal(tool: 'pickaxe' | 'sword', id: string, cost: number, label: string) {
+  function repairWithCoal(tool: 'pickaxe' | 'sword' | 'armour', id: string, cost: number, label: string) {
     if (cost <= 0) return
     if (state.coal < cost) return
     dispatch({ type: 'REPAIR_TOOL_WITH_COAL', tool, id })
@@ -73,14 +81,15 @@ export default function RepairStation({ state, dispatch }: Props) {
     <section className="rounded-2xl border border-amber-900/50 bg-slate-900/80 p-4 sm:p-6 shadow-lg">
       <h2 className="text-lg font-bold text-amber-100 mb-1 flex items-center gap-2">🛠️ Reparationsbænk</h2>
       <p className="text-slate-400 text-sm mb-4">
-        Fuld reparation af hakke eller sværd mod <strong className="text-amber-200/90">kul</strong> (D25). Prisen
-        stiger med tier og mængden af slidt holdbarhed. Skift aktivt våben i lager-fanen.
+        Fuld reparation af hakke, sværd eller <strong className="text-slate-200">rustning</strong> mod{' '}
+        <strong className="text-amber-200/90">kul</strong> (D25/D28). Prisen stiger med tier og slidt holdbarhed.
+        Skift aktivt våben i lager-fanen; rustning repareres for den du bærer.
       </p>
       <p className="text-xs text-slate-500 mb-4">
         Kul på lager: <span className="font-mono text-slate-200">{state.coal}</span>
       </p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="rounded-xl border border-slate-700/80 bg-slate-950/40 p-4 space-y-3">
           <h3 className="text-sm font-semibold text-amber-200/90">Aktiv hakke</h3>
           {!pick ? (
@@ -128,6 +137,32 @@ export default function RepairStation({ state, dispatch }: Props) {
                 className="w-full min-h-[48px] rounded-xl bg-gradient-to-b from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 disabled:from-slate-700 disabled:to-slate-800 disabled:cursor-not-allowed text-slate-50 font-bold text-sm"
               >
                 {swordFull ? '✓ Sværd fuld' : `Reparér for ${swordCost} kul`}
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-slate-700/80 bg-slate-950/40 p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-200">Rustning (aktiv)</h3>
+          {!arm ? (
+            <p className="text-slate-500 text-sm">Ingen rustning på — vælg i Lager → Redskaber.</p>
+          ) : (
+            <>
+              <PixelItemCard item={arm.pixelItem} label={arm.name} subtitle={`Tier ${arm.tier}`} />
+              <div className="text-xs text-slate-400">
+                Holdbarhed{' '}
+                <span className="font-mono text-slate-200">
+                  {arm.durability} / {arm.maxDurability}
+                </span>
+              </div>
+              <button
+                type="button"
+                disabled={armFull || state.coal < armCost}
+                title={armFull ? 'Allerede fuld' : state.coal < armCost ? `Kræver ${armCost} kul` : ''}
+                onClick={() => repairWithCoal('armour', arm.id, armCost, arm.name)}
+                className="w-full min-h-[48px] rounded-xl bg-gradient-to-b from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 disabled:from-slate-700 disabled:to-slate-800 disabled:cursor-not-allowed text-slate-50 font-bold text-sm"
+              >
+                {armFull ? '✓ Rustning fuld' : `Reparér for ${armCost} kul`}
               </button>
             </>
           )}

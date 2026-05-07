@@ -173,3 +173,18 @@ describe('migrateGameState v16 brew / alkymi-opskrifter', () => {
     expect(next.activeBrewId).toBeNull()
   })
 })
+
+describe('migrateGameState v17 rustning', () => {
+  it('tilføjer armours og activeArmourId på ældre save', () => {
+    const raw = {
+      ...initialState,
+      version: 16,
+    } as Record<string, unknown>
+    delete raw.armours
+    delete raw.activeArmourId
+    const next = migrateGameState(raw, initialState)
+    expect(next.version).toBe(CURRENT_STATE_VERSION)
+    expect(Array.isArray(next.armours)).toBe(true)
+    expect(next.activeArmourId).toBeNull()
+  })
+})

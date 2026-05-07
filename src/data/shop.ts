@@ -74,9 +74,18 @@ export const SHOP_CHARMS = [
   },
 ] as const
 
+/** Fase 5 (D35): rustning — parallel tier med sværd; køb i hub. */
+export const SHOP_ARMOUR_OFFERS = [
+  { tier: 1, price: 165, minLevel: 3 },
+  { tier: 2, price: 880, minLevel: 8 },
+  { tier: 3, price: 9200, minLevel: 25 },
+  { tier: 4, price: 92000, minLevel: 50 },
+] as const
+
 export type ShopTabId =
   | 'pickaxes'
   | 'swords'
+  | 'armour'
   | 'smelter'
   | 'consumables'
   | 'inventory'
@@ -87,6 +96,7 @@ export type ShopTabId =
 export const SHOP_TAB_LABELS: Record<ShopTabId, string> = {
   pickaxes: 'Hakker',
   swords: 'Sværd',
+  armour: 'Rustning',
   smelter: 'Smelter',
   consumables: 'Forbrug',
   inventory: 'Lager',
@@ -107,6 +117,10 @@ export function findPickaxeOffer(tier: number) {
 
 export function findSwordOffer(tier: number) {
   return SHOP_SWORD_OFFERS.find((o) => o.tier === tier)
+}
+
+export function findArmourOffer(tier: number) {
+  return SHOP_ARMOUR_OFFERS.find((o) => o.tier === tier)
 }
 
 export function findConsumable(id: string) {
