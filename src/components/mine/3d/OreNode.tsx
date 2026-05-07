@@ -29,6 +29,7 @@ const ROCK_TYPE_COLOR: Record<RockType, [number, number]> = {
   rich: [38, 55],
   crystal: [185, 55],
   chest: [28, 24],
+  mob: [310, 72],
 }
 
 /** Groft metal → accent til små årer */

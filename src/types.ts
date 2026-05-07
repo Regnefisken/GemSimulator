@@ -119,6 +119,19 @@ export type Pickaxe = {
   pixelItem: PixelItem
 }
 
+/** Fase 2: sværd til mob-combat (D27); separat tier-ladder fra hakke. */
+export type Sword = {
+  id: string
+  tier: number
+  name: string
+  damage: number
+  durability: number
+  maxDurability: number
+  pixelItem: PixelItem
+}
+
+export type EquippedWeaponKind = 'pickaxe' | 'sword'
+
 export type LocationId =
   | 'kobbermine'
   | 'jernkloeften'
@@ -279,7 +292,7 @@ export type SmeltingJob = {
 
 export type ViewMode = 'map' | 'location'
 
-export type RockType = 'normal' | 'hard' | 'rich' | 'crystal' | 'chest'
+export type RockType = 'normal' | 'hard' | 'rich' | 'crystal' | 'chest' | 'mob'
 
 export type ChestTier = 'wood' | 'silver' | 'gold'
 
@@ -316,6 +329,10 @@ export type GameState = {
   achievementsUnlocked: string[]
   activePickaxeId: string
   pickaxes: Pickaxe[]
+  /** Fase 2 (D23, D27): aktivt våben i minen — hakke til klipper, sværd til mobs. */
+  equippedWeapon: EquippedWeaponKind
+  activeSwordId: string | null
+  swords: Sword[]
 
   gems: Gem[]
   roughStones: RoughStone[]
@@ -346,6 +363,13 @@ export type GameState = {
   unlockedBlueprints: string[]
 
   essences: EssenceStack[]
+
+  /** Fase 1.5 survival (D15, D38): HP/mana i minen; regen uden for aktiv mine-run (D16). */
+  playerHp: number
+  playerHpMax: number
+  playerMana: number
+  /** I MVP = `NEUTRAL_MANA_MAX`; senere brew (D38). */
+  playerManaMax: number
 
   /** Kort bruger-feedback fra reducer (fx fuldt lager); nulstilles af UI. */
   gameNotice: string | null

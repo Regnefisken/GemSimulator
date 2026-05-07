@@ -27,7 +27,7 @@ export type MiningCave3DProps = {
   disabled: boolean
   onMineHit: () => void
   swingTrigger: number
-  pickaxePixelItem: PixelItem | null
+  weaponPixelItem: PixelItem | null
   lootEntities: WorldLootEntity[]
   /** Felter hvor klippen er ryddet — ingen bund-plade under verdens-loot */
   depletedSlots: ReadonlySet<number>
@@ -55,7 +55,7 @@ function CaveContent({
   disabled,
   onMineHit,
   swingTrigger,
-  pickaxePixelItem,
+  weaponPixelItem,
   lootEntities,
   depletedSlots,
   onCollectLoot,
@@ -174,9 +174,9 @@ function CaveContent({
         <WorldLootItem key={e.id} entity={e} onCollect={onCollectLoot} />
       ))}
 
-      {pickaxePixelItem && (
+      {weaponPixelItem && (
         <Pickaxe3D
-          pixelItem={pickaxePixelItem}
+          pixelItem={weaponPixelItem}
           swingTrigger={swingTrigger}
           disabled={disabled}
           visible={pointerLocked}

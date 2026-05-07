@@ -2,12 +2,14 @@ import { useState } from 'react'
 import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
 import { makePickaxe } from '../../data/pickaxes'
+import { makeSword } from '../../data/swords'
 import { SMELTER_TIERS } from '../../data/smelterTiers'
 import {
   SHOP_CHARMS,
   SHOP_CONSUMABLES,
   SHOP_INVENTORY_PACKS,
   SHOP_PICKAXE_OFFERS,
+  SHOP_SWORD_OFFERS,
   SHOP_TAB_LABELS,
   type ShopTabId,
   smelterNextUpgradeCost,
@@ -36,6 +38,11 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
   function buyPickaxe(tier: number) {
     playGoldSpend()
     dispatch({ type: 'BUY_PICKAXE', tier })
+  }
+
+  function buySword(tier: number) {
+    playGoldSpend()
+    dispatch({ type: 'BUY_SWORD', tier })
   }
 
   function buySmelter() {
@@ -105,14 +112,14 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
               const p = makePickaxe(o.tier)
               const canLevel = state.level >= o.minLevel
               const canGold = goldOk(state, o.price)
-              const canTools = state.pickaxes.length < state.inventoryCapacity.tools
+              const canTools = state.pickaxes.length + state.swords.length < state.inventoryCapacity.tools
               const disabled = !canLevel || !canGold || !canTools
               const why = !canLevel
                 ? `Krav ikke opfyldt: lvl ${o.minLevel} kræves.`
                 : !canGold
                   ? `Krav ikke opfyldt: ${o.price} g kræves.`
                   : !canTools
-                    ? `Lager fuldt: Værktøj (${state.pickaxes.length}/${state.inventoryCapacity.tools}).`
+                    ? `Lager fuldt: Værktøj (${state.pickaxes.length + state.swords.length}/${state.inventoryCapacity.tools}).`
                     : ''
               return (
                 <li
@@ -133,6 +140,50 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
                     disabled={disabled}
                     title={why}
                     onClick={() => buyPickaxe(o.tier)}
+                    className="min-h-[44px] px-4 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-bold text-sm shrink-0"
+                  >
+                    Køb
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {tab === 'swords' && (
+          <ul className="space-y-3">
+            {SHOP_SWORD_OFFERS.map((o) => {
+              const s = makeSword(o.tier)
+              const canLevel = state.level >= o.minLevel
+              const canGold = goldOk(state, o.price)
+              const canTools = state.pickaxes.length + state.swords.length < state.inventoryCapacity.tools
+              const disabled = !canLevel || !canGold || !canTools
+              const why = !canLevel
+                ? `Krav ikke opfyldt: lvl ${o.minLevel} kræves.`
+                : !canGold
+                  ? `Krav ikke opfyldt: ${o.price} g kræves.`
+                  : !canTools
+                    ? `Lager fuldt: Værktøj (${state.pickaxes.length + state.swords.length}/${state.inventoryCapacity.tools}).`
+                    : ''
+              return (
+                <li
+                  key={o.tier}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4"
+                >
+                  <div>
+                    <div className="font-semibold text-slate-100">{s.name}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      Skade {s.damage} · Holdbarhed {s.maxDurability}
+                    </div>
+                    <div className="text-sm text-amber-200/90 mt-1">
+                      Pris {o.price.toLocaleString('da-DK')} g · Krav lvl {o.minLevel}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    title={why}
+                    onClick={() => buySword(o.tier)}
                     className="min-h-[44px] px-4 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-bold text-sm shrink-0"
                   >
                     Køb

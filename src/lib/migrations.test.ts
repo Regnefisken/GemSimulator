@@ -105,11 +105,38 @@ describe('migrateGameState v12', () => {
       mineRun: { runId: 'x', mineId: 'kobbermine', currentDepth: 1, targetSlotIndex: 0, slots: [] },
     }
     const next = migrateGameState(raw, initialState)
-    expect(next.version).toBe(12)
+    expect(next.version).toBe(14)
     expect(next.mineRun).toBeNull()
     expect(next.unlockedDepths['kobbermine']).toBe(42)
     expect(next.unlockedDepths['mithrilbjerget']).toBe(42)
     expect(next.totalRockSlotsCleared).toBe(42)
     expect(next.depth).toBeGreaterThanOrEqual(42)
+  })
+})
+
+describe('migrateGameState v13 survival', () => {
+  it('tilføjer HP/mana fra base når felter mangler på gammel save', () => {
+    const raw = { ...initialState, version: 12 } as Record<string, unknown>
+    delete raw.playerHp
+    delete raw.playerHpMax
+    delete raw.playerMana
+    delete raw.playerManaMax
+    const next = migrateGameState(raw, initialState)
+    expect(next.playerHp).toBe(initialState.playerHpMax)
+    expect(next.playerMana).toBe(initialState.playerManaMax)
+  })
+
+  it('klamper HP/mana over max efter load', () => {
+    const raw = {
+      ...initialState,
+      version: 12,
+      playerHp: 999,
+      playerHpMax: 100,
+      playerMana: 200,
+      playerManaMax: 50,
+    }
+    const next = migrateGameState(raw, initialState)
+    expect(next.playerHp).toBe(100)
+    expect(next.playerMana).toBe(50)
   })
 })

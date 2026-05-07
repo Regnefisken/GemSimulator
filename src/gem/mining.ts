@@ -38,6 +38,7 @@ export type MineDrop =
   | { kind: 'nothing' }
 
 const ROCK_EVENT_WEIGHTS: Record<RockType, number> = {
+  mob: 0,
   chest: 5,
   hard: 20,
   rich: 15,
@@ -46,6 +47,7 @@ const ROCK_EVENT_WEIGHTS: Record<RockType, number> = {
 }
 
 const ROCK_HP_MULTIPLIERS: Record<RockType, number> = {
+  mob: 1,
   normal: 1.0,
   hard: 1.6,
   rich: 1.0,
@@ -155,6 +157,58 @@ export function rollCoalDrop(runDepth: number, rng: () => number = Math.random):
   const bonusStack = runDepth >= 5 && rng() < 0.25 ? 1 : 0
   const quantity = 1 + bonusStack
   return { kind: 'coal', quantity, pixelItem: makeCoalPixelItem() }
+}
+
+/** Fase 2: mob HP (separate balance fra klippe). */
+export function mobHpForDepth(depth: number, area: Area): number {
+  if (area.kind !== 'mine') return 20
+  return Math.floor((14 + depth * 10 + depth * depth * 0.45) * area.depthMultiplier)
+}
+
+/** Sandsynlighed for at ét felt bliver mob i stedet for klippe (D14). */
+export function mobSlotChanceForDepth(depth: number): number {
+  return Math.min(0.32, 0.1 + depth * 0.028)
+}
+
+/** Skade pr. mob-tick mod spilleren (Fase 2). */
+export function mobDamagePerTick(depth: number): number {
+  return Math.max(2, 3 + Math.floor(depth * 1.4))
+}
+
+/** D9: separat drop-tabel for nedkæmpede mobs. */
+export function rollMobMineDrop(
+  area: Area,
+  depth: number,
+  activeCharms: string[] = [],
+  rng: () => number = Math.random,
+): MineDrop {
+  if (area.kind !== 'mine' || !area.metalPool?.length) {
+    return { kind: 'nothing' }
+  }
+  const r = rng()
+  if (r < 0.22) {
+    const metal = rollMetalFromPool(area, rng)
+    return {
+      kind: 'ore',
+      ore: {
+        metalName: metal,
+        quantity: 1 + Math.floor(rng() * 2),
+        pixelItem: makeOrePixelItem(metal),
+      },
+    }
+  }
+  if (r < 0.4) {
+    const metal = rollMetalFromPool(area, rng)
+    return {
+      kind: 'nugget',
+      nugget: { metalName: metal, quantity: 1, pixelItem: makeNuggetPixelItem(metal) },
+    }
+  }
+  if (r < 0.48) {
+    const coal = rollCoalDrop(depth, rng)
+    if (coal) return coal
+  }
+  return rollMineDrop(area, depth, activeCharms, 'normal', 0.04, rng)
 }
 
 export function rollMineDrop(

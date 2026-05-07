@@ -1,7 +1,7 @@
 import type { Area } from '../types'
 import { getCaveConfig } from '../types'
 import type { MineRunSlotState, MineRunState } from '../lib/mineTypes'
-import { rockHpForDepth, rollChestLoot, rollRockEvent } from './mining'
+import { rockHpForDepth, rollChestLoot, rollRockEvent, mobHpForDepth, mobSlotChanceForDepth } from './mining'
 
 /** Deterministisk RNG til lag-generering (D3). */
 function hashStringToSeed(s: string): number {
@@ -49,6 +49,17 @@ export function generateLayerState(args: {
         currentHp: 0,
         cleared: false,
         chestLoot: loot,
+      })
+    } else if (rng() < mobSlotChanceForDepth(args.currentDepth)) {
+      const maxHp = mobHpForDepth(args.currentDepth, args.area)
+      slots.push({
+        slotIndex: i,
+        kind: 'mob',
+        rockType: 'mob',
+        mobTier: 1,
+        maxHp,
+        currentHp: maxHp,
+        cleared: false,
       })
     } else {
       const maxHp = Math.floor(rockHpForDepth(args.currentDepth, args.area) * event.hpMultiplier)

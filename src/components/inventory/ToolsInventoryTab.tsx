@@ -26,14 +26,18 @@ function CapacityLine({ used, max, label }: { used: number; max: number; label: 
 
 export default function ToolsInventoryTab({ state, dispatch }: { state: GameState; dispatch: Dispatch<Action> }) {
   const [previewId, setPreviewId] = useState<string | null>(null)
+  const [previewKind, setPreviewKind] = useState<'pickaxe' | 'sword'>('pickaxe')
   const cap = state.inventoryCapacity.tools
-  const used = state.pickaxes.length
-  const preview = state.pickaxes.find((p) => p.id === previewId) ?? null
+  const used = state.pickaxes.length + state.swords.length
+  const previewPick = previewKind === 'pickaxe' ? state.pickaxes.find((p) => p.id === previewId) ?? null : null
+  const previewSw = previewKind === 'sword' ? state.swords.find((s) => s.id === previewId) ?? null : null
+  const preview = previewPick ?? previewSw
 
   return (
     <div>
-      <CapacityLine used={used} max={cap} label="Redskaber (hakker)" />
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      <CapacityLine used={used} max={cap} label="Værktøj (hakker + sværd)" />
+      <h3 className="text-sm font-semibold text-slate-200 mb-2">Hakker</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
         {state.pickaxes.map((p) => (
           <PixelItemCard
             key={p.id}
@@ -41,11 +45,35 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
             label={p.name}
             subtitle={
               p.durability === 0
-                ? '⚠️ Slidt op — reparér i smedjen'
+                ? '⚠️ Slidt op — reparér med kul i smedjen'
                 : `${p.durability}/${p.maxDurability} · ${p.damage} skade`
             }
             highlighted={p.id === state.activePickaxeId}
-            onClick={() => setPreviewId(p.id)}
+            onClick={() => {
+              setPreviewKind('pickaxe')
+              setPreviewId(p.id)
+            }}
+          />
+        ))}
+      </div>
+
+      <h3 className="text-sm font-semibold text-slate-200 mb-2">Sværd</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        {state.swords.map((s) => (
+          <PixelItemCard
+            key={s.id}
+            item={s.pixelItem}
+            label={s.name}
+            subtitle={
+              s.durability === 0
+                ? '⚠️ Slidt op — reparér med kul i smedjen'
+                : `${s.durability}/${s.maxDurability} · ${s.damage} skade`
+            }
+            highlighted={s.id === state.activeSwordId}
+            onClick={() => {
+              setPreviewKind('sword')
+              setPreviewId(s.id)
+            }}
           />
         ))}
       </div>
@@ -60,11 +88,17 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
             `Skade: ${preview.damage}`,
             `Holdbarhed: ${preview.durability} / ${preview.maxDurability}`,
             `Tier: ${preview.tier}`,
-            preview.id === state.activePickaxeId ? 'Status: Aktiv i minen' : 'Status: Ikke valgt',
+            previewKind === 'pickaxe'
+              ? preview.id === state.activePickaxeId
+                ? 'Status: Aktiv hakke i minen'
+                : 'Status: Ikke valgt som aktiv hakke'
+              : preview.id === state.activeSwordId
+                ? 'Status: Aktivt sværd i minen'
+                : 'Status: Ikke valgt som aktivt sværd',
           ]}
           footer={
             <div className="flex flex-col gap-3 w-full">
-              {preview.id !== state.activePickaxeId ? (
+              {previewKind === 'pickaxe' && preview.id !== state.activePickaxeId ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -73,15 +107,28 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
                   }}
                   className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold"
                 >
-                  Sæt som aktiv
+                  Sæt som aktiv hakke
+                </button>
+              ) : previewKind === 'sword' && preview.id !== state.activeSwordId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    dispatch({ type: 'SET_ACTIVE_SWORD', id: preview.id })
+                    setPreviewId(null)
+                  }}
+                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold"
+                >
+                  Sæt som aktivt sværd
                 </button>
               ) : (
                 <div className="flex flex-col gap-2">
-                  <span className="text-sm text-emerald-400 font-medium">Aktiv hakke</span>
+                  <span className="text-sm text-emerald-400 font-medium">
+                    {previewKind === 'pickaxe' ? 'Aktiv hakke' : 'Aktivt sværd'}
+                  </span>
                   {preview.durability < preview.maxDurability && (
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Gå til <strong className="text-amber-200/90">smedjen</strong> (kortet) og brug reparationsbænken
-                      for at genskabe holdbarhed — gratis.
+                      Gå til <strong className="text-amber-200/90">smedjen</strong> og brug reparationsbænken med{' '}
+                      <strong className="text-amber-200/90">kul</strong>.
                     </p>
                   )}
                 </div>

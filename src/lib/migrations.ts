@@ -1,5 +1,6 @@
-import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe, LocationId } from '../types'
+import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe, Sword, LocationId } from '../types'
 import { makePickaxe } from '../data/pickaxes'
+import { makeSword } from '../data/swords'
 import { blueprintFromLegacyRecipeId, migrateJewelry } from '../data/jewelry'
 import { STARTER_BLUEPRINT_IDS } from '../data/blueprints'
 import { METALS } from '../data/metals'
@@ -7,8 +8,9 @@ import { PALETTES } from '../data/palettes'
 import { computeGoldValue } from '../gem/generate'
 import { deriveGemName } from '../gem/naming'
 import { computeWorldTier } from './worldTier'
+import { clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './survival'
 
-export const CURRENT_STATE_VERSION = 12
+export const CURRENT_STATE_VERSION = 14
 
 const MINE_LOCATION_IDS: LocationId[] = [
   'kobbermine',
@@ -160,6 +162,27 @@ function migratePickaxe(raw: unknown, fallback: Pickaxe): Pickaxe {
   }
 }
 
+function migrateSword(raw: unknown, fallback: Sword): Sword {
+  if (!raw || typeof raw !== 'object') return fallback
+  const p = raw as Sword
+  return {
+    id: typeof p.id === 'string' ? p.id : fallback.id,
+    tier: typeof p.tier === 'number' ? p.tier : fallback.tier,
+    name: typeof p.name === 'string' ? p.name : fallback.name,
+    damage: typeof p.damage === 'number' ? p.damage : fallback.damage,
+    durability: typeof p.durability === 'number' ? p.durability : fallback.durability,
+    maxDurability: typeof p.maxDurability === 'number' ? p.maxDurability : fallback.maxDurability,
+    pixelItem:
+      p.pixelItem &&
+      Array.isArray((p.pixelItem as PixelItemLike).data) &&
+      (p.pixelItem as PixelItemLike).data.length > 0 &&
+      (p.pixelItem as PixelItemLike).colorMap &&
+      typeof (p.pixelItem as PixelItemLike).colorMap === 'object'
+        ? p.pixelItem
+        : fallback.pixelItem,
+  }
+}
+
 type PixelItemLike = { data: string[]; colorMap: Record<string, string> }
 
 export function migrateGameState(raw: unknown, base: GameState): GameState {
@@ -174,6 +197,11 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
   const pickaxes = Array.isArray(pickaxesRaw)
     ? pickaxesRaw.map((p, i) => migratePickaxe(p, base.pickaxes[i] ?? base.pickaxes[0]))
     : base.pickaxes
+
+  const swordsRaw = r.swords
+  const swords = Array.isArray(swordsRaw)
+    ? swordsRaw.map((s, i) => migrateSword(s, base.swords[i] ?? base.swords[0]))
+    : base.swords
 
   const gemsRaw = r.gems
   const gems = Array.isArray(gemsRaw) ? gemsRaw.map(migrateGem) : base.gems
@@ -212,6 +240,10 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       : base.achievementsUnlocked,
     activePickaxeId: typeof r.activePickaxeId === 'string' ? r.activePickaxeId : base.activePickaxeId,
     pickaxes: pickaxes.length > 0 ? pickaxes : base.pickaxes,
+    equippedWeapon:
+      r.equippedWeapon === 'pickaxe' || r.equippedWeapon === 'sword' ? r.equippedWeapon : base.equippedWeapon,
+    activeSwordId: typeof r.activeSwordId === 'string' ? r.activeSwordId : base.activeSwordId,
+    swords: swords.length > 0 ? swords : base.swords,
     gems,
     roughStones: Array.isArray(r.roughStones) ? (r.roughStones as GameState['roughStones']) : base.roughStones,
     rawOre: Array.isArray(r.rawOre) ? (r.rawOre as GameState['rawOre']) : base.rawOre,
@@ -270,6 +302,10 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       typeof r.instantBreakNextRock === 'boolean' ? r.instantBreakNextRock : base.instantBreakNextRock,
     roughCraftPurityBonus:
       typeof r.roughCraftPurityBonus === 'number' ? r.roughCraftPurityBonus : base.roughCraftPurityBonus,
+    playerHp: typeof r.playerHp === 'number' ? r.playerHp : base.playerHp,
+    playerHpMax: typeof r.playerHpMax === 'number' ? r.playerHpMax : base.playerHpMax,
+    playerMana: typeof r.playerMana === 'number' ? r.playerMana : base.playerMana,
+    playerManaMax: typeof r.playerManaMax === 'number' ? r.playerManaMax : base.playerManaMax,
     gameNotice: typeof r.gameNotice === 'string' ? r.gameNotice : null,
     version: CURRENT_STATE_VERSION,
   }
@@ -300,6 +336,19 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     }
   })
 
+  next.swords = next.swords.map((s) => {
+    const d = s.pixelItem?.data
+    if (Array.isArray(d) && d.length > 0) return s
+    const f = makeSword(Math.max(0, Math.min(4, s.tier)))
+    return {
+      ...f,
+      id: s.id,
+      durability: s.durability,
+      maxDurability: s.maxDurability,
+      name: s.name || f.name,
+    }
+  })
+
   if (version < 8) {
     const byTier = new Map<number, Pickaxe>()
     for (const p of next.pickaxes) {
@@ -319,6 +368,10 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
 
   if (!next.pickaxes.some((p) => p.id === next.activePickaxeId) && next.pickaxes[0]) {
     next.activePickaxeId = next.pickaxes[0].id
+  }
+
+  if (!next.swords.some((s) => s.id === next.activeSwordId) && next.swords[0]) {
+    next.activeSwordId = next.swords[0].id
   }
 
   if (version < 9) {
@@ -366,5 +419,27 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     next.depth = computeWorldTier(next)
   }
 
-  return next
+  if (version < 13) {
+    if (typeof next.playerHpMax !== 'number' || next.playerHpMax < 1) next.playerHpMax = DEFAULT_PLAYER_HP_MAX
+    if (typeof next.playerManaMax !== 'number' || next.playerManaMax < 1) {
+      next.playerManaMax = NEUTRAL_MANA_MAX
+    }
+    if (typeof next.playerHp !== 'number') next.playerHp = next.playerHpMax
+    if (typeof next.playerMana !== 'number') next.playerMana = next.playerManaMax
+  }
+
+  if (version < 14) {
+    if (next.equippedWeapon !== 'pickaxe' && next.equippedWeapon !== 'sword') {
+      next.equippedWeapon = 'pickaxe'
+    }
+    if (!Array.isArray(next.swords) || next.swords.length === 0) {
+      const s = makeSword(0)
+      next.swords = [s]
+      next.activeSwordId = s.id
+    } else if (!next.swords.some((sw) => sw.id === next.activeSwordId)) {
+      next.activeSwordId = next.swords[0]!.id
+    }
+  }
+
+  return clampPlayerSurvival(next)
 }

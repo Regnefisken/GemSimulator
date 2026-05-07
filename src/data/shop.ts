@@ -21,6 +21,14 @@ export const SHOP_PICKAXE_OFFERS = [
   { tier: 4, price: 100000, minLevel: 50 },
 ] as const
 
+/** Fase 2 (D27): sværd — egen tier-ladder; `makeSword(tier)`. */
+export const SHOP_SWORD_OFFERS = [
+  { tier: 1, price: 180, minLevel: 3 },
+  { tier: 2, price: 920, minLevel: 8 },
+  { tier: 3, price: 9800, minLevel: 25 },
+  { tier: 4, price: 98000, minLevel: 50 },
+] as const
+
 export const SHOP_CONSUMABLES = [
   {
     id: SHOP_CONSUMABLE_IDS.dynamite,
@@ -68,6 +76,7 @@ export const SHOP_CHARMS = [
 
 export type ShopTabId =
   | 'pickaxes'
+  | 'swords'
   | 'smelter'
   | 'consumables'
   | 'inventory'
@@ -77,6 +86,7 @@ export type ShopTabId =
 
 export const SHOP_TAB_LABELS: Record<ShopTabId, string> = {
   pickaxes: 'Hakker',
+  swords: 'Sværd',
   smelter: 'Smelter',
   consumables: 'Forbrug',
   inventory: 'Lager',
@@ -93,6 +103,10 @@ export function smelterNextUpgradeCost(currentTier: number): number | null {
 
 export function findPickaxeOffer(tier: number) {
   return SHOP_PICKAXE_OFFERS.find((o) => o.tier === tier)
+}
+
+export function findSwordOffer(tier: number) {
+  return SHOP_SWORD_OFFERS.find((o) => o.tier === tier)
 }
 
 export function findConsumable(id: string) {

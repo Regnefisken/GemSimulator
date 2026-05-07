@@ -2,7 +2,7 @@
 
 **Status:** Master-plan, ny sandhed for mine-spor, survival/alkymi-spor og equipment/combat-spor.
 **Erstatter:** [`mine-layers-implementation-guide.md`](./mine-layers-implementation-guide.md) og [`alchemist-workshop-survival-concept.md`](./alchemist-workshop-survival-concept.md) som ledende kilde til *implementeringsrækkefølge*. Konceptdokumentet `mine-layers-depth-target-concept.md` v2.1 er stadig den narrative/produktmæssige sandhed; ved konflikt opdateres beslutningsloggen her **og** der.
-**Version:** 1.2 (2026-05-07)
+**Version:** 1.3 (2026-05-07)
 
 ---
 
@@ -239,7 +239,7 @@ Faserne er rækkefølge-følsomme. Hver fase skal kunne shippes selvstændigt og
 
 1. Typer i §3.1 implementeret/refaktoreret.
 2. `generateLayerState(args)` (D3) — én ren funktion.
-3. Persistente `SlotState` ved hits (D13) — primært mål kun.
+3. Persistente `SlotState` ved hits pr. felt; **målvalg** pr. D13 (frit skift: minimap + 3D-klik på klippe).
 4. Clear-room gate (D2) før `transitionToNextLayer()`.
 5. Lag-overgangsflow (D1, D4–D6) i rækkefølge:
    1. Auto-saml ground loot (D4).
@@ -253,6 +253,12 @@ Faserne er rækkefølge-følsomme. Hver fase skal kunne shippes selvstændigt og
 8. `worldTier` (D10) i crafting-pathen.
 9. Achievements (D11) per `mineId` + dybde.
 10. **Kul** som ny `Material` (§3.5) tilføjet til klippe-drop-tabellerne. **Drop-rate skalerer med depth** pr. D30 (fx baseline 10% på dybde 1, +2% pr. dybde, eller staircase). Kul-sprite (2D pixel) integreret. Kul har stadig ingen funktion endnu — det samles bare til Fase 2.
+
+**Fase 1 — tilpasninger i forhold til skitse ovenfor (implementeret i kode):**
+
+- **Målvalg (D13):** Udover frit målskift uden cooldown er **minimap** gjort klikbar med ordentlige hitfelter, og **3D-klik på en anden klippe** sætter den som aktivt mål (samme reducer-handling som minimap). Den oprindelige formulering «primært mål» gjaldt persistens af *skade pr. felt*, ikke at andre felter skulle være uden for interaktion.
+- **`mineRun` livscyklus:** Ved **forladelse af mine-scenen** (`MineScreen` unmount, fx tilbage til kort) køres `MINE_RUN_EXIT` → `mineRun = null`. Næste besøg i samme mine starter et **nyt lag** (`MINE_RUN_ENTER`). Det er en bevidst UX-/testvenlig model før fuld **run suspend / hub-inventory**-adskillelse (D7/D8); når run-inventory og safe ascend implementeres, kan exit-adfærden justeres (fx kun nulstille ved død eller ved «afslut run»), uden at ændre D1–D14.
+- **Fade:** Lag-skift bruger i dag primært **Canvas-nøgle + toast**; egentlig fade-animation kan tilføjes senere uden at ændre datarækkefølgen D4→…→nyt lag.
 
 ### Fase 1.5 — Survival MVP (HP + neutral mana)
 
@@ -445,3 +451,4 @@ Når denne plans beslutningslog (§2) ændres:
 - **v1.0 (2026-05-07)** — Første samlede master-plan. Konsoliderer mine-implementeringsguide og alkymi/survival-koncept. Låser D15–D22.
 - **v1.1 (2026-05-07)** — Tilføjer equipment/combat-spor (sværd, loadout-toggle, durability), kul som repair-materiale, blueprints som chest-loot, mad/potions som mine-loot, separate butiks-faner, consumable quick-slots i mine-HUD, og armour som Fase 5. Låser D23–D27. Reviderer D21.
 - **v1.2 (2026-05-07)** — Låser de 12 sidste åbne beslutninger som D28–D39: smedjen er allerede den eksisterende facilitet (kun item-input + kul-flow mangler), hakke-slid pr. cleared slot, depth-vægtet kul- og blueprint-drop, sværd kan ikke bryde rocks, HUD-bars skjulte på overflade, 3 quick-slots, armour usynlig på character med swap kun på overflade, brew `until_swap`, ingen soul-bound, manaMax fra brew, restock efter hvert run. Trimmer §9 til reelle fremtids-overvejelser.
+- **v1.3 (2026-05-07)** — Dokumenterer Fase 1-kodejusteringer: `MINE_RUN_EXIT` ved forladelse af mine-scene (frisk lag ved genbesøg), målvalg via minimap + 3D-klik på klipper, note om fade vs. plan. **Næste leverance i planen:** Fase 1.5 (survival MVP, §6).
