@@ -2,7 +2,12 @@ import { useEffect, useRef } from 'react'
 import type { Dispatch } from 'react'
 import type { Area, GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
-import { materialsCount } from '../../lib/gameState'
+import {
+  materialsCount,
+  canAddConsumableUnits,
+  CONSUMABLE_BAG_MAX,
+  totalConsumableQty,
+} from '../../lib/gameState'
 import { XP_REWARDS } from '../../lib/leveling'
 import {
   rollBonusMineEssence,
@@ -37,6 +42,9 @@ function extraMaterialsFromDrop(drop: MineDrop): number {
       return 1
     case 'coal':
       return drop.quantity
+    case 'consumable':
+    case 'blueprint':
+      return 0
     default:
       return 0
   }
@@ -58,6 +66,12 @@ function applyDrop(dispatch: Dispatch<Action>, drop: MineDrop) {
       break
     case 'coal':
       dispatch({ type: 'ADD_COAL', amount: drop.quantity })
+      break
+    case 'consumable':
+      dispatch({ type: 'ADD_CONSUMABLE', consumableId: drop.consumableId, quantity: drop.quantity })
+      break
+    case 'blueprint':
+      dispatch({ type: 'UNLOCK_BLUEPRINT', blueprintId: drop.blueprintId })
       break
     default:
       break
@@ -100,9 +114,23 @@ export default function ChestLootScene({
   }
 
   const handleItem = (idx: number, drop: MineDrop) => {
-    const extra = extraMaterialsFromDrop(drop)
-    if (matCount + extra > matCap) return
-    applyDrop(dispatch, drop)
+    if (drop.kind === 'consumable') {
+      if (!canAddConsumableUnits(state, drop.quantity)) return
+      applyDrop(dispatch, drop)
+    } else if (drop.kind === 'blueprint') {
+      const id = drop.blueprintId
+      const def = findBlueprint(id)
+      if (!state.unlockedBlueprints.includes(id)) {
+        dispatch({ type: 'UNLOCK_BLUEPRINT', blueprintId: id })
+        showToast(`📜 Blueprint: ${def?.name ?? id}`, 'success', 5500)
+      } else {
+        showToast(`${def?.name ?? id} — du har allerede denne blueprint.`, 'info', 4000)
+      }
+    } else {
+      const extra = extraMaterialsFromDrop(drop)
+      if (matCount + extra > matCap) return
+      applyDrop(dispatch, drop)
+    }
     const items = loot.items.filter((_, i) => i !== idx)
     onUpdateChest(chest.id, { ...loot, items }, true)
   }
@@ -128,7 +156,25 @@ export default function ChestLootScene({
       remaining = { ...remaining, gold: 0 }
     }
     const nextItems: MineDrop[] = []
+    let bagUsed = totalConsumableQty(state)
     for (const d of remaining.items) {
+      if (d.kind === 'consumable') {
+        if (bagUsed + d.quantity > CONSUMABLE_BAG_MAX) {
+          nextItems.push(d)
+          continue
+        }
+        applyDrop(dispatch, d)
+        bagUsed += d.quantity
+        continue
+      }
+      if (d.kind === 'blueprint') {
+        const def = findBlueprint(d.blueprintId)
+        if (!state.unlockedBlueprints.includes(d.blueprintId)) {
+          dispatch({ type: 'UNLOCK_BLUEPRINT', blueprintId: d.blueprintId })
+          showToast(`📜 Blueprint: ${def?.name ?? d.blueprintId}`, 'success', 5500)
+        }
+        continue
+      }
       const need = extraMaterialsFromDrop(d)
       if (cur + need <= matCap) {
         applyDrop(dispatch, d)
@@ -183,14 +229,17 @@ export default function ChestLootScene({
             )}
             {loot.items.map((d, idx) => {
               const extra = extraMaterialsFromDrop(d)
-              const full = matCount + extra > matCap
+              const matFull = d.kind !== 'consumable' && d.kind !== 'blueprint' && matCount + extra > matCap
+              const bagFull = d.kind === 'consumable' && !canAddConsumableUnits(state, d.quantity)
+              const full = matFull || bagFull
+              const reason = bagFull ? 'Forbrugs-lager fuldt' : matFull ? 'Lager fuldt' : undefined
               return (
                 <ChestLootCard
                   key={idx}
                   kind="item"
                   drop={d}
                   disabled={full}
-                  disabledReason={full ? 'Lager fuldt' : undefined}
+                  disabledReason={reason}
                   onTake={() => handleItem(idx, d)}
                 />
               )

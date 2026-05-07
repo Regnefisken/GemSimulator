@@ -152,6 +152,17 @@ export const AREAS: Area[] = [
     rarityBonus: 0,
   },
   {
+    id: 'alkymistvaerkstedet',
+    kind: 'alkymi',
+    name: 'Alkymistværkstedet',
+    icon: '⚗️',
+    image: '/assets/locations/butikken.webp',
+    description: 'Mad, potions og ingredienser — restock efter hvert minebesøg.',
+    unlockedByDefault: true,
+    depthMultiplier: 0,
+    rarityBonus: 0,
+  },
+  {
     id: 'smykkevaerkstedet',
     kind: 'smykke',
     name: 'Smykkeværkstedet',

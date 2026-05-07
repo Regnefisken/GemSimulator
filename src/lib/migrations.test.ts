@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { migrateGameState } from '../lib/migrations'
+import { migrateGameState, CURRENT_STATE_VERSION } from '../lib/migrations'
 import { initialState } from '../lib/gameState'
 import { STARTER_BLUEPRINT_IDS } from '../data/blueprints'
 
@@ -105,7 +105,7 @@ describe('migrateGameState v12', () => {
       mineRun: { runId: 'x', mineId: 'kobbermine', currentDepth: 1, targetSlotIndex: 0, slots: [] },
     }
     const next = migrateGameState(raw, initialState)
-    expect(next.version).toBe(14)
+    expect(next.version).toBe(CURRENT_STATE_VERSION)
     expect(next.mineRun).toBeNull()
     expect(next.unlockedDepths['kobbermine']).toBe(42)
     expect(next.unlockedDepths['mithrilbjerget']).toBe(42)
@@ -138,5 +138,23 @@ describe('migrateGameState v13 survival', () => {
     const next = migrateGameState(raw, initialState)
     expect(next.playerHp).toBe(100)
     expect(next.playerMana).toBe(50)
+  })
+})
+
+describe('migrateGameState v15 consumables & alkymi', () => {
+  it('tilføjer consumables, hylder, quick-slots og alkymi-lokation på gammel save', () => {
+    const raw = {
+      ...initialState,
+      version: 14,
+    } as Record<string, unknown>
+    delete raw.consumables
+    delete raw.workshopStock
+    delete raw.consumableQuickSlots
+    raw.unlockedLocations = ['kobbermine', 'smedjen', 'butikken']
+    const next = migrateGameState(raw, initialState)
+    expect(next.consumables).toEqual([])
+    expect(next.consumableQuickSlots).toEqual([null, null, null])
+    expect(next.workshopStock).toEqual(expect.objectContaining({ cons_bread_minor: 12 }))
+    expect(next.unlockedLocations).toContain('alkymistvaerkstedet')
   })
 })

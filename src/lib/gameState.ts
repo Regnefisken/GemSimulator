@@ -14,6 +14,7 @@ import type {
 import { AREAS } from '../data/areas'
 import { makePickaxe } from '../data/pickaxes'
 import { makeSword } from '../data/swords'
+import { findConsumableDef, WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 import { makeIngotPixelItem } from '../data/oreTemplates'
 import { CURRENT_STATE_VERSION } from './migrations'
 import { applyXpGain } from './leveling'
@@ -27,7 +28,14 @@ import { canDescendFromLayer, createInitialMineRun, generateLayerState } from '.
 import type { ChestLootResult } from '../gem/mining'
 import { ENABLE_DEV_CHEATS } from '../dev/featureFlags'
 import { computeWorldTier } from './worldTier'
-import { applySafeZoneRegen, applyDamageToPlayer, clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './survival'
+import {
+  applySafeZoneRegen,
+  applyDamageToPlayer,
+  clampPlayerSurvival,
+  DEFAULT_PLAYER_HP_MAX,
+  NEUTRAL_MANA_MAX,
+  isInActiveMineRun,
+} from './survival'
 import {
   blueprintFromLegacyRecipeId,
   blueprintIngotRequirements,
@@ -88,6 +96,10 @@ export type Action =
   | { type: 'MINE_DESCEND_LAYER' }
   | { type: 'MINE_UPDATE_CHEST_SLOT'; slotIndex: number; loot: ChestLootResult; opened?: boolean }
   | { type: 'ADD_COAL'; amount: number }
+  | { type: 'ADD_CONSUMABLE'; consumableId: string; quantity: number }
+  | { type: 'BUY_WORKSHOP_CONSUMABLE'; consumableId: string; quantity?: number }
+  | { type: 'SET_CONSUMABLE_QUICK_SLOT'; slotIndex: number; consumableId: string | null }
+  | { type: 'USE_CONSUMABLE_QUICK_SLOT'; slotIndex: number }
   | { type: 'OPEN_CHEST'; gold: number }
   | { type: 'CONSUME_ORE'; metalName: MetalName; quantity: number }
   | { type: 'CONSUME_NUGGET'; metalName: MetalName; quantity: number }
@@ -232,6 +244,56 @@ function consumeIngot(state: GameState, metalName: MetalName, quantity: number):
   return { ...state, metalIngots }
 }
 
+export const CONSUMABLE_BAG_MAX = 36
+const CONSUMABLE_STACK_MAX = 99
+
+export function totalConsumableQty(state: GameState): number {
+  return state.consumables.reduce((s, c) => s + c.quantity, 0)
+}
+
+export function canAddConsumableUnits(state: GameState, qty: number): boolean {
+  return qty > 0 && totalConsumableQty(state) + qty <= CONSUMABLE_BAG_MAX
+}
+
+function restockWorkshopShelf(state: GameState): GameState {
+  return { ...state, workshopStock: { ...WORKSHOP_DEFAULT_STOCK } }
+}
+
+function addConsumableToState(state: GameState, consumableId: string, qty: number): GameState {
+  const def = findConsumableDef(consumableId)
+  if (!def || qty <= 0) return state
+  if (totalConsumableQty(state) + qty > CONSUMABLE_BAG_MAX) {
+    return { ...state, gameNotice: `Forbrugs-lager fuldt (${CONSUMABLE_BAG_MAX} stk. max).` }
+  }
+  const idx = state.consumables.findIndex((c) => c.consumableId === consumableId)
+  if (idx < 0) {
+    return {
+      ...state,
+      consumables: [...state.consumables, { consumableId, quantity: Math.min(qty, CONSUMABLE_STACK_MAX) }],
+      gameNotice: null,
+    }
+  }
+  const row = state.consumables[idx]!
+  const nq = Math.min(CONSUMABLE_STACK_MAX, row.quantity + qty)
+  const consumables = state.consumables.map((c, i) => (i === idx ? { ...c, quantity: nq } : c))
+  return { ...state, consumables, gameNotice: null }
+}
+
+function applyConsumableDefToState(
+  state: GameState,
+  def: NonNullable<ReturnType<typeof findConsumableDef>>,
+): GameState {
+  if (def.effect === 'heal_hp') {
+    const add = Math.max(0, def.value)
+    return { ...state, playerHp: Math.min(state.playerHpMax, state.playerHp + add) }
+  }
+  if (def.effect === 'heal_mana') {
+    const add = Math.max(0, def.value)
+    return { ...state, playerMana: Math.min(state.playerManaMax, state.playerMana + add) }
+  }
+  return state
+}
+
 const starter = makePickaxe(0)
 const starterSword = makeSword(0)
 
@@ -264,7 +326,7 @@ export const initialState: GameState = {
   smeltingJobs: [],
   viewMode: 'map',
   currentArea: 'kobbermine',
-  unlockedLocations: ['kobbermine', 'smedjen', 'butikken'],
+  unlockedLocations: ['kobbermine', 'smedjen', 'butikken', 'alkymistvaerkstedet'],
   activeCharms: [],
   activeEffects: [],
   instantBreakNextRock: false,
@@ -272,6 +334,9 @@ export const initialState: GameState = {
   jewelry: [],
   unlockedBlueprints: [...STARTER_BLUEPRINT_IDS],
   essences: [],
+  consumables: [],
+  workshopStock: { ...WORKSHOP_DEFAULT_STOCK },
+  consumableQuickSlots: [null, null, null],
   playerHp: DEFAULT_PLAYER_HP_MAX,
   playerHpMax: DEFAULT_PLAYER_HP_MAX,
   playerMana: NEUTRAL_MANA_MAX,
@@ -416,7 +481,7 @@ export function reducer(state: GameState, action: Action): GameState {
       })
     }
     case 'MINE_RUN_EXIT':
-      return applySafeZoneRegen({ ...state, mineRun: null, gameNotice: null })
+      return restockWorkshopShelf(applySafeZoneRegen({ ...state, mineRun: null, gameNotice: null }))
     case 'MINE_SET_TARGET_SLOT': {
       const r = state.mineRun
       if (!r || r.slots.length === 0) return state
@@ -496,6 +561,56 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'ADD_COAL': {
       if (action.amount <= 0) return state
       return { ...state, coal: state.coal + action.amount, gameNotice: null }
+    }
+    case 'ADD_CONSUMABLE': {
+      if (action.quantity <= 0) return state
+      return addConsumableToState(state, action.consumableId, action.quantity)
+    }
+    case 'BUY_WORKSHOP_CONSUMABLE': {
+      const qty = action.quantity != null && action.quantity > 0 ? action.quantity : 1
+      const def = findConsumableDef(action.consumableId)
+      if (!def) return state
+      const avail = state.workshopStock[action.consumableId] ?? 0
+      if (avail < qty) return { ...state, gameNotice: 'Ikke flere på hylden.' }
+      const cost = def.price * qty
+      if (state.gold < cost) return { ...state, gameNotice: 'Ikke nok guld.' }
+      const workshopStock = { ...state.workshopStock, [action.consumableId]: avail - qty }
+      const paid = { ...state, gold: state.gold - cost, workshopStock, gameNotice: null as string | null }
+      return addConsumableToState(paid, action.consumableId, qty)
+    }
+    case 'SET_CONSUMABLE_QUICK_SLOT': {
+      const slotIndex = action.slotIndex
+      if (slotIndex < 0 || slotIndex > 2) return state
+      if (action.consumableId === null) {
+        const consumableQuickSlots = [...state.consumableQuickSlots] as [string | null, string | null, string | null]
+        consumableQuickSlots[slotIndex] = null
+        return { ...state, consumableQuickSlots, gameNotice: null }
+      }
+      const stack = state.consumables.find((c) => c.consumableId === action.consumableId && c.quantity > 0)
+      if (!stack) return { ...state, gameNotice: 'Du har ikke denne vare.' }
+      const consumableQuickSlots = [...state.consumableQuickSlots] as [string | null, string | null, string | null]
+      consumableQuickSlots[slotIndex] = action.consumableId
+      return { ...state, consumableQuickSlots, gameNotice: null }
+    }
+    case 'USE_CONSUMABLE_QUICK_SLOT': {
+      if (!isInActiveMineRun(state)) return { ...state, gameNotice: 'Kun i minen.' }
+      const slotIndex = action.slotIndex
+      if (slotIndex < 0 || slotIndex > 2) return state
+      const consumableId = state.consumableQuickSlots[slotIndex]
+      if (!consumableId) return state
+      const def = findConsumableDef(consumableId)
+      if (!def) return state
+      const idx = state.consumables.findIndex((c) => c.consumableId === consumableId)
+      if (idx < 0 || state.consumables[idx]!.quantity < 1) return state
+      let next = applyConsumableDefToState(state, def)
+      const row = next.consumables[idx]!
+      const nq = row.quantity - 1
+      const consumables =
+        nq <= 0 ? next.consumables.filter((_, i) => i !== idx) : next.consumables.map((c, i) => (i === idx ? { ...c, quantity: nq } : c))
+      next = { ...next, consumables, gameNotice: null }
+      let consumableQuickSlots = [...next.consumableQuickSlots] as [string | null, string | null, string | null]
+      if (nq <= 0 && consumableQuickSlots[slotIndex] === consumableId) consumableQuickSlots[slotIndex] = null
+      return { ...next, consumableQuickSlots }
     }
     case 'OPEN_CHEST': {
       const next = applyXpGain(

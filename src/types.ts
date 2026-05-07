@@ -141,6 +141,7 @@ export type LocationId =
   | 'rune-dybet'
   | 'smedjen'
   | 'butikken'
+  | 'alkymistvaerkstedet'
   | 'smykkevaerkstedet'
 
 export type CaveConfig = {
@@ -187,7 +188,7 @@ export const DEFAULT_CAVE_CONFIG: CaveConfig = {
 
 export type Area = {
   id: LocationId
-  kind: 'mine' | 'smedje' | 'butik' | 'smykke'
+  kind: 'mine' | 'smedje' | 'butik' | 'alkymi' | 'smykke'
   name: string
   icon: string
   image?: string
@@ -211,6 +212,9 @@ export function getCaveConfig(area: Area): CaveConfig {
 export type ActiveEffect = { id: string; expiresAt?: number; chargesLeft?: number }
 
 export type EssenceStack = { essenceId: string; quantity: number }
+
+/** Fase 3: stack af mad/potions i hub- og mine-task (D21). */
+export type ConsumableStack = { consumableId: string; quantity: number }
 
 export type BlueprintCategory =
   | 'ring'
@@ -363,6 +367,13 @@ export type GameState = {
   unlockedBlueprints: string[]
 
   essences: EssenceStack[]
+
+  /** Fase 3: forbrugsvarer (mad/potions/ingredienser). Max stykker styres i reducer. */
+  consumables: ConsumableStack[]
+  /** Værksteds-hylde: antal til salg pr. consumable-id (D39 restock efter run). */
+  workshopStock: Partial<Record<string, number>>
+  /** Fase 3 (D33): hurtigtaster 1–3 binder consumable-id pr. slot. */
+  consumableQuickSlots: [string | null, string | null, string | null]
 
   /** Fase 1.5 survival (D15, D38): HP/mana i minen; regen uden for aktiv mine-run (D16). */
   playerHp: number

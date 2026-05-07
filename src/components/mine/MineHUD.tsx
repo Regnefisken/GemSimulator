@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ChestTier, RockType } from '../../types'
+import { findConsumableDef } from '../../data/consumables'
 
 type TopProps = {
   className?: string
@@ -271,6 +272,63 @@ export function HUDBottomBar({
         </p>
       </div>
       <div className="pointer-events-auto shrink-0">{children}</div>
+    </div>
+  )
+}
+
+type QuickBarProps = {
+  className?: string
+  quickSlots: [string | null, string | null, string | null]
+  consumables: { consumableId: string; quantity: number }[]
+  onUseSlot: (slotIndex: number) => void
+}
+
+/** Fase 3: hurtige forbrugsslots i minen (taster 1–3). */
+export function HUDConsumableQuickBar({
+  className = '',
+  quickSlots,
+  consumables,
+  onUseSlot,
+}: QuickBarProps) {
+  const qtyOf = (id: string | null) => {
+    if (!id) return 0
+    return consumables.find((c) => c.consumableId === id)?.quantity ?? 0
+  }
+  return (
+    <div
+      className={`flex flex-wrap gap-2 justify-end items-stretch pointer-events-auto ${className}`}
+    >
+      {([0, 1, 2] as const).map((i) => {
+        const id = quickSlots[i]
+        const q = qtyOf(id)
+        const def = id ? findConsumableDef(id) : undefined
+        const usable = Boolean(id && q > 0)
+        return (
+          <button
+            key={i}
+            type="button"
+            disabled={!usable}
+            title={usable ? `Brug (${i + 1})` : `Slot ${i + 1}`}
+            onClick={() => onUseSlot(i)}
+            className={
+              'flex flex-col items-center justify-center min-w-[72px] max-w-[100px] min-h-[52px] px-2 py-1 rounded-lg border text-left transition-colors ' +
+              (usable
+                ? 'bg-emerald-950/70 border-emerald-600/50 text-emerald-100 hover:bg-emerald-900/70'
+                : 'bg-slate-900/60 border-slate-700/50 text-slate-500 cursor-not-allowed opacity-70')
+            }
+          >
+            <span className="text-[9px] font-mono text-slate-500 w-full text-left">{i + 1}</span>
+            <span className="text-[10px] font-semibold leading-tight line-clamp-2 text-center w-full">
+              {def?.name ?? '—'}
+            </span>
+            {id ? (
+              <span className="text-[9px] font-mono text-slate-400 mt-0.5">×{q}</span>
+            ) : (
+              <span className="text-[9px] text-slate-600 mt-0.5">tom</span>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }

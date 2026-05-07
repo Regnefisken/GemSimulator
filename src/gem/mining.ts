@@ -18,8 +18,31 @@ import { PALETTES } from '../data/palettes'
 import { CHARM_IDS } from '../data/shop'
 import { createRandomGem } from './generate'
 import { makeCoalPixelItem, makeNuggetPixelItem, makeOrePixelItem, makeRoughStonePixelItem } from '../data/oreTemplates'
+import { BLUEPRINTS } from '../data/blueprints'
+import { CONSUMABLE_DEFS } from '../data/consumables'
 
 export type { ChestTier, RockEvent } from '../types'
+
+export const SCROLL_PIXEL: PixelItem = {
+  data: ['..YY..', '.YYYY.', '.YYYY.', '..YY..'],
+  colorMap: { Y: '#fbbf24', '.': 'transparent' },
+}
+
+const LOOTABLE_SHOP_BLUEPRINT_IDS: string[] = BLUEPRINTS.filter((b) => b.unlockMethod === 'shop').map((b) => b.id)
+
+function rollLootConsumable(rng: () => number): MineDrop | null {
+  const pool = CONSUMABLE_DEFS.filter((c) => c.tab !== 'ingredient')
+  if (pool.length === 0) return null
+  const d = pool[Math.floor(rng() * pool.length)]!
+  return { kind: 'consumable', consumableId: d.id, quantity: 1, pixelItem: d.pixelItem }
+}
+
+function rollBlueprintChestDrop(depth: number, rng: () => number): string | null {
+  if (LOOTABLE_SHOP_BLUEPRINT_IDS.length === 0) return null
+  const chance = Math.min(0.5, 0.08 + depth * 0.015)
+  if (rng() >= chance) return null
+  return LOOTABLE_SHOP_BLUEPRINT_IDS[Math.floor(rng() * LOOTABLE_SHOP_BLUEPRINT_IDS.length)] ?? null
+}
 
 export function rockHpForDepth(depth: number, area: Area): number {
   return Math.floor((20 + depth * 12 + depth * depth * 0.6) * area.depthMultiplier)
@@ -34,7 +57,9 @@ export type MineDrop =
   /** Kul fra klippe-mining (Fase 1); reparations-materiale senere. */
   | { kind: 'coal'; quantity: number; pixelItem: PixelItem }
   /** Kun fra guldkiste i udvalgte miner (ikke fra almindelig klippe-drop). */
-  | { kind: 'blueprint'; blueprintId: string }
+  | { kind: 'blueprint'; blueprintId: string; pixelItem?: PixelItem }
+  /** Fase 3: mad/potions som verdens-loot og kiste-indhold. */
+  | { kind: 'consumable'; consumableId: string; quantity: number; pixelItem: PixelItem }
   | { kind: 'nothing' }
 
 const ROCK_EVENT_WEIGHTS: Record<RockType, number> = {
@@ -131,6 +156,14 @@ export function rollChestLoot(
   for (let i = 0; i < n; i++) {
     items.push(rollMineDrop(area, depth, activeCharms, 'normal', rarityAdd, rng))
   }
+  const extraBp = rollBlueprintChestDrop(depth, rng)
+  if (extraBp) {
+    items.push({ kind: 'blueprint', blueprintId: extraBp, pixelItem: SCROLL_PIXEL })
+  }
+  if (tier !== 'wood' && rng() < 0.2) {
+    const cd = rollLootConsumable(rng)
+    if (cd) items.push(cd)
+  }
   const blueprintId = rollBlueprintFromGoldChest(area.id, tier, rng)
   return { gold, items, blueprintId }
 }
@@ -208,6 +241,10 @@ export function rollMobMineDrop(
     const coal = rollCoalDrop(depth, rng)
     if (coal) return coal
   }
+  if (rng() < 0.12) {
+    const c = rollLootConsumable(rng)
+    if (c) return c
+  }
   return rollMineDrop(area, depth, activeCharms, 'normal', 0.04, rng)
 }
 
@@ -238,6 +275,10 @@ export function rollMineDrop(
     if (r < crystalGem) return { kind: 'gem', gem: createRandomGem(depth, area, valueCharms) }
     if (r < crystalStone) return { kind: 'rough-stone', stone: rollRoughStone(rng) }
     if (r < 0.75) return { kind: 'ore', ore: rollRawOreFromArea(area, depth, false, rng) }
+    if (rng() < 0.045) {
+      const c = rollLootConsumable(rng)
+      if (c) return c
+    }
     return { kind: 'nothing' }
   }
 
@@ -253,6 +294,10 @@ export function rollMineDrop(
   if (r < oreThreshold) {
     const ore = rollRawOreFromArea(area, depth, rockType === 'rich', rng)
     return { kind: 'ore', ore }
+  }
+  if (rng() < 0.05) {
+    const c = rollLootConsumable(rng)
+    if (c) return c
   }
   return { kind: 'nothing' }
 }

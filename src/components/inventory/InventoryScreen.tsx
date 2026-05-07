@@ -8,15 +8,17 @@ import MaterialsInventoryTab from './MaterialsInventoryTab'
 import ToolsInventoryTab from './ToolsInventoryTab'
 
 import EssencesInventoryTab from './EssencesInventoryTab'
+import ConsumablesInventoryTab from './ConsumablesInventoryTab'
 import AchievementsTab from './AchievementsTab'
 
-type InvTab = 'gems' | 'jewelry' | 'materials' | 'essences' | 'tools' | 'achievements'
+type InvTab = 'gems' | 'jewelry' | 'materials' | 'essences' | 'consumables' | 'tools' | 'achievements'
 
 const TABS: { id: InvTab; label: string }[] = [
   { id: 'gems', label: 'Ædelsten' },
   { id: 'jewelry', label: 'Smykker' },
   { id: 'materials', label: 'Råvarer' },
   { id: 'essences', label: 'Essenser' },
+  { id: 'consumables', label: 'Forbrug' },
   { id: 'tools', label: 'Redskaber' },
   { id: 'achievements', label: 'Præst.' },
 ]
@@ -57,6 +59,7 @@ export default function InventoryScreen({
       {sub === 'jewelry' && <JewelryInventoryTab state={state} dispatch={dispatch} />}
       {sub === 'materials' && <MaterialsInventoryTab state={state} />}
       {sub === 'essences' && <EssencesInventoryTab state={state} />}
+      {sub === 'consumables' && <ConsumablesInventoryTab state={state} dispatch={dispatch} />}
       {sub === 'tools' && <ToolsInventoryTab state={state} dispatch={dispatch} />}
       {sub === 'achievements' && <AchievementsTab state={state} />}
     </div>

@@ -15,6 +15,7 @@ import InventoryScreen from './components/inventory/InventoryScreen'
 import MineScreen from './components/mine/MineScreen'
 import SmithyScreen from './components/smithy/SmithyScreen'
 import ShopScreen from './components/shop/ShopScreen'
+import WorkshopScreen from './components/workshop/WorkshopScreen'
 import JewelryWorkshopScreen from './components/jewelry/JewelryWorkshopScreen'
 import { ToastProvider, useToast } from './components/ui/ToastContext'
 import { DisplayRenderProvider } from './components/layout/DisplayRenderContext'
@@ -156,6 +157,8 @@ function AppContent() {
       )
     } else if (area.kind === 'butik') {
       screen = <ShopScreen state={state} dispatch={dispatch} onBack={goToMapView} />
+    } else if (area.kind === 'alkymi') {
+      screen = <WorkshopScreen state={state} dispatch={dispatch} onBack={goToMapView} />
     } else {
       screen = <JewelryWorkshopScreen state={state} dispatch={dispatch} onBack={goToMapView} />
     }

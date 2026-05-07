@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode, type TransitionEvent } from 'react
 import type { MineDrop } from '../../gem/mining'
 import type { ChestTier } from '../../types'
 import { METALS } from '../../data/metals'
+import { findConsumableDef } from '../../data/consumables'
 
 /** UI-state for drop-banner (feature-local, not global `types.ts`). */
 export type DropNotice = {
@@ -46,6 +47,8 @@ function borderClassForDrop(drop: MineDrop): string {
       return 'border-violet-400/70'
     case 'coal':
       return 'border-stone-600/70'
+    case 'consumable':
+      return 'border-emerald-600/60'
     case 'nothing':
       return 'border-slate-700/40'
     default:
@@ -181,6 +184,19 @@ export default function RockDropBanner({ notice, onDone }: Props) {
       )
       badgeClass = 'text-stone-300'
       badgeText = 'Kul'
+      break
+    }
+    case 'consumable': {
+      const def = findConsumableDef(drop.consumableId)
+      icon = '🧪'
+      title = (
+        <>
+          {def?.name ?? drop.consumableId}
+          {drop.quantity > 1 ? ` ×${drop.quantity}` : ''}
+        </>
+      )
+      badgeClass = 'text-emerald-300'
+      badgeText = def?.kind === 'potion' ? 'Potion' : 'Mad'
       break
     }
     case 'nothing':

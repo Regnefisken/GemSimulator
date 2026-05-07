@@ -9,8 +9,9 @@ import { computeGoldValue } from '../gem/generate'
 import { deriveGemName } from '../gem/naming'
 import { computeWorldTier } from './worldTier'
 import { clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './survival'
+import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 
-export const CURRENT_STATE_VERSION = 14
+export const CURRENT_STATE_VERSION = 15
 
 const MINE_LOCATION_IDS: LocationId[] = [
   'kobbermine',
@@ -298,6 +299,27 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
             e.quantity > 0,
         )
       : base.essences,
+    consumables: Array.isArray(r.consumables)
+      ? (r.consumables as GameState['consumables']).filter(
+          (c) =>
+            c &&
+            typeof c.consumableId === 'string' &&
+            typeof c.quantity === 'number' &&
+            c.quantity > 0,
+        )
+      : base.consumables,
+    workshopStock:
+      r.workshopStock && typeof r.workshopStock === 'object' && !Array.isArray(r.workshopStock)
+        ? { ...(r.workshopStock as GameState['workshopStock']) }
+        : base.workshopStock,
+    consumableQuickSlots:
+      Array.isArray(r.consumableQuickSlots) && r.consumableQuickSlots.length >= 3
+        ? ([
+            typeof r.consumableQuickSlots[0] === 'string' ? r.consumableQuickSlots[0] : null,
+            typeof r.consumableQuickSlots[1] === 'string' ? r.consumableQuickSlots[1] : null,
+            typeof r.consumableQuickSlots[2] === 'string' ? r.consumableQuickSlots[2] : null,
+          ] as GameState['consumableQuickSlots'])
+        : base.consumableQuickSlots,
     instantBreakNextRock:
       typeof r.instantBreakNextRock === 'boolean' ? r.instantBreakNextRock : base.instantBreakNextRock,
     roughCraftPurityBonus:
@@ -438,6 +460,20 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       next.activeSwordId = s.id
     } else if (!next.swords.some((sw) => sw.id === next.activeSwordId)) {
       next.activeSwordId = next.swords[0]!.id
+    }
+  }
+
+  if (version < 15) {
+    if (!Array.isArray(next.consumables)) next.consumables = []
+    if (!next.workshopStock || typeof next.workshopStock !== 'object' || Array.isArray(next.workshopStock)) {
+      next.workshopStock = { ...WORKSHOP_DEFAULT_STOCK }
+    }
+    if (!Array.isArray(next.consumableQuickSlots) || next.consumableQuickSlots.length !== 3) {
+      next.consumableQuickSlots = [null, null, null]
+    }
+    const ul = next.unlockedLocations.filter((id): id is LocationId => typeof id === 'string')
+    if (!ul.includes('alkymistvaerkstedet')) {
+      next.unlockedLocations = [...ul, 'alkymistvaerkstedet']
     }
   }
 

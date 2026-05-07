@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { Area, GameState, MetalName } from '../../types'
 import { getCaveConfig } from '../../types'
 import type { Action } from '../../lib/gameState'
-import { materialsCount } from '../../lib/gameState'
+import { materialsCount, canAddConsumableUnits, CONSUMABLE_BAG_MAX } from '../../lib/gameState'
 import { XP_REWARDS } from '../../lib/leveling'
 import {
   mobDamagePerTick,
@@ -14,12 +14,14 @@ import {
 } from '../../gem/mining'
 import { canDescendFromLayer } from '../../gem/mineLayer'
 import { ESSENCE_IDS, getEssenceDef, MOON_TEAR_EFFECT_ID } from '../../data/essences'
+import { findConsumableDef } from '../../data/consumables'
+import { findBlueprint } from '../../data/blueprints'
 import { METALS } from '../../data/metals'
 import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
 import { useToast } from '../ui/ToastContext'
 import MiningCave3D from './3d/MiningCave3D'
 import DamageNumbers, { type DamageFloater } from './DamageNumbers'
-import { HUDHpBar, HUDBottomBar, HUDPlayerSurvival, HUDTopBar, HUDWeaponToggle } from './MineHUD'
+import { HUDHpBar, HUDBottomBar, HUDPlayerSurvival, HUDTopBar, HUDWeaponToggle, HUDConsumableQuickBar } from './MineHUD'
 import MinimapHUD from './MinimapHUD'
 import RockDropBanner, { type DropNotice } from './RockDropBanner'
 import Crosshair from './Crosshair'
@@ -55,6 +57,9 @@ function extraMaterialsFromDrop(drop: MineDrop): number {
       return 1
     case 'coal':
       return drop.quantity
+    case 'consumable':
+    case 'blueprint':
+      return 0
     default:
       return 0
   }
@@ -72,6 +77,14 @@ function dropPickupLabel(drop: MineDrop): string {
       return `+1 ${drop.gem.name}`
     case 'coal':
       return `+${drop.quantity} Kul`
+    case 'consumable': {
+      const def = findConsumableDef(drop.consumableId)
+      return `+${drop.quantity} ${def?.name ?? drop.consumableId}`
+    }
+    case 'blueprint': {
+      const bp = findBlueprint(drop.blueprintId)
+      return `📜 ${bp?.name ?? drop.blueprintId}`
+    }
     default:
       return '+1'
   }
@@ -89,6 +102,10 @@ function pickupAccent(drop: MineDrop): string | undefined {
       return drop.gem.colorMap['G']
     case 'coal':
       return '#57534e'
+    case 'consumable':
+      return '#34d399'
+    case 'blueprint':
+      return '#a78bfa'
     default:
       return undefined
   }
@@ -193,6 +210,12 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return
+      const slot = e.key === '1' ? 0 : e.key === '2' ? 1 : e.key === '3' ? 2 : -1
+      if (slot >= 0) {
+        e.preventDefault()
+        dispatch({ type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: slot })
+        return
+      }
       if (e.key !== 'Tab') return
       e.preventDefault()
       if (state.equippedWeapon === 'pickaxe') {
@@ -249,6 +272,12 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         case 'coal':
           dispatch({ type: 'ADD_COAL', amount: drop.quantity })
           break
+        case 'consumable':
+          dispatch({ type: 'ADD_CONSUMABLE', consumableId: drop.consumableId, quantity: drop.quantity })
+          break
+        case 'blueprint':
+          dispatch({ type: 'UNLOCK_BLUEPRINT', blueprintId: drop.blueprintId })
+          break
         default:
           break
       }
@@ -263,13 +292,24 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     (entityId: string) => {
       const entity = lootEntities.find((e) => e.id === entityId)
       if (!entity || entity.collected) return
-      const extra = extraMaterialsFromDrop(entity.drop)
-      if (matCount + extra > matCap) {
-        pushFloater({
-          text: 'Lager fuldt!',
-          color: '#fbbf24',
-        })
-        return
+      const drop = entity.drop
+      if (drop.kind === 'consumable') {
+        if (!canAddConsumableUnits(state, drop.quantity)) {
+          pushFloater({
+            text: 'Forbrugs-lager fuldt!',
+            color: '#fbbf24',
+          })
+          return
+        }
+      } else if (drop.kind !== 'blueprint') {
+        const extra = extraMaterialsFromDrop(drop)
+        if (matCount + extra > matCap) {
+          pushFloater({
+            text: 'Lager fuldt!',
+            color: '#fbbf24',
+          })
+          return
+        }
       }
       applyDrop(entity.drop)
       setLootEntities((prev) => prev.filter((e) => e.id !== entityId))
@@ -278,7 +318,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         color: pickupAccent(entity.drop) ?? '#86efac',
       })
     },
-    [lootEntities, matCount, matCap, applyDrop, pushFloater],
+    [lootEntities, matCount, matCap, applyDrop, pushFloater, state],
   )
 
   const handleUpdateChest = useCallback(
@@ -301,18 +341,30 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       showToast('Ryd alle felter (inkl. kister) før du går dybere.', 'info')
       return
     }
-    let used = matCount
+    let usedMat = matCount
+    let bagUsed = state.consumables.reduce((s, c) => s + c.quantity, 0)
     for (const e of lootEntities) {
-      const extra = extraMaterialsFromDrop(e.drop)
-      if (used + extra <= matCap) {
-        applyDrop(e.drop)
-        used += extra
+      const drop = e.drop
+      if (drop.kind === 'consumable') {
+        if (bagUsed + drop.quantity > CONSUMABLE_BAG_MAX) continue
+        applyDrop(drop)
+        bagUsed += drop.quantity
+        continue
+      }
+      if (drop.kind === 'blueprint') {
+        applyDrop(drop)
+        continue
+      }
+      const extra = extraMaterialsFromDrop(drop)
+      if (usedMat + extra <= matCap) {
+        applyDrop(drop)
+        usedMat += extra
       }
     }
     setLootEntities([])
     dispatch({ type: 'MINE_DESCEND_LAYER' })
     showToast(`Ned til dybde ${run.currentDepth + 1}`, 'success', 2200)
-  }, [run, lootEntities, matCount, matCap, applyDrop, dispatch, showToast])
+  }, [run, lootEntities, matCount, matCap, applyDrop, dispatch, showToast, state.consumables])
 
   const handleMineHit = useCallback(() => {
     if (!run || !activeSlot || activeSlot.cleared) return
@@ -607,6 +659,14 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           label={activeSlot?.kind === 'mob' ? 'Uhyre' : 'Klippe'}
         />
         <div className="flex-1 min-h-0" />
+
+        <div className="pointer-events-auto shrink-0 flex justify-end px-2 pb-1 pt-1">
+          <HUDConsumableQuickBar
+            quickSlots={state.consumableQuickSlots}
+            consumables={state.consumables}
+            onUseSlot={(i) => dispatch({ type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: i })}
+          />
+        </div>
 
         <HUDBottomBar
           className="shrink-0"

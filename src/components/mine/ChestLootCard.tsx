@@ -1,5 +1,7 @@
 import VoxelScene from '../VoxelScene'
 import type { MineDrop } from '../../gem/mining'
+import { findBlueprint } from '../../data/blueprints'
+import { findConsumableDef } from '../../data/consumables'
 
 type Props =
   | {
@@ -72,6 +74,14 @@ export default function ChestLootCard(props: Props) {
   } else if (drop.kind === 'coal') {
     title = `Kul ×${drop.quantity}`
     viz = drop.pixelItem
+  } else if (drop.kind === 'consumable') {
+    const def = findConsumableDef(drop.consumableId)
+    title = def?.name ?? drop.consumableId
+    viz = drop.pixelItem
+  } else if (drop.kind === 'blueprint') {
+    const bp = findBlueprint(drop.blueprintId)
+    title = bp?.name ?? drop.blueprintId
+    viz = drop.pixelItem ?? null
   }
 
   return (

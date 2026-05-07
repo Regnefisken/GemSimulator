@@ -26,6 +26,7 @@ const KIND_LABEL: Record<Area['kind'], string> = {
   mine: 'Mine',
   smedje: 'Smedje',
   butik: 'Butik',
+  alkymi: 'Alkymi',
   smykke: 'Værksted',
 }
 
