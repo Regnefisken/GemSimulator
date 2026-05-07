@@ -69,6 +69,9 @@ export default function ChestLootCard(props: Props) {
   } else if (drop.kind === 'gem') {
     title = drop.gem.name
     viz = { data: drop.gem.data, colorMap: drop.gem.colorMap }
+  } else if (drop.kind === 'coal') {
+    title = `Kul ×${drop.quantity}`
+    viz = drop.pixelItem
   }
 
   return (

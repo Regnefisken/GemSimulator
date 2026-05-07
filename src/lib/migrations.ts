@@ -1,4 +1,4 @@
-import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe } from '../types'
+import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe, LocationId } from '../types'
 import { makePickaxe } from '../data/pickaxes'
 import { blueprintFromLegacyRecipeId, migrateJewelry } from '../data/jewelry'
 import { STARTER_BLUEPRINT_IDS } from '../data/blueprints'
@@ -6,8 +6,18 @@ import { METALS } from '../data/metals'
 import { PALETTES } from '../data/palettes'
 import { computeGoldValue } from '../gem/generate'
 import { deriveGemName } from '../gem/naming'
+import { computeWorldTier } from './worldTier'
 
-export const CURRENT_STATE_VERSION = 11
+export const CURRENT_STATE_VERSION = 12
+
+const MINE_LOCATION_IDS: LocationId[] = [
+  'kobbermine',
+  'jernkloeften',
+  'soelvhulen',
+  'guldgrotten',
+  'mithrilbjerget',
+  'rune-dybet',
+]
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -179,6 +189,19 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     gold: typeof r.gold === 'number' ? r.gold : base.gold,
     reputation: typeof r.reputation === 'number' ? r.reputation : base.reputation,
     depth: typeof r.depth === 'number' ? r.depth : base.depth,
+    unlockedDepths:
+      r.unlockedDepths &&
+      typeof r.unlockedDepths === 'object' &&
+      !Array.isArray(r.unlockedDepths)
+        ? { ...(r.unlockedDepths as GameState['unlockedDepths']) }
+        : base.unlockedDepths,
+    mineRun:
+      r.mineRun && typeof r.mineRun === 'object'
+        ? (r.mineRun as GameState['mineRun'])
+        : base.mineRun,
+    coal: typeof r.coal === 'number' ? r.coal : base.coal,
+    totalRockSlotsCleared:
+      typeof r.totalRockSlotsCleared === 'number' ? r.totalRockSlotsCleared : base.totalRockSlotsCleared,
     totalGemsFound: typeof r.totalGemsFound === 'number' ? r.totalGemsFound : base.totalGemsFound,
     totalJewelryCrafted:
       typeof r.totalJewelryCrafted === 'number' ? r.totalJewelryCrafted : base.totalJewelryCrafted,
@@ -326,6 +349,21 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     if (typeof next.totalJewelryCrafted !== 'number' || next.totalJewelryCrafted === 0) {
       next.totalJewelryCrafted = next.jewelry.length
     }
+  }
+
+  if (version < 12) {
+    const legacyDepth = typeof r.depth === 'number' ? r.depth : next.depth
+    const ud: GameState['unlockedDepths'] = { ...next.unlockedDepths }
+    for (const mid of MINE_LOCATION_IDS) {
+      ud[mid] = Math.max(ud[mid] ?? 0, legacyDepth)
+    }
+    next.unlockedDepths = ud
+    next.mineRun = null
+    if (!next.totalRockSlotsCleared && legacyDepth > 0) {
+      next.totalRockSlotsCleared = legacyDepth
+    }
+    if (typeof next.coal !== 'number') next.coal = 0
+    next.depth = computeWorldTier(next)
   }
 
   return next

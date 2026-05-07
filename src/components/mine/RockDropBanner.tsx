@@ -44,6 +44,8 @@ function borderClassForDrop(drop: MineDrop): string {
       return borderClassForChestTier(drop.tier)
     case 'blueprint':
       return 'border-violet-400/70'
+    case 'coal':
+      return 'border-stone-600/70'
     case 'nothing':
       return 'border-slate-700/40'
     default:
@@ -168,6 +170,17 @@ export default function RockDropBanner({ notice, onDone }: Props) {
       title = <>Blueprint: {drop.blueprintId}</>
       badgeClass = 'text-violet-300'
       badgeText = 'Blueprint'
+      break
+    }
+    case 'coal': {
+      icon = '⚫'
+      title = (
+        <>
+          +{drop.quantity} Kul
+        </>
+      )
+      badgeClass = 'text-stone-300'
+      badgeText = 'Kul'
       break
     }
     case 'nothing':

@@ -5,6 +5,8 @@ import type { ChestLootResult } from '../../../gem/mining'
 
 export type WorldChestEntity = {
   id: string
+  /** Indeks i mineRun.slots / cave.oreSlots */
+  slotIndex: number
   position: [number, number, number]
   tier: ChestTier
   remainingLoot: ChestLootResult

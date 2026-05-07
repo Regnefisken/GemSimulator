@@ -1,8 +1,9 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
-import type { Area, PixelItem, RockType } from '../../../types'
+import type { Area, PixelItem } from '../../../types'
 import { getCaveConfig } from '../../../types'
+import type { MineRunSlotState } from '../../../lib/mineTypes'
 import type { WorldLootEntity } from '../../../lib/lootEntities'
 import OreNode from './OreNode'
 import Pickaxe3D from './Pickaxe3D'
@@ -19,21 +20,22 @@ function dominantMetal(area: Area) {
 
 export type MiningCave3DProps = {
   area: Area
-  hp: number
-  maxHp: number
+  mineSlots: MineRunSlotState[]
+  runDepth: number
+  targetSlotIndex: number
   hitPulse: number
-  rockType: RockType
   disabled: boolean
-  depth: number
   onMineHit: () => void
   swingTrigger: number
   pickaxePixelItem: PixelItem | null
   lootEntities: WorldLootEntity[]
-  /** Felter hvor klippen netop er brudt — ingen bund-plade under loot */
+  /** Felter hvor klippen er ryddet — ingen bund-plade under verdens-loot */
   depletedSlots: ReadonlySet<number>
   onCollectLoot: (id: string) => void
   worldChests: WorldChestEntity[]
   onChestClick: (id: string) => void
+  /** Venstreklik på en anden klippe for at sætte den som aktivt mål (D13). */
+  onSelectMineSlot?: (slotIndex: number) => void
   onCrosshairTargetChange?: (active: boolean) => void
   className?: string
   canvasClassName?: string
@@ -46,12 +48,11 @@ type CaveProps = Omit<MiningCave3DProps, 'className' | 'canvasClassName'> & {
 
 function CaveContent({
   area,
-  hp,
-  maxHp,
+  mineSlots,
+  runDepth,
+  targetSlotIndex,
   hitPulse,
-  rockType,
   disabled,
-  depth,
   onMineHit,
   swingTrigger,
   pickaxePixelItem,
@@ -60,6 +61,7 @@ function CaveContent({
   onCollectLoot,
   worldChests,
   onChestClick,
+  onSelectMineSlot,
   onCrosshairTargetChange,
   caveSeed,
   pointerLocked,
@@ -67,11 +69,11 @@ function CaveContent({
   const { camera } = useThree()
   const cfg = useMemo(() => getCaveConfig(area), [area])
   const oreSlots = cfg.oreSlots
-  const activeSlot = depth % oreSlots.length
+  const activeSlot = mineSlots.length > 0 ? targetSlotIndex % mineSlots.length : 0
   const accent = useMemo(() => dominantMetal(area), [area])
 
-  const fogNear = cfg.depthFogScale ? cfg.fogNear + depth * 0.06 : cfg.fogNear
-  const fogFar = cfg.depthFogScale ? cfg.fogFar + depth * 0.1 : cfg.fogFar
+  const fogNear = cfg.depthFogScale ? cfg.fogNear + runDepth * 0.06 : cfg.fogNear
+  const fogFar = cfg.depthFogScale ? cfg.fogFar + runDepth * 0.1 : cfg.fogFar
 
   const activeOreMeshRef = useRef<THREE.Mesh | null>(null)
   const chestHits = useRef(new Map<string, THREE.Mesh>())
@@ -134,22 +136,29 @@ function CaveContent({
 
       <PlayerControls bounds={cfg.bounds} />
 
-      {oreSlots.map((pos, i) => (
-        <OreNode
-          key={i}
-          position={pos}
-          hp={hp}
-          maxHp={maxHp}
-          hitPulse={hitPulse}
-          rockType={rockType}
-          disabled={disabled}
-          interactive={i === activeSlot}
-          depleted={depletedSlots.has(i)}
-          onMineHit={onMineHit}
-          accentMetal={accent}
-          hitTargetRef={i === activeSlot ? activeOreMeshRef : undefined}
-        />
-      ))}
+      {oreSlots.map((pos, i) => {
+        const slot = mineSlots[i]
+        if (!slot || slot.kind === 'chest') return null
+        const depleted = depletedSlots.has(i) || slot.cleared
+        const isTarget = i === activeSlot && !slot.cleared
+        return (
+          <OreNode
+            key={`${i}-${slot.currentHp}-${slot.cleared}`}
+            position={pos}
+            hp={slot.currentHp}
+            maxHp={slot.maxHp}
+            hitPulse={hitPulse}
+            rockType={slot.rockType}
+            disabled={disabled}
+            interactive={isTarget}
+            depleted={depleted}
+            onMineHit={onMineHit}
+            onSelectTarget={!isTarget && !depleted ? () => onSelectMineSlot?.(i) : undefined}
+            accentMetal={accent}
+            hitTargetRef={isTarget ? activeOreMeshRef : undefined}
+          />
+        )
+      })}
 
       {worldChests.map((c) => (
         <WorldChest

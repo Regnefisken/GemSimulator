@@ -20,12 +20,12 @@ export default function AchievementsTab({ state }: { state: GameState }) {
         }
       case 'depth_50':
         return {
-          value: `Fremskridt ${Math.min(state.depth, 50)}/50`,
-          next: 'Tip: Knus flere klipper for at øge dybden.',
+          value: `Fremskridt ${Math.min(state.totalRockSlotsCleared, 50)}/50`,
+          next: 'Tip: Ryd flere klippe-felter i minen.',
         }
       case 'depth_200':
         return {
-          value: `Fremskridt ${Math.min(state.depth, 200)}/200`,
+          value: `Fremskridt ${Math.min(state.totalRockSlotsCleared, 200)}/200`,
           next: 'Tip: Hold minedrift i gang over tid.',
         }
       case 'essence_first':

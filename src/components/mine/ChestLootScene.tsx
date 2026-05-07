@@ -33,6 +33,10 @@ function extraMaterialsFromDrop(drop: MineDrop): number {
       return drop.nugget.quantity
     case 'rough-stone':
       return 1
+    case 'gem':
+      return 1
+    case 'coal':
+      return drop.quantity
     default:
       return 0
   }
@@ -51,6 +55,9 @@ function applyDrop(dispatch: Dispatch<Action>, drop: MineDrop) {
       break
     case 'gem':
       dispatch({ type: 'ADD_GEM', gem: drop.gem })
+      break
+    case 'coal':
+      dispatch({ type: 'ADD_COAL', amount: drop.quantity })
       break
     default:
       break

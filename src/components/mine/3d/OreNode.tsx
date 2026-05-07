@@ -10,9 +10,11 @@ type Props = {
   hitPulse: number
   rockType: RockType
   disabled?: boolean
-  /** Kun aktiv node trigger mining */
+  /** Kun aktiv node hugger ved klik */
   interactive: boolean
   onMineHit?: () => void
+  /** Klik på ikke-aktiv (men ikke ryddet) klippe → vælg den som mål */
+  onSelectTarget?: () => void
   /** Dominant metal til svag emissive (aktiv node) */
   accentMetal?: MetalName
   /** Kun aktiv node: raycast hit-mod mesh */
@@ -51,6 +53,7 @@ export default function OreNode({
   disabled,
   interactive,
   onMineHit,
+  onSelectTarget,
   accentMetal,
   hitTargetRef,
   depleted,
@@ -108,21 +111,30 @@ export default function OreNode({
     )
   }
 
+  const pickable = interactive || Boolean(onSelectTarget)
+
   return (
     <group position={position}>
       <group ref={meshRef}>
-        {interactive ? (
+        {pickable ? (
           <mesh
             ref={(node) => {
-              if (hitTargetRef) hitTargetRef.current = interactive ? node : null
+              if (hitTargetRef) {
+                hitTargetRef.current = interactive && node ? node : null
+              }
             }}
             onClick={(e) => {
               e.stopPropagation()
-              if (!interactive || disabled || !onMineHit) return
-              onMineHit()
+              if (interactive && !disabled && onMineHit) {
+                onMineHit()
+                return
+              }
+              if (!interactive && onSelectTarget) {
+                onSelectTarget()
+              }
             }}
             onPointerDown={(e) => {
-              if (interactive) e.stopPropagation()
+              if (interactive || onSelectTarget) e.stopPropagation()
             }}
           >
             <boxGeometry args={[1.1, 0.95, 1.05]} />

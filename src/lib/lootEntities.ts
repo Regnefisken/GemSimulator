@@ -97,6 +97,13 @@ export function explodeDropToEntities(
       return [makeEntity(0, drop, spawnPositionsAround(origin, 1, rng)[0] ?? origin)]
     case 'gem':
       return [makeEntity(0, drop, spawnPositionsAround(origin, 1, rng)[0] ?? origin)]
+    case 'coal': {
+      const q = Math.max(1, drop.quantity)
+      const poses = spawnPositionsAround(origin, q, rng)
+      return Array.from({ length: q }, (_, i) =>
+        makeEntity(i, { kind: 'coal', quantity: 1, pixelItem: drop.pixelItem }, poses[i] ?? origin),
+      )
+    }
     default:
       return []
   }
@@ -112,6 +119,8 @@ export function getDropPixelData(drop: MineDrop): { data: string[]; colorMap: Co
       return { data: drop.stone.pixelItem.data, colorMap: drop.stone.pixelItem.colorMap }
     case 'gem':
       return { data: drop.gem.data, colorMap: drop.gem.colorMap }
+    case 'coal':
+      return { data: drop.pixelItem.data, colorMap: drop.pixelItem.colorMap }
     default:
       return null
   }

@@ -11,6 +11,7 @@ import type {
   SmeltingJob,
   ViewMode,
 } from '../types'
+import { AREAS } from '../data/areas'
 import { makePickaxe } from '../data/pickaxes'
 import { makeIngotPixelItem } from '../data/oreTemplates'
 import { CURRENT_STATE_VERSION } from './migrations'
@@ -21,7 +22,10 @@ import { startSmeltingJob } from '../gem/smelting'
 import { craftAlloy, craftGemFromRoughStone } from '../gem/crafting'
 import { createRandomGem } from '../gem/generate'
 import { buildJewelryVoxel3d } from '../gem/drawJewelry3d'
+import { canDescendFromLayer, createInitialMineRun, generateLayerState } from '../gem/mineLayer'
+import type { ChestLootResult } from '../gem/mining'
 import { ENABLE_DEV_CHEATS } from '../dev/featureFlags'
+import { computeWorldTier } from './worldTier'
 import {
   blueprintFromLegacyRecipeId,
   blueprintIngotRequirements,
@@ -68,6 +72,13 @@ export type Action =
   | { type: 'SET_ACTIVE_PICKAXE'; id: string }
   | { type: 'DAMAGE_PICKAXE'; amount: number }
   | { type: 'INCREMENT_DEPTH' }
+  | { type: 'MINE_RUN_ENTER'; mineId: LocationId }
+  | { type: 'MINE_RUN_EXIT' }
+  | { type: 'MINE_SET_TARGET_SLOT'; index: number }
+  | { type: 'MINE_DEAL_DAMAGE'; slotIndex: number; damage: number }
+  | { type: 'MINE_DESCEND_LAYER' }
+  | { type: 'MINE_UPDATE_CHEST_SLOT'; slotIndex: number; loot: ChestLootResult; opened?: boolean }
+  | { type: 'ADD_COAL'; amount: number }
   | { type: 'OPEN_CHEST'; gold: number }
   | { type: 'CONSUME_ORE'; metalName: MetalName; quantity: number }
   | { type: 'CONSUME_NUGGET'; metalName: MetalName; quantity: number }
@@ -136,7 +147,8 @@ export function materialsCount(state: GameState): number {
     state.roughStones.length +
     state.rawOre.reduce((s, o) => s + o.quantity, 0) +
     state.metalNuggets.reduce((s, n) => s + n.quantity, 0) +
-    state.metalIngots.reduce((s, i) => s + i.quantity, 0)
+    state.metalIngots.reduce((s, i) => s + i.quantity, 0) +
+    state.coal
   )
 }
 
@@ -219,6 +231,10 @@ export const initialState: GameState = {
   gold: 0,
   reputation: 0,
   depth: 0,
+  unlockedDepths: {},
+  mineRun: null,
+  coal: 0,
+  totalRockSlotsCleared: 0,
   totalGemsFound: 0,
   totalJewelryCrafted: 0,
   totalEssencesCollected: 0,
@@ -320,6 +336,90 @@ export function reducer(state: GameState, action: Action): GameState {
     }
     case 'INCREMENT_DEPTH':
       return { ...state, depth: state.depth + 1 }
+    case 'MINE_RUN_ENTER': {
+      if (state.mineRun?.mineId === action.mineId) return state
+      const area = AREAS.find((a) => a.id === action.mineId)
+      if (!area || area.kind !== 'mine') return state
+      return {
+        ...state,
+        mineRun: createInitialMineRun({
+          area,
+          mineId: action.mineId,
+          activeCharms: state.activeCharms,
+        }),
+        gameNotice: null,
+      }
+    }
+    case 'MINE_RUN_EXIT':
+      return { ...state, mineRun: null, gameNotice: null }
+    case 'MINE_SET_TARGET_SLOT': {
+      const r = state.mineRun
+      if (!r || r.slots.length === 0) return state
+      const n = r.slots.length
+      const idx = ((action.index % n) + n) % n
+      return { ...state, mineRun: { ...r, targetSlotIndex: idx } }
+    }
+    case 'MINE_DEAL_DAMAGE': {
+      const r = state.mineRun
+      if (!r) return state
+      const slot = r.slots[action.slotIndex]
+      if (!slot || slot.kind !== 'rock' || slot.cleared) return state
+      const hp = Math.max(0, slot.currentHp - action.damage)
+      const nowCleared = hp <= 0
+      const slots = r.slots.map((s, i) =>
+        i === action.slotIndex
+          ? { ...s, currentHp: nowCleared ? 0 : hp, cleared: nowCleared || s.cleared }
+          : s,
+      )
+      let totalRockSlotsCleared = state.totalRockSlotsCleared
+      if (nowCleared && !slot.cleared) totalRockSlotsCleared += 1
+      return { ...state, mineRun: { ...r, slots }, totalRockSlotsCleared }
+    }
+    case 'MINE_DESCEND_LAYER': {
+      const r = state.mineRun
+      if (!r || !canDescendFromLayer(r.slots)) return state
+      const area = AREAS.find((a) => a.id === r.mineId)
+      if (!area || area.kind !== 'mine') return state
+      const nextDepth = r.currentDepth + 1
+      const slots = generateLayerState({
+        area,
+        mineId: r.mineId,
+        runId: r.runId,
+        currentDepth: nextDepth,
+        activeCharms: state.activeCharms,
+      })
+      const unlockedDepths = {
+        ...state.unlockedDepths,
+        [r.mineId as LocationId]: Math.max(state.unlockedDepths[r.mineId as LocationId] ?? 0, nextDepth),
+      }
+      const mid: GameState = {
+        ...state,
+        unlockedDepths,
+        mineRun: { ...r, currentDepth: nextDepth, targetSlotIndex: 0, slots },
+      }
+      return { ...mid, depth: computeWorldTier(mid), gameNotice: null }
+    }
+    case 'MINE_UPDATE_CHEST_SLOT': {
+      const r = state.mineRun
+      if (!r) return state
+      const empty =
+        action.loot.gold <= 0 && action.loot.items.length === 0 && !action.loot.blueprintId
+      const slots = r.slots.map((s, i) =>
+        i === action.slotIndex && s.kind === 'chest'
+          ? {
+              ...s,
+              chestLoot: action.loot,
+              cleared: empty,
+              chestOpened: s.chestOpened || Boolean(action.opened),
+            }
+          : s,
+      )
+      return { ...state, mineRun: { ...r, slots }, gameNotice: null }
+    }
+    case 'ADD_COAL': {
+      if (action.amount <= 0) return state
+      return { ...state, coal: state.coal + action.amount, gameNotice: null }
+    }
     case 'OPEN_CHEST': {
       const next = applyXpGain(
         { ...state, gold: state.gold + action.gold, gameNotice: null },
@@ -485,7 +585,14 @@ export function reducer(state: GameState, action: Action): GameState {
         deepCalm: state.activeCharms.includes(CHARM_IDS.deepCalm),
       }
       next = { ...next, roughCraftPurityBonus: 0 }
-      const gem = craftGemFromRoughStone(stone, ingots, next.depth, purityBonus, valueCharms, roughEssence)
+      const gem = craftGemFromRoughStone(
+        stone,
+        ingots,
+        computeWorldTier(next),
+        purityBonus,
+        valueCharms,
+        roughEssence,
+      )
       return addGemWithRewards(next, gem)
     }
     case 'BUY_PICKAXE': {
@@ -922,7 +1029,7 @@ export function reducer(state: GameState, action: Action): GameState {
       let next = state
       for (let i = 0; i < maxAdd; i++) {
         if (next.gems.length >= next.inventoryCapacity.gems) break
-        const gem = createRandomGem(next.depth)
+        const gem = createRandomGem(computeWorldTier(next))
         next = {
           ...next,
           gems: [gem, ...next.gems],

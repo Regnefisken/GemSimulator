@@ -127,6 +127,30 @@ export function makeNuggetPixelItem(metalName: MetalName): PixelItem {
   }
 }
 
+/** Lille pixel-kul-klump til world-loot (Fase 1). */
+const COAL_TEMPLATE: string[] = [
+  '................',
+  '......OOOO......',
+  '....OODDDDOO....',
+  '...ODDDDDDDDO...',
+  '..ODDDDDDDDDO...',
+  '..ODDDDDDDDDO...',
+  '...ODDDDDDDO....',
+  '....OODDDOO.....',
+  '......OOOO......',
+  '................',
+]
+
+export function makeCoalPixelItem(): PixelItem {
+  return {
+    data: COAL_TEMPLATE,
+    colorMap: {
+      O: '#151518',
+      D: '#2a2a30',
+    },
+  }
+}
+
 export function makeIngotPixelItem(metalName: MetalName): PixelItem {
   const metal = METALS[metalName]
   return {

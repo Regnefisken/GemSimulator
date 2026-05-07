@@ -95,3 +95,21 @@ describe('migrateGameState v11', () => {
     expect(next.totalJewelryCrafted).toBe(1)
   })
 })
+
+describe('migrateGameState v12', () => {
+  it('kopierer legacy depth til unlockedDepths for alle miner og nulstiller mineRun', () => {
+    const raw = {
+      ...initialState,
+      version: 11,
+      depth: 42,
+      mineRun: { runId: 'x', mineId: 'kobbermine', currentDepth: 1, targetSlotIndex: 0, slots: [] },
+    }
+    const next = migrateGameState(raw, initialState)
+    expect(next.version).toBe(12)
+    expect(next.mineRun).toBeNull()
+    expect(next.unlockedDepths['kobbermine']).toBe(42)
+    expect(next.unlockedDepths['mithrilbjerget']).toBe(42)
+    expect(next.totalRockSlotsCleared).toBe(42)
+    expect(next.depth).toBeGreaterThanOrEqual(42)
+  })
+})

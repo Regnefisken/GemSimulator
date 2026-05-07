@@ -5,6 +5,7 @@ import { discoverNewAchievementIds, getAchievementDef } from './data/achievement
 import { createPreloadGem, createRandomGem } from './gem/generate'
 import { loadState, saveState } from './lib/storage'
 import { reducer } from './lib/gameState'
+import { computeWorldTier } from './lib/worldTier'
 import { playLevelUp } from './lib/sounds'
 import { TEMPLATES } from './data/templates'
 import AppShell from './components/layout/AppShell'
@@ -21,8 +22,9 @@ import { DisplayRenderProvider } from './components/layout/DisplayRenderContext'
 function seedState(): GameState {
   const base = loadState()
   if (base.gems.length > 0) return base
-  const first = createRandomGem(base.depth)
-  const rest = Array.from({ length: 5 }, (_, i) => createPreloadGem(i, base.depth))
+  const tier = computeWorldTier(base)
+  const first = createRandomGem(tier)
+  const rest = Array.from({ length: 5 }, (_, i) => createPreloadGem(i, tier))
   const gems = [first, ...rest].slice(0, base.inventoryCapacity.gems)
   return { ...base, gems, totalGemsFound: gems.length }
 }

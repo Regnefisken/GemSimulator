@@ -1,3 +1,5 @@
+import type { MineRunState } from './lib/mineTypes'
+
 /**
  * Grid-tegn til ædelsten-pixeldata (ColorMap nøgler):
  * | Char | Betydning              | Pligtig | Fallback hvis mangler i palette |
@@ -296,6 +298,14 @@ export type GameState = {
   reputation: number
 
   depth: number
+  /** Per-mine dybde rekord (D12); bruges til worldTier sammen med `depth`. */
+  unlockedDepths: Partial<Record<LocationId, number>>
+  /** Aktiv mine-run med ét lag ad gangen (D1); null uden for minen. */
+  mineRun: MineRunState | null
+  /** Kul fra klippe-mining (Fase 1); senere smedje-repair. */
+  coal: number
+  /** Livsvarigt antal ryddede klippe-felter (præstationer). */
+  totalRockSlotsCleared: number
   /** Antal ædelsten fundet eller skåret i alt. */
   totalGemsFound: number
   /** Livsvarigt antal smykker smedet (V1 + V2). Bruges til præstationer. */

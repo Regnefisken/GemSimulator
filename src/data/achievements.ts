@@ -26,16 +26,16 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'depth_50',
     title: 'Dybt nok',
-    description: 'Knus 50 klipper i minen (dybde 50+).',
+    description: 'Ryd 50 klippe-felter i alt (alle miner).',
     icon: '⛏️',
-    check: (s) => s.depth >= 50,
+    check: (s) => s.totalRockSlotsCleared >= 50,
   },
   {
     id: 'depth_200',
     title: 'Underverdenen',
-    description: 'Knus 200 klipper i minen.',
+    description: 'Ryd 200 klippe-felter i alt.',
     icon: '🕳️',
-    check: (s) => s.depth >= 200,
+    check: (s) => s.totalRockSlotsCleared >= 200,
   },
   {
     id: 'essence_first',
