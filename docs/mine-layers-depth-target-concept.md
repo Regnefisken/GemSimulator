@@ -1,227 +1,348 @@
-# Konceptuel guide: Mine-lag, per-minedybde og målvalg
+# Mine Layers, Depth & Target Concept
 
-**Status:** Koncept / designgrundlag (ikke implementeringsplan)  
-**Formål:** Samle de aftalte designprincipper for et nyt minesystem: **lag med oplevet dybde**, **dybde per mine**, **frit skift mellem uløste mål** med **reset af forladt felt**, og brug af dybde til **gating** og **forudsigelige encounters**.  
-**Relation til eksisterende dokumentation:** Den nuværende tekniske minespor findes i [`mining-implementation-plan-v1.md`](./mining-implementation-plan-v1.md). Denne fil beskriver *hvad* og *hvorfor* på konceptniveau; implementering kan ske i senere faser og bør krydsreferere hertil.
+**Persistent slots, parallelle mål, mobs & roguelike run-struktur**
 
----
+**Version:** 2.1 (beslutningslog låst – 7. maj 2026)  
+**Forfatter:** Regnefisken + Grok (v2-kerne); tidligere v1-udkast indarbejdet  
+**Status:** Design-dokument – sandhedsgrundlag for `src/data/` og mining-systemet  
 
-## 1. Baggrund og problemstilling
-
-### 1.1 Dagens model (kort)
-
-- Ét globalt `depth` styrer både balance (HP, drops) og **hvilket felt** i grotten der tælles som aktivt (`depth % antal_felter`).
-- Der gemmes **ét** `rockHp` for den aktuelle session — ikke delvis skade per synlig klippe.
-- Resultat: Spilleren oplever flere klipper i scenen, men **kun én** er “rigtig” mål ad gangen; de andre er primært scenografi i forhold til HP.
-
-### 1.2 Ønsket retning
-
-1. **Oplevet progression:** Når man går videre i den *samme* mine, skal det føles som et **nyt rum / friskt lag** (fx mørk fade + overgang), ikke som en abstrakt tæller der roterer prikker.
-2. **Én kamp ad gangen, men valgfrihed:** Behold **ét aktivt mål** og **ét HP-bar-lignende forløb** ad gangen — men tillad **frit skift** mellem **uløste** klipper **på samme lag**.
-3. **Aftalt tradeoff:** Når spilleren vælger et **nyt** mål, **resetter** det forladte felt til “frisk” (100 % oplevelse / fuld HP for den klippe hvis man vender tilbage). Ingen stillestående halvskadede klipper i baggrunden.
-4. **Dybde hører til minen:** Kobbermine og jernkløft (osv.) har **hver sin** dybdeprogression.
-5. **Designkraft:** Dybde skal kunne **låse systemer op** og placere **garanterede eller styrede encounters** på bestemte dybder **i den pågældende mine** uden at andre miner forstyrrer tælleren.
+**Relation:** Beskriver *hvad* og *hvorfor*. Teknisk implementering: [`mine-layers-implementation-guide.md`](./mine-layers-implementation-guide.md).
 
 ---
 
-## 2. Kerneaftaler (skal overholdes)
+## Beslutningslog (låst)
+
+*Nedenstående beslutninger erstatter tidligere “åbne” formuleringer i §9–§14 og udgør ét sandhedsgrundlag indtil de eksplicit revurderes (ny række i loggen).*
+
+| ID | Emne | Beslutning |
+|----|------|------------|
+| **D1** | Tilbagevenden til tidligere lag i samme run | **Nej.** Ved nedstigning kasseres forrige lags `LayerState`; genbesøg af lag understøttes ikke. |
+| **D2** | Krav for nedstigning | **Clear room** — alle obligatoriske slots på laget skal være `cleared` før fade/nedstigning. |
+| **D3** | Encounter-model (§9.2) | **Variant A:** roll pr. **slot** ved lag-generering (HP/type/encounter fastlægges når `LayerState` oprettes). |
+| **D4** | Loot på jorden ved lag-skifte | **Auto-samlet** til run-inventory før fade (intet tab af droppede items). |
+| **D5** | Uåbnede kister | **Blokér nedstigning** indtil åbnet; alternativt er kisten et slot der skal `cleares` under D2 (samme effekt). |
+| **D6** | Halvåbnet kiste | **Tvungen afslutning** — spiller skal fuldføre åbning før lag-skifte tillades. |
+| **D7** | Død i run | **Fuld tab** af run-inventory og run-bundne midler; `PermanentProgress` bevares uændret. |
+| **D8** | Safe ascend | **Behold alt** run-inventory ved retur til hub. |
+| **D9** | Mob-loot vs. mining-loot | **Fælles økonomi** (samme valuta/lager); **adskilte drop-tabeller** pr. kilde (mob vs. klippe). |
+| **D10** | Crafting / gem-kontekst (§9.5) | **Adskilt:** brug meta-**`worldTier`** (fx afledt af `max` over `PermanentProgress.unlockedDepths`) til crafting/gem-kvalitet hvor det tidligere hang på global dybde; mine-dybde styrer **kun** mining-balance i minen. |
+| **D11** | Achievements / telemetri (§9.6) | **Primært per mine**; **meta**-milepæle (“nå dybde *X* i *en* vilkårlig mine”) tilladt som supplement. |
+| **D12** | Migration fra global `depth` | Eksisterende global dybde mappes til **alle** kendte miner som startværdi i `unlockedDepths` (dokumentér i patchnotes). |
+| **D13** | Målskift-pris | **Ingen** cooldown eller ressource-pris. |
+| **D14** | Scope-faser (§15) | **Fase 1:** persistente rock-/klippe-slots og lag-loop; **Fase 2:** mobs / `EntityState` og parallel combat-loot (jf. D9). |
+
+---
+
+## 1. Baggrund: dagens model og hvorfor vi ændrer
+
+### 1.1 Typisk udgangspunkt i kode (før omlægning)
+
+- Ét **globalt** `depth` styrer både balance (HP, drops) og **hvilket felt** i grotten der tælles som aktivt (fx `depth % antal_felter`).
+- Der gemmes ofte **ét** `rockHp` for den aktuelle session — ikke konsekvent delvis skade **per synlig klippe**.
+- Resultat: Spilleren ser flere klipper, men **kun én** føles som “rigtigt” mål ift. HP; resten kan føles som scenografi.
+
+### 1.2 Retning i denne guide (v2 – kanonisk)
+
+Vi skifter til **per-mine lag** og **persistent skade på laget**, kombineret med **roguelike run-loop**:
+
+- **Lag = rum** med tydelig scene-overgang (fx mørk fade + ny Three.js-scene).
+- **Alle slots på samme lag kan have aktiv progress samtidigt** — **ingen HP-reset** ved målskift.
+- **Ét primært target** til UI og primær inputlinje; øvrige slots beholder `currentHp` og tilstand.
+- **Run:** Nedstigning starter fra hub; dybde/state for run nulstilles ved død eller safe ascend; **permanent** progression (unlocks, story, max dybde pr. mine) lever separat.
+- **Town hub** mellem runs: handel, upgrades, valg af mine/buffs — meta-loop.
+
+**Historik (tidligere v1-idé):** En ældre iteration foreslog **reset af forladt felt** ved målskift (én “frisk” klippe ad gangen). Denne guide **erstatter** det med persistent lag-state; reset-loopen findes ikke længere som kerne-design.
+
+---
+
+## 2. Kerneaftaler (v2 – skal overholdes)
 
 | Aftale | Konsekvens |
 |--------|------------|
-| **Frit målskift** mellem uløste klipper på samme lag | UI og input skal kunne vælge felt/mesh uden at øge mine-dybde. |
-| **Reset af forladt felt** | Delvis skade på et mål **persistes ikke**, når målet ikke længere er valgt. Visuelt og logisk: klippen er “hel” igen, indtil den vælges. |
-| **Ét logisk mål ad gangen** | Ét sæt encounter-regler pr. hug (HP, event-type, mm.) for det **valgte** mål — ingen parallel `rockHp` for flere klipper uden at udvide modellen. |
-| **Dybde per mine** | `depth` (eller tilsvarende) er **nøglelagret pr. mine-id**, ikke globalt for hele spillet. |
-| **Lagovergang som rumskifte** | Når mine-**dybde** (lag-index) stiger, skal spilleren **opleve** et nyt lag (fade, evt. ny seed/variant), så “dybere ned” er forståeligt. |
+| **Persistent skade på laget** | Hvert slot har egen `currentHp` (og evt. encounter), gemt i `LayerState`, mens spilleren er på laget (og i run-save). Skift af primært mål **nulstiller ikke** andre felter. |
+| **Ét primært mål ad gangen** | Ét mål styrer primær HP-bar, crosshair-fokus og hoved-input; undgå forvirring med flere “aktive” bars uden tydelig hierarki. |
+| **Målskift øger ikke mine-dybde** | Dybde/lag-index ændres kun ved **lag-overgang** (eller tilsvarende eksplicit regel — se §9.3). |
+| **Dybde hører til minen** | Progression og tabeller er **per `mineId`**, ikke globalt for hele spillet. |
+| **Lagovergang = rumskifte** | Fade/ny scene så “dybere” er forståeligt; performance: undgå flash af gammel geometri (§12). |
+| **Skeln mellem run og permanent state** | Run-specifik RNG/layout/inventory-regler vs. `PermanentProgress` der overlever hub (§6). |
+| **Fri målskift (D13)** | Intet ressource- eller tidskrav ved skift af primært mål; ingen reroll af encounters ved skift (D3). |
 
 ---
 
 ## 3. Domænebegreber (ordbog)
 
-Anbefalet at skille **fire** begreber tydeligt ad i design og kode:
+Skil **fire** (eller fem med **run**) begreber tydeligt ad i design og kode:
 
 | Begreb | Beskrivelse |
 |--------|-------------|
-| **Mine** | En lokation (`LocationId` / `Area` med `kind: 'mine'`). Har egen dybdeprogression. |
-| **Mine-dybde (lag-index)** | Et ikke-negativt heltal: “hvor langt nede i *denne* skakt”. Styrer balance-tabeller, encounter-scripts, tåge, osv. **Stiger kun**, når spilleren **fuldfører overgang til næste lag** efter de gældende krav.** |
-| **Lag (room / chamber)** | Den konkrete **oplevelse** på et givet mine-dybde: scenen efter fade — samme mine, men “friskt rum”. Alle malm-felter på laget spiller under **samme** mine-dybde mht. drops/HP-formler, med mindre I bevidst indfører undtagelser. |
-| **Mål (target)** | Hvilken **synlig klippe/felt-index** på det aktuelle lag der modtager hug og viser “aktiv” feedback. Skiftes uden at ændre mine-dybde. |
+| **Mine** | Lokation (`LocationId` / `Area` med `kind: 'mine'`). Har egen dybde-/unlock-progression i meta. |
+| **Mine-dybde (lag-index)** | Ikke-negativt heltal: “hvor langt nede i *denne* skakt” *i den aktuelle run*. Styrer balance-tabeller, encounter-scripts, tåge, osv. **Stiger kun** ved **fuldført nedstigning** efter de gældende krav (§9.3). |
+| **Lag (room / chamber)** | Den konkrete oplevelse på et givet lag-index: scenen efter fade. Alle slots på laget deler typisk **samme** sværhedsgrundlag fra dybde, med mindre I indfører undtagelser. |
+| **Slot / mål** | Et interaktivt felt (klippe, mob, event, elevator, …). Har egen tilstand (`SlotState`). **Primært mål** = det valgte slot for hoved-feedback. |
+| **Run** | Én dive fra hub til død eller safe ascend; driver run-specifik seed, layout og `RunState`. |
 
-**Vigtigt:** Undgå at bruge ét ord “dybde” om både *målvalg* og *mine-lag* i samme sætning uden præfiks — det reducerer bugs og UX-forvirring.
-
----
-
-## 4. Spillerflow (konceptuelt)
-
-### 4.1 På et lag
-
-1. Spilleren ser et kammer med **N** malm-noder (felter), der **alle** kan være uløste samtidig.
-2. Ét felt er **valgt mål** (crosshair / klik / tab til næste — implementation åben).
-3. Hug reducerer HP for **det** mål. HUD afspejler det valgte encounter.
-4. Spilleren kan **skifte mål** til en anden uløst klippe:
-   - Det **forrige** mål **resetter** (fuld HP / “frisk” klippe).
-   - Det **nye** mål får et **nyt** encounter (HP, type, mm.) — se designbeslutning §6.2.
-5. Når et mål **knuses**, markeres feltet som **løst** (depleted / visuelt hul). Spilleren kan vælge et andet uløst mål uden lag-skifte.
-
-### 4.2 Mellem lag (mine-dybde stiger)
-
-1. Spilleren opfylder **krav** for at gå dybere (se §7).
-2. **Mørk fade** (eller tilsvarende) afspilles; input kan være kortvarigt låst.
-3. **Nyt lag** indlæses: evt. ny procedural seed, justeret tåge/lys, tomt kammer eller foruddefineret layout — aftalt “frisk rum”-fornemmelse.
-4. `mineDepth[mineId]` (eller tilsvarende) **inkrementeres én gang** pr. fuldført nedstigning.
-5. Alle felter på det nye lag er igen **uløste**; målvalg starter forfra.
+**Vigtigt:** Brug ikke ét ord “dybde” om både *målvalg* og *mine-lag* i samme sætning uden præfiks — reducerer bugs og UX-forvirring.
 
 ---
 
-## 5. Per-minedybde: gating og encounters
+## 4. Data-model (TypeScript – målarkitektur)
 
-### 5.1 Gating af systemer
+```ts
+// src/data/types.ts (udvidet)
 
-Eksempler på hvad mine-lokal dybde muliggør:
+interface LayerState {
+  depth: number; // lag-index inden for den aktuelle mine (i denne run)
+  mineId: string;
+  slots: Record<string, SlotState>; // persistent mens på laget / i run-save
+  activeEntities: EntityState[]; // mobs, NPCs, events der kan være lag-wide
+  seed: number; // run-specifik seed til procedural generation
+}
 
-- “**Jernkløften dybde ≥ 8** låser smelteri-opgradering / essensmarkeds-tier / dialog.”
-- “**Kobbermine dybde ≥ 3** aktiverer dynamit-tip i butikken.”
+interface SlotState {
+  id: string;
+  type: 'rock' | 'vein' | 'crystal' | 'mob' | 'boss' | 'event' | 'elevator';
+  maxHp: number;
+  currentHp: number;
+  cleared: boolean;
+  encounter?: EncounterData;
+  position: { x: number; y: number; z: number };
+}
 
-Fordel: Krav er **læsbare** og **testbare** (`assert depth >= n` for mine X). Ingen sideeffekt fra at have gruset i en anden mine.
+interface EntityState {
+  id: string;
+  type: 'mob' | 'npc' | 'boss';
+  hp: number;
+  maxHp: number;
+  aiType: 'passive' | 'aggressive' | 'defensive';
+  // drops, animation, ...
+}
 
-### 5.2 Garanterede eller styrede encounters
+interface RunState {
+  runId: string;
+  mineId: string;
+  currentDepth: number;
+  // Under D1 holdes typisk kun aktuelt lag i hukommelse; ældre lag persisteres ikke.
+  layerStates: Record<number, LayerState>;
+  permanentProgress: PermanentProgress;
+}
 
-- Datadrevet: `encounters: { mineId, minDepth, maxDepth?, spawn: ... }[]` eller script der kører ved **lag-indtræden**.
-- Eksempler: garanteret kiste på dybde 10 i guldgrotten; “hard rock”-uge på dybde 15–20; tutorial-ven på dybde 0–1 kun i kobbermine.
-
-**Bemærk:** Encounters knyttes til **mine-dybde ved lag-start**, ikke til “hvilket felt-index” spilleren huggede sidst — med mindre I eksplicit kobler felt til story (sjældent nødvendigt).
-
----
-
-## 6. Vigtige designbeslutninger (med rationale)
-
-### 6.1 Skal hug bruge `mineDepth` eller felt-index til balance?
-
-**Anbefaling:** **Mine-dybde** (lag) styrer `rockHpForDepth`, `rollMineDrop`, essens-chancer, osv. **Felt-index** styrer kun **position** (burst, loot spawn) og **hvilket mesh** der er interaktivt.
-
-**Rationale:** Ellers bliver felt 0 og felt 3 på samme lag ubalanceret uden grund. Spilleren skal opleve laget som én sværhedsgrad.
-
-### 6.2 Hvad sker der ved målskift — nyt `RockEvent` eller samme?
-
-**Beslutning der skal træffes eksplicit:**
-
-| Variant | Fordele | Ulemper |
-|---------|---------|---------|
-| **A: Nyt roll pr. mål** (hver gang man vælger et felt) | Variation, “jagt på rig klippe” som meta. | Kan føles som save-scumming hvis spilleren spam-skifter for at rerolle. |
-| **B: Fast encounter pr. lag** (samme pool/type for alle felter på laget) | Forudsigeligt, fair. | Mindre variation på samme lag. |
-| **C: Hybrid** (fx type fast per lag, HP-multiplikator per felt) | Balance + lidt spice. | Mere kompleks dokumentation. |
-
-**Aftalen om reset** påvirker ikke direkte A/B/C — men **A** kræver evt. **anti-abuse** (cooldown på skift, eller max N rerolls pr. lag).
-
-### 6.3 Hvornår stiger mine-dybde?
-
-Eksempler (vælg én primær model eller kombiner tydeligt):
-
-- **Alle felter skal knuses** før nedstigning (klassiske “clear the room”).
-- **Valgfri nedstigning** efter minimumskrav (fx “mindst én klippe knust” + knap “Gå dybere”).
-- **Blandet:** boss-felt eller nøgle på laget skal cleares før fade er aktiv.
-
-**Rationale for at beslutte tidligt:** Påvirker pacing, session-længde og om spilleren føler sig **tvunget** vs. **i kontrol**.
-
-### 6.4 Verdens-loot og kister ved lag-skifte
-
-| Element | Mulige valg |
-|---------|-------------|
-| **Loot på jorden** | Følger ikke med ned (ryddes ved fade) *eller* konverteres til inventar — aftal eksplicit. |
-| **Uåbnede kister** | Samme som loot — ellers efterlader I “hængende” progression på forrige lag. |
-| **Halvåbnet kiste** | Sjælden edge case; enten tvungen afslutning før fade eller auto-luk. |
-
-### 6.5 Global vs. mine-lokal “dybde” i andre systemer
-
-**Crafting / gem-generering** bruger i dag global `depth` i dele af koden. I skal beslutte:
-
-- **Koblet til mine:** Gem-kvalitet følger den mine man minede i (kræver at crafting kender kontekst).
-- **Adskilt:** Behold en **global** `worldTier` / `maxDepthReachedAcrossMines` til balance, og brug **kun** per-mine dybde i minen.
-
-**Rationale:** Undgår at smykkebalancen bliver uforudsigelig fordi spilleren skifter mellem miner.
-
-### 6.6 Achievements og telemetri
-
-Eksisterende idéer som “nå dybde 50” skal omskrives til enten:
-
-- **Per mine:** “Nå dybde 50 i jernkløften”, eller  
-- **Meta:** “Nå dybde 50 i *en* mine” / “samlet dybde krydser X”.
-
-Ellers ændrer I meningen af gamle badges når global depth splittes.
+interface PermanentProgress {
+  unlockedMines: string[];
+  unlockedDepths: Record<string, number>; // mineId → max nået depth (meta)
+  storyFlags: Record<string, boolean>;
+  // achievements, bestiary, ...
+}
+```
 
 ---
 
-## 7. Målskift og reset — præcis adfærd (acceptkriterier)
+## 5. Persistent slots og samtidige mål
 
-1. På et lag med mindst to uløste felter kan spilleren **aktivere felt B** uden at have knuset felt A.
-2. Umiddelbart efter skift vises felt A som **fuldt / ubeskadiget** (ingen rest-HP i UI for A).
-3. Der er **højst ét** felt, der på et givet tidspunkt modtager `onMineHit` / hug-skade for encounter-økonomi (hakkeholdbarhed, XP pr. hug, osv.).
-4. Skift af mål **øger ikke** mine-dybde.
-5. (Valgfrit men anbefalet) Første gang eller via indstillinger: **kort tekst** om at skift af mål genskaber den forrige klippe — så “mærkelig reset” ikke forveksles med en bug.
+- Ved målskift **gemmes** `currentHp` på alle slots (medmindre slot er clearet).
+- Alle uløste slots kan vælges som **primært mål** (klik, piletaster, target-liste).
+- **Primær HP-bar** viser kun valgte slot; **mini-bars/highlights** for andre skadede slots i viewport (diskret men læsbart).
+- Crosshair: farve/ikon efter type (pickaxe/sword/event …).
 
----
+### 5.1 Mobs som parallelle mål
 
-## 8. Faldgruber og udfordringer
+- Mob som **egen slot** eller **koblet til rock-slot**.
+- Samme combat-/mining-loop kan understøtte flere aktive trusler/mål; design må stadig være læsbart (fx aggro prioriteret i UI).
+- Aggressive vs. passive mobs giver taktisk prioritering.
 
-### 8.1 Save / load midt på et lag
+### 5.2 Lag-skifte og hvad der sker med gamle slots
 
-- Hvis kun **ét** mål har “runtime HP” og andre er reset når de ikke er valgt, skal save-formatet enten:
-  - **Gemme** valgt felt-index + `rockHp` + liste over **løste** felter på laget, **eller**
-  - Ved load **nulstille** alle uløste til fuld (straffe ved crash — dårlig UX).
-
-**Anbefaling:** Persistér `mineId`, `mineDepth`, `solvedSlots: number[]`, `selectedSlot`, `rockHp`, `rockEvent` (eller seed til at genskabe det).
-
-### 8.2 Reroll-exploit (hvis nyt event pr. mål)
-
-- Spilleren skifter hurtigt mellem felter for at “farme” gunstige `RockEvent`-rolls.
-- **Modtræk:** Cooldown, fast encounter pr. lag, eller begrænset antal skift der trigger nyt roll.
-
-### 8.3 UI-forvirring
-
-- Én HP-bar skal altid matche **det valgte** mål — aldrig forrige mål.
-- Minimap: I dag kan den implicit knytte “aktiv prik” til `depth % slots`. Med målvalg skal HUD skelne **lag** vs. **valgt felt**.
-
-### 8.4 Kiste-flow og auto-`INCREMENT_DEPTH`
-
-I den nuværende kodebase findes særlige stier (fx kiste), der kan påvirke dybde. Ved omlægning til **per-mine dybde** og **lag-krav** skal alle stier, der tidligere kaldte “increment depth”, gennemgås så de:
-
-- Kun øger **den aktuelle mines** dybde, og  
-- Kun når **lag-overgang** (eller det I definerer) sker — ikke ved målskift.
-
-### 8.5 Migration fra global `depth`
-
-- Eksisterende spillere har ét tal. **Strategi:** Map global depth til **alle** kendte miner som startværdi, eller kun til den mine spilleren senest var i — dokumentér valget.
-- **Crafting/achievements** skal ikke stille spilleren dårligere uden changelog-kommunikation.
-
-### 8.6 Performance og oplevelse
-
-- Fade + evt. remount af `Canvas`/scene: sikr kort **sort** eller **loading**, undgå flash af gammel geometri.
-- Lyd: stopp/start af ambient passende til lag-skifte.
-
-### 8.7 Multiplayer (hvis nogensinde relevant)
-
-- Per-mine dybde er naturligt **per spiller**; delt verden kræver synkroniseret lag-state — udvider scope kraftigt. For single-player ignoreres.
+**Besluttet (D1):** Ved nedstigning kasseres forrige lags `LayerState` fuldstændigt (ingen tilbagevenden). Nyt lag → nyt `LayerState` genereres/loades for run.
 
 ---
 
-## 9. Åbne spørgsmål (til produkt / designmøde)
+## 6. Roguelike run-struktur og depth-reset
 
-1. **Minimumskrav for nedstigning:** Alt clearet, valgfri knap, eller blandet?
-2. **Encounter pr. målskift:** A, B eller C (§6.2)?
-3. **Loot på jorden** ved lag-skifte: tabt, auto-samlet, eller “kan ikke gå ned før tomt”?
-4. **Skal målskift koste** noget (tid, holdbarhed, guld) for at undgå gratis rerolls?
-5. **Skal reset gælde**, hvis spilleren *ved et uheld* rammer forkert felt — eller kun ved bevidst “bekræft skift”?
+- Start i **Town Hub** (meta-dybde 0 for “ikke i mine”).
+- Valg af mine → ned lag for lag i **én run**.
+- Slut: **død** (tab af run-inventory efter jeres regler) eller **safe ascend** (elevator/stige).
+
+### 6.1 Permanent vs. run-specifikt
+
+| Element | Permanent (mellem runs) | Run-specifikt |
+|--------|-------------------------|----------------|
+| Mine-unlocks & story-flags | Ja | Nej |
+| Max nået depth pr. mine (meta) | Ja | Nej |
+| Balance-tabeller & garantier | Fixed pr. dybde/mine | Nej |
+| Layout, encounters, RNG | Garanterede events pr. dybde (data) | Øvrigt proceduralt (seed) |
+| NPC/dialog-friskhed | Bedre/rigere med dybde over tid | Ny roll pr. run hvor relevant |
+| Inventory & gems | Beholdes ved hub / **safe ascend** (D8) | **Fuld tab** ved død i run (D7) |
+| Current depth i run | – | Nulstilles når run slutter |
+
+### 6.2 Hub-forberedelse
+
+Handel, reparation, lantern/pickaxe-upgrades, buffs, valg af mine og evt. difficulty modifier — **meta-progression-kernen**.
+
+### 6.3 RNG + fast mix
+
+- Seed: fx `hash(playerId, runNumber, depth, mineId)` (eller tilsvarende).
+- `src/data/`-tabeller for garanterede hændelser og sjældne-gem-chancer pr. mine/dybde.
+- Præcist layout, mob-placering og dialog kan være frisk pr. run hvor det giver gen-spilbarhed.
 
 ---
 
-## 10. Opsummering
+## 7. Spillerflow (konceptuelt)
 
-Det nye system kombinerer:
+### 7.1 På et lag
 
-- **Strukturel enkelhed:** Ét HP / ét aktivt encounter ad gangen.  
-- **Spilleragency:** Frit målvalg mellem uløste klipper på samme lag.  
-- **Aftalt pris:** Forladt mål resetter — ingen skjult del-skade på flere klipper.  
-- **Rumfornemmelse og progression:** Fade og lag som “nyt kammer” + **mine-dybde** der kun hører til den aktuelle mine.  
-- **Designkraft:** Dybde som **nøgle** til unlocks og **placerede** encounters uden krydsforurening mellem miner.
+1. Spilleren ser **N** slots; flere kan være delvist skadede samtidigt.
+2. **Ét** slot er primært mål (styring af hug/mining som i jeres nuværende loop).
+3. Hug reducerer HP på **det primære** mål; andre slots kan påvirkes af egne regler (mobs, AoE — hvis I tilføjer det senere).
+4. Målskift: **ingen reset** af forrige slot; kun skift af fokus i UI/input.
+5. Når et slot **cleares**, marker det visuelt/logisk (depleted, dør, elevator aktiv, …).
 
-Når implementering påbegyndes, bør denne fil opdateres med **konkrete** beslutninger fra §6 og §9, så kode og tests kan verificeres mod ét sandhedsgrundlag.
+### 7.2 Mellem lag (dybde stiger/sænkes i run)
+
+1. Opfyld **krav** for overgang (§9.3).
+2. Fade; kort input-lock om nødvendigt.
+3. Nyt lag indlæses (seedet layout, lys/tåge, …).
+4. `currentDepth` i `RunState` opdateres efter jeres regel (én gang pr. fuldført overgang).
+5. Alle slots på **det nye** lag starter med frisk `LayerState` for det lag.
+
+### 7.3 Mellem runs (hub)
+
+Forberedelse, salg, valg af næste dive; permanent progression opdateres (fx `unlockedDepths`).
+
+---
+
+## 8. Per-mine dybde: gating og encounters
+
+### 8.1 Gating af systemer
+
+Eksempler:
+
+- “**Jernkløften** dybde ≥ 8 i meta” låser smelteri-tier eller dialog.
+- “**Kobbermine** dybde ≥ 3” aktiverer dynamit-tip i butikken.
+
+Fordel: Krav er **læsbare** og **testbare** per mine.
+
+### 8.2 Garanterede eller styrede encounters
+
+- Datadrevet: fx `encounters: { mineId, minDepth, maxDepth?, spawn: ... }[]` eller script ved **lag-indtræden**.
+- Knyt til **mine-dybde ved lag-start**, ikke til “hvilket felt huggede man sidst” — med mindre I bevidst kobler felt til story.
+
+---
+
+## 9. Vigtige designbeslutninger (med rationale)
+
+### 9.1 Skal hug bruge mine-dybde eller felt-index til balance?
+
+**Anbefaling:** **Mine-dybde (lag)** styrer `rockHpForDepth`, drop-rolls, essens-chancer osv. **Felt-index / slot-id** styrer **position**, mesh og evt. **lokale** modifiers — ikke systemisk ulbalance mellem to uløste klipper på samme lag uden grund.
+
+### 9.2 Encounter-typer pr. slot og reroll (erstatter “målskift-reroll”)
+
+**Besluttet (D3):** **Variant A — roll pr. slot ved lag-generering.** Hvert slot får egen encounter/HP/type når `LayerState` oprettes fra run-seed; målskift reroller ikke.
+
+Øvrige modeller (reference, ikke aktive):
+
+| Variant | Kommentar |
+|---------|-----------|
+| **B: Fælles pool pr. lag** | Ikke valgt — ensartet sværhed kan opnås senere via data, uden at ændre D3. |
+| **C: Hybrid** | Ikke valgt — kan genbesøges hvis balance kræver fælles basistype + felt-multiplikator. |
+
+**Anti-abuse:** Enhver fremtidig “re-roll” af slot skal være eksplicit og dyr — ikke sideeffekt af målskift (jf. D13).
+
+### 9.3 Hvornår stiger/sænkes mine-dybde i run?
+
+**Besluttet (D2):** **Clear room** — alle obligatoriske slots på laget skal være `cleared` før nedstigning.
+
+Design skal definere **slot-typer der tæller med** i clear-check (fx rocks, obligatoriske events, elevator der først aktiveres efter clear, osv.).
+
+### 9.4 Verdens-loot og kister ved lag-skifte
+
+**Besluttet:** Se **D4–D6** i beslutningsloggen.
+
+| Element | Regel |
+|---------|--------|
+| Loot på jorden | **Auto-samlet** til inventory før fade (D4). |
+| Uåbnede kister | **Blokér nedstigning** indtil åbnet, eller kisten er et **slot** under clear-room (D5). |
+| Halvåbnet kiste | **Tvungen afslutning** før lag-skifte (D6). |
+
+### 9.5 Global vs. mine-lokal dybde i andre systemer (crafting m.m.)
+
+**Besluttet (D10):** **Adskilt model.** Brug **`worldTier`** (meta, fx fra `max` af `unlockedDepths`) til crafting/gem-kvalitet og andre systemer der tidligere hang på én global dybde. **Mine-dybde** styrer **kun** mining-balance (HP, drops i minen) for den pågældende mine.
+
+### 9.6 Achievements og telemetri
+
+**Besluttet (D11):** **Primært per mine** (fx “nå dybde 50 i jernkløften”). **Meta**-milepæle som supplement er tilladt (fx “nå dybde 50 i *en* vilkårlig mine” eller samlet metrisk), så gamle badges kan mappes uden meningsændring.
+
+---
+
+## 10. Acceptkriterier (v2 – persistent lag)
+
+1. På et lag med **≥2** uløste slots kan spilleren skifte primært mål uden at **andre** slots’ `currentHp` nulstilles.
+2. Kun **ét** slot er primært mål ad gangen (HP-bar + hoved-feedback matcher valget).
+3. Målskift **øger ikke** mine-dybde/lag-index.
+4. Efter lag-overgang er **forrige lags** `LayerState` **kasseret** (D1); der gemmes ikke gameplay-state på tidligere lag i samme run.
+5. Tutorial/tooltip første gang: *damage på laget persisterer — du kan splitte fokus mellem felter.*
+
+*(Gamle v1-krav om “forladt felt vises fuldt hel” gælder **ikke** længere.)*
+
+---
+
+## 11. UI, feedback og polish
+
+- Tydeligt “valgt felt” (outline/highlight + primær HP-bar).
+- Lag-overgang: fade + `Lag X – [MineNavn]` + kort flavor.
+- Mini-map eller **target-liste** der skelner **lag** vs. **valgt slot** (undgå `depth % slots`-forvirring fra gamle HUD’er).
+
+---
+
+## 12. Save/load og migration
+
+### 12.1 Run-save
+
+- Gem **`RunState`** med **aktuelle lags** fulde `LayerState` (alle slots’ `currentHp`, `cleared`, encounter-data) — ikke kun ét `rockHp`.
+- Under **D1** er typisk kun **ét** lag-index relevant i `layerStates` ad gangen (evt. kun `currentDepth`-nøgle); undlad at gemme kasserede lag.
+- `PermanentProgress` gemmes altid separat (meta).
+
+### 12.2 Migration fra global `depth`
+
+**Besluttet (D12):** Ved første load efter opdatering mappes legacy global dybde til **alle** kendte miner som startværdi i `unlockedDepths`. Dokumentér i patchnotes. Undgå at crafting/achievements stiller eksisterende spillere dårligere uden eksplicit kommunikation (evt. midlertidig kompatibilitets-tier).
+
+---
+
+## 13. Faldgruber og udfordringer
+
+- **Reroll:** Fokus er flyttet fra målskift til layout/seed — pas på exploits ved regenerering.
+- **UI:** Én primær bar; sekundære må ikke ligne “skjult primær”.
+- **Kiste-flow og auto-`INCREMENT_DEPTH`:** Gennemgå alle stier i kode der tidligere øgede global depth; de skal respektere **per-mine** og **kun ved lag-overgang** (eller jeres eksplicitte regel).
+- **Performance:** Fade + remount af scene — kort sort/loading, ingen geometri-flash; ambient-lyd passende ved skift.
+- **Multiplayer (evt. senere):** Per-spiller lag-state; delt verden øger sync-kompleksitet — for single-player kan ignoreres.
+
+---
+
+## 14. Åbne spørgsmål
+
+**Ingen åbne kernebeslutninger** — tidligere punkter er låst i beslutningsloggen (D1–D14). Eventuelle ændringer kræver ny log-række og versionsnote.
+
+---
+
+## 15. Implementerings-noter og næste skridt
+
+**Besluttet scope (D14):**
+
+1. **Fase 1:** Implementér `LayerState` / `SlotState` og persistente rock-slots (ingen mobs endnu); integration med [`src/data/areas.ts`](../src/data/areas.ts) og mining-logik (fx [`src/gem/mining.ts`](../src/gem/mining.ts)), samt typer i [`src/types.ts`](../src/types.ts) hvor relevant.
+2. Lav en **persistent slot demo**-scene før fuld roguelike UI.
+3. **Fase 2:** Tilføj mobs / `EntityState` og parallel combat; drop-tabeller jf. **D9**.
+4. Profilér lag-skift (Three.js remount, fade).
+
+Se trin-for-trin i [`mine-layers-implementation-guide.md`](./mine-layers-implementation-guide.md).
+
+---
+
+## 16. Opsummering
+
+Systemet kombinerer:
+
+- **Taktisk rummelighed:** Persistent skade på tværs af slots på samme lag.
+- **Læsbar UI:** Ét primært mål ad gangen med tydelig hierarki.
+- **Roguelike/meta:** Runs der nulstiller dybde og run-state; permanent progression i hub.
+- **Designkraft:** Per-mine dybde til unlocks og encounters uden global “dybde-forurening”.
+- **Implementerbarhed:** Eksplicit ordliste, data-model, migrations- og pitfall-liste.
+
+Den tidligere **reset-af-forladt-felt**-model er **ikke** længere mål; behold kun referencer til den som historik (§1.2) hvis nogen læser gamle branches eller diskussioner.
