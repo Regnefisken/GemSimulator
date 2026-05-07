@@ -122,6 +122,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const sword = state.swords.find((s) => s.id === state.activeSwordId) ?? state.swords[0]
   const [hitPulse, setHitPulse] = useState(0)
   const [floaters, setFloaters] = useState<DamageFloater[]>([])
+  const [pickupFeed, setPickupFeed] = useState<{ id: number; text: string; color?: string } | null>(null)
   const [dropNotice, setDropNotice] = useState<DropNotice | null>(null)
   const [entered, setEntered] = useState(false)
   const [swingTrigger, setSwingTrigger] = useState(0)
@@ -132,6 +133,15 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
   const noticeId = useRef(0)
   const hitId = useRef(0)
+  const pickupFeedClearRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (pickupFeedClearRef.current != null) {
+        window.clearTimeout(pickupFeedClearRef.current)
+      }
+    }
+  }, [])
 
   const phoenixQ = state.essences.find((s) => s.essenceId === ESSENCE_IDS.phoenixAsh)?.quantity ?? 0
   const slumberQ = state.essences.find((s) => s.essenceId === ESSENCE_IDS.slumberPowder)?.quantity ?? 0
@@ -236,6 +246,20 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     text?: string
     color?: string
   }) => {
+    if (opts.text != null) {
+      if (pickupFeedClearRef.current != null) {
+        window.clearTimeout(pickupFeedClearRef.current)
+        pickupFeedClearRef.current = null
+      }
+      const id = hitId.current++
+      setPickupFeed({ id, text: opts.text, color: opts.color })
+      pickupFeedClearRef.current = window.setTimeout(() => {
+        setPickupFeed(null)
+        pickupFeedClearRef.current = null
+      }, 2400)
+      return
+    }
+
     const id = hitId.current++
     const left = `${42 + Math.random() * 16}%`
     const top = `${38 + Math.random() * 12}%`
@@ -253,7 +277,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     ])
     window.setTimeout(() => {
       setFloaters((prev) => prev.filter((f) => f.id !== id))
-    }, opts.text ? 900 : opts.isCrit ? 900 : 600)
+    }, opts.isCrit ? 900 : 600)
   }, [])
 
   const applyDrop = useCallback(
@@ -665,12 +689,34 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         />
         <div className="flex-1 min-h-0" />
 
-        <div className="pointer-events-auto shrink-0 flex justify-end px-2 pb-1 pt-1">
-          <HUDConsumableQuickBar
-            quickSlots={state.consumableQuickSlots}
-            consumables={state.consumables}
-            onUseSlot={(i) => dispatch({ type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: i })}
-          />
+        <div className="pointer-events-auto shrink-0 px-2 pb-1 pt-1">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+            <div className="min-w-0 flex-1 flex flex-col gap-1 sm:max-w-[min(56%,520px)] order-2 sm:order-1">
+              {dropNotice && (
+                <RockDropBanner
+                  key={dropNotice.id}
+                  layout="inline"
+                  notice={dropNotice}
+                  onDone={() => setDropNotice(null)}
+                />
+              )}
+              {pickupFeed && (
+                <p
+                  key={pickupFeed.id}
+                  className="truncate rounded-md border border-slate-700/60 bg-slate-950/85 px-2 py-1 text-[11px] font-semibold leading-snug text-slate-100 sm:text-xs"
+                  style={pickupFeed.color ? { color: pickupFeed.color } : undefined}
+                >
+                  {pickupFeed.text}
+                </p>
+              )}
+            </div>
+            <HUDConsumableQuickBar
+              className="shrink-0 order-1 sm:order-2 self-end"
+              quickSlots={state.consumableQuickSlots}
+              consumables={state.consumables}
+              onUseSlot={(i) => dispatch({ type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: i })}
+            />
+          </div>
         </div>
 
         <HUDBottomBar
@@ -707,13 +753,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
       <div className="pointer-events-none absolute inset-0 z-40">
         <DamageNumbers items={floaters} />
-        {dropNotice && (
-          <RockDropBanner
-            key={dropNotice.id}
-            notice={dropNotice}
-            onDone={() => setDropNotice(null)}
-          />
-        )}
       </div>
 
       {pickaxe && pickaxe.durability === 0 && state.equippedWeapon === 'pickaxe' && (

@@ -89,7 +89,7 @@ export default function WorldLootItem({ entity, onCollect }: Props) {
       {/* Stor samle-sfære — lettere at ramme fra FPS; centreret om voxel-centrum */}
       <mesh position={[0, 0.08, 0]} onPointerDown={tryCollect} onClick={tryCollect}>
         <sphereGeometry args={[1.35, 14, 14]} />
-        <meshBasicMaterial transparent opacity={0.02} depthWrite={false} />
+        <meshBasicMaterial transparent opacity={0.02} depthTest={false} depthWrite={false} />
       </mesh>
     </group>
   )

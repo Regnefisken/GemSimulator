@@ -156,7 +156,7 @@ export const AREAS: Area[] = [
     kind: 'alkymi',
     name: 'Alkymistværkstedet',
     icon: '⚗️',
-    image: '/assets/locations/butikken.webp',
+    image: '/assets/locations/alkymistvaerksted.webp',
     description: 'Mad, potions og ingredienser — restock efter hvert minebesøg.',
     unlockedByDefault: true,
     depthMultiplier: 0,

@@ -18,6 +18,8 @@ export type DropNotice = {
 type Props = {
   notice: DropNotice
   onDone: () => void
+  /** overlay = fuld bredde bund (legacy); inline = kompakt række ved siden af quick-slots */
+  layout?: 'overlay' | 'inline'
 }
 
 function borderClassForChestTier(tier: ChestTier): string {
@@ -82,9 +84,10 @@ function roughStoneQualityLabel(quality: 'crude' | 'fine' | 'pristine'): string 
   }
 }
 
-export default function RockDropBanner({ notice, onDone }: Props) {
+export default function RockDropBanner({ notice, onDone, layout = 'overlay' }: Props) {
   const { drop } = notice
   const [leaving, setLeaving] = useState(false)
+  const inline = layout === 'inline'
 
   useEffect(() => {
     const t = window.setTimeout(() => setLeaving(true), 2000)
@@ -212,9 +215,9 @@ export default function RockDropBanner({ notice, onDone }: Props) {
     <div
       role="status"
       className={[
-        'absolute bottom-3 left-3 right-3 z-20',
-        'rounded-xl border bg-slate-900/90 backdrop-blur-sm px-4 py-3',
-        'flex items-start gap-3',
+        inline
+          ? 'relative z-10 w-full max-w-full min-w-0 rounded-lg border bg-slate-900/92 backdrop-blur-sm px-2 py-1.5 sm:px-3 sm:py-2 flex items-start gap-2'
+          : 'absolute bottom-3 left-3 right-3 z-20 rounded-xl border bg-slate-900/90 backdrop-blur-sm px-4 py-3 flex items-start gap-3',
         'animate-drop-banner-enter',
         'transition-opacity duration-500',
         'pointer-events-none',
@@ -223,23 +226,40 @@ export default function RockDropBanner({ notice, onDone }: Props) {
       ].join(' ')}
       onTransitionEnd={handleTransitionEnd}
     >
-      <span className="text-xl shrink-0 leading-none pt-0.5" aria-hidden>
+      <span
+        className={
+          inline
+            ? 'text-base sm:text-lg shrink-0 leading-none pt-0.5'
+            : 'text-xl shrink-0 leading-none pt-0.5'
+        }
+        aria-hidden
+      >
         {icon}
       </span>
-      <div className="min-w-0 flex-1 flex flex-col gap-1">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-bold text-slate-100 leading-snug">{title}</p>
-          <span className={`text-xs font-semibold shrink-0 uppercase tracking-wide ${badgeClass}`}>
+      <div className="min-w-0 flex-1 flex flex-col gap-0.5 sm:gap-1">
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <p
+            className={
+              inline
+                ? 'text-[11px] sm:text-xs font-bold text-slate-100 leading-snug min-w-0 break-words'
+                : 'text-sm font-bold text-slate-100 leading-snug'
+            }
+          >
+            {title}
+          </p>
+          <span
+            className={`font-semibold shrink-0 uppercase tracking-wide ${inline ? 'text-[9px] ' : 'text-xs '}${badgeClass}`}
+          >
             {badgeText}
           </span>
         </div>
         {notice.essenceName != null && (
-          <p className="text-xs text-cyan-300">
+          <p className={inline ? 'text-[10px] text-cyan-300' : 'text-xs text-cyan-300'}>
             <span aria-hidden>🌟 </span>Essens: {notice.essenceName}
           </p>
         )}
         {notice.chestBlueprintName != null && (
-          <p className="text-xs text-violet-300">
+          <p className={inline ? 'text-[10px] text-violet-300' : 'text-xs text-violet-300'}>
             <span aria-hidden>📜 </span>Kisten gemte også en tegning: {notice.chestBlueprintName}
           </p>
         )}

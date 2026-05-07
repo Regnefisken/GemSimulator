@@ -22,6 +22,10 @@ export type VoxelMeshProps = {
   unlit?: boolean
   /** false = tegn ovenpå dybde (FPS-våben mod malm) */
   depthTest?: boolean
+  /** false = skriv ikke til dybdebuffer (undgår at blokere senere passes) */
+  depthWrite?: boolean
+  /** Høj værdi = tegnes sent i opaque-køen (løser forkert sortering mod InstancedMesh-BB) */
+  renderOrder?: number
 }
 
 /**
@@ -34,9 +38,13 @@ export default function VoxelMesh({
   frustumCulled = true,
   unlit = false,
   depthTest = true,
+  depthWrite,
+  renderOrder = 0,
 }: VoxelMeshProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const geo = useMemo(() => new THREE.BoxGeometry(1, 1, 1), [])
+  /** default: samme som depthTest (FPS: depthTest false → depthWrite false) */
+  const effectiveDepthWrite = depthWrite ?? depthTest
   const mat = useMemo(() => {
     if (unlit) {
       return new THREE.MeshBasicMaterial({
@@ -45,6 +53,7 @@ export default function VoxelMesh({
         /** Ellers bliver vertex colors sorte under ACES tone mapping */
         toneMapped: false,
         depthTest,
+        depthWrite: effectiveDepthWrite,
       })
     }
     return new THREE.MeshStandardMaterial({
@@ -52,8 +61,9 @@ export default function VoxelMesh({
       metalness: 0.15,
       flatShading: true,
       depthTest,
+      depthWrite: effectiveDepthWrite,
     })
-  }, [unlit, depthTest])
+  }, [unlit, depthTest, depthWrite])
 
   useEffect(() => {
     const mesh = meshRef.current
@@ -81,5 +91,12 @@ export default function VoxelMesh({
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   }, [data, colorMap, maxInstances])
 
-  return <instancedMesh ref={meshRef} args={[geo, mat, maxInstances]} frustumCulled={frustumCulled} />
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[geo, mat, maxInstances]}
+      frustumCulled={frustumCulled}
+      renderOrder={renderOrder}
+    />
+  )
 }
