@@ -18,3 +18,16 @@ export const DEFAULT_PICKAXE_TRANSFORM: PickaxeTransform = {
   meshOrient: [0.08, 0.1, 0.376],
   gripColumn: 0,
 }
+
+/** Placering/skala for FPS-sværd (afstemt i dev). */
+export type HeldFpsTransform = PickaxeTransform & {
+  scaleMul: number
+}
+
+export const DEFAULT_SWORD_TRANSFORM: HeldFpsTransform = {
+  basePos: [-0.28, -2.38, -0.64],
+  baseRot: [-1.425, -0.6005, 0.125],
+  meshOrient: [-1.495, 0.23, 0.87],
+  gripColumn: 0,
+  scaleMul: 2.29,
+}

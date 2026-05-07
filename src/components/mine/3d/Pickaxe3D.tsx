@@ -3,17 +3,33 @@ import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { PixelItem } from '../../../types'
 import VoxelMesh from '../../VoxelMesh'
-import { DEFAULT_PICKAXE_TRANSFORM } from './pickaxeDefaults'
+import {
+  DEFAULT_PICKAXE_TRANSFORM,
+  DEFAULT_SWORD_TRANSFORM,
+  type HeldFpsTransform,
+} from './pickaxeDefaults'
 
 type Props = {
   pixelItem: PixelItem
   swingTrigger: number
   disabled: boolean
   visible: boolean
+  heldWeaponKind: 'pickaxe' | 'sword'
 }
 
-export default function Pickaxe3D({ pixelItem, swingTrigger, disabled, visible }: Props) {
-  const t = DEFAULT_PICKAXE_TRANSFORM
+const PICKAXE_HELD: HeldFpsTransform = {
+  ...DEFAULT_PICKAXE_TRANSFORM,
+  scaleMul: 1,
+}
+
+export default function Pickaxe3D({
+  pixelItem,
+  swingTrigger,
+  disabled,
+  visible,
+  heldWeaponKind,
+}: Props) {
+  const t: HeldFpsTransform = heldWeaponKind === 'sword' ? DEFAULT_SWORD_TRANSFORM : PICKAXE_HELD
   const { camera } = useThree()
   const groupRef = useRef<THREE.Group>(null)
   const swingPhase = useRef<'idle' | 'down' | 'return'>('idle')
@@ -91,14 +107,14 @@ export default function Pickaxe3D({ pixelItem, swingTrigger, disabled, visible }
 
     g.position.copy(offsetWorld.current)
     g.quaternion.copy(camera.quaternion).multiply(quatLocal.current)
-    g.scale.setScalar(voxelScale * 0.945)
+    g.scale.setScalar(voxelScale * 0.945 * t.scaleMul)
   })
 
   return (
     <group ref={groupRef} visible={visible} frustumCulled={false} renderOrder={1000}>
       <pointLight intensity={22} distance={4} decay={2} position={[0.15, 0.06, 0.24]} color="#fff8f0" />
       <group position={[pivotXZ[0], pivotXZ[1], 0]} rotation={t.meshOrient}>
-        <VoxelMesh data={pixelItem.data} colorMap={pixelItem.colorMap} frustumCulled={false} unlit />
+        <VoxelMesh data={pixelItem.data} colorMap={pixelItem.colorMap} frustumCulled={false} unlit depthTest={false} />
       </group>
     </group>
   )

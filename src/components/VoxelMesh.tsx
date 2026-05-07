@@ -20,6 +20,8 @@ export type VoxelMeshProps = {
   frustumCulled?: boolean
   /** Ignorerer lys/tåge — stabilt synlig FPS-hakke i mørke grotter */
   unlit?: boolean
+  /** false = tegn ovenpå dybde (FPS-våben mod malm) */
+  depthTest?: boolean
 }
 
 /**
@@ -31,6 +33,7 @@ export default function VoxelMesh({
   maxInstances = MAX_VOXEL_INSTANCES,
   frustumCulled = true,
   unlit = false,
+  depthTest = true,
 }: VoxelMeshProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const geo = useMemo(() => new THREE.BoxGeometry(1, 1, 1), [])
@@ -41,14 +44,16 @@ export default function VoxelMesh({
         fog: false,
         /** Ellers bliver vertex colors sorte under ACES tone mapping */
         toneMapped: false,
+        depthTest,
       })
     }
     return new THREE.MeshStandardMaterial({
       roughness: 0.4,
       metalness: 0.15,
       flatShading: true,
+      depthTest,
     })
-  }, [unlit])
+  }, [unlit, depthTest])
 
   useEffect(() => {
     const mesh = meshRef.current

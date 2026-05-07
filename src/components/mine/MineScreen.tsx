@@ -601,6 +601,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           disabled={mineDisabled}
           onMineHit={handleMineHit}
           swingTrigger={swingTrigger}
+          heldWeaponKind={state.equippedWeapon}
           weaponPixelItem={weaponPixelItem}
           lootEntities={lootEntities}
           depletedSlots={depletedSlots}
