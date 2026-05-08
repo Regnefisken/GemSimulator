@@ -11,7 +11,7 @@ import {
   createRichRockGeometry,
 } from '../../../gem/procedural/buildProceduralMineRock'
 import { useLabelHtmlDistanceFactor } from './useLabelHtmlDistanceFactor'
-import SeamSkulkerMob from './seamSkulker/SeamSkulkerMob'
+import SeamSkulkerMob, { seamSkulkerHpLabelLocalY } from './seamSkulker/SeamSkulkerMob'
 
 /** Under denne afstand (verdensenheder) skaleres `distanceFactor` ned — undgår enorm CSS-scale tæt på. */
 const LABEL_HTML_MIN_WORLD_DISTANCE = 3.25
@@ -300,6 +300,45 @@ export default function OreNode({
       }
     : {}
 
+  const showHpBar = interactive && !depleted
+  const hpBarWorldY =
+    rockType === 'mob' ? seamSkulkerHpLabelLocalY(bulk) : labelBillboardY
+
+  const hpBillboard = showHpBar ? (
+      <group>
+        <Billboard follow position={[0, hpBarWorldY, 0]}>
+          <group ref={labelAnchorRef}>
+            <Html
+              center
+              distanceFactor={labelDistanceFactor}
+              zIndexRange={[3200, 120]}
+              style={{ pointerEvents: 'none' }}
+            >
+              <div className="flex flex-col items-center gap-0.5 select-none">
+                <span
+                  className={
+                    'text-[9px] font-bold uppercase tracking-wider drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ' +
+                    (rockType === 'mob' ? 'text-fuchsia-100' : 'text-amber-100')
+                  }
+                >
+                  {nameLabel}
+                </span>
+                <div className="h-[5px] w-[76px] rounded-full bg-black/55 ring-1 ring-white/15 overflow-hidden shadow-md">
+                  <div
+                    className={`h-full rounded-full ${barGradient}`}
+                    style={{ width: `${hpPct}%` }}
+                  />
+                </div>
+                <span className="text-[8px] font-mono tabular-nums text-slate-200/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                  {hp}/{maxHp}
+                </span>
+              </div>
+            </Html>
+          </group>
+        </Billboard>
+      </group>
+    ) : null
+
   return (
     <group position={position}>
       <group ref={meshRef}>
@@ -312,7 +351,9 @@ export default function OreNode({
             caveBounds={caveBounds}
             onStrikeHit={interactive ? onMobStrikeHit : undefined}
             {...(pickable ? meshHandlers : {})}
-          />
+          >
+            {hpBillboard}
+          </SeamSkulkerMob>
         ) : rockPayload ? (
           <group scale={[bulk, bulk, bulk]}>
             {rockPayload.kind === 'crystal' ? (
@@ -379,40 +420,7 @@ export default function OreNode({
           </group>
         ) : null}
       </group>
-      {interactive && !depleted && (
-        <group>
-          <Billboard follow position={[0, labelBillboardY, 0]}>
-            <group ref={labelAnchorRef}>
-              <Html
-                center
-                distanceFactor={labelDistanceFactor}
-                zIndexRange={[3200, 120]}
-                style={{ pointerEvents: 'none' }}
-              >
-                <div className="flex flex-col items-center gap-0.5 select-none">
-                  <span
-                    className={
-                      'text-[9px] font-bold uppercase tracking-wider drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ' +
-                      (rockType === 'mob' ? 'text-fuchsia-100' : 'text-amber-100')
-                    }
-                  >
-                    {nameLabel}
-                  </span>
-                  <div className="h-[5px] w-[76px] rounded-full bg-black/55 ring-1 ring-white/15 overflow-hidden shadow-md">
-                    <div
-                      className={`h-full rounded-full ${barGradient}`}
-                      style={{ width: `${hpPct}%` }}
-                    />
-                  </div>
-                  <span className="text-[8px] font-mono tabular-nums text-slate-200/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                    {hp}/{maxHp}
-                  </span>
-                </div>
-              </Html>
-            </group>
-          </Billboard>
-        </group>
-      )}
+      {rockType !== 'mob' && hpBillboard}
     </group>
   )
 }

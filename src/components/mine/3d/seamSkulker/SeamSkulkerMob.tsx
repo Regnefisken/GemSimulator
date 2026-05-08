@@ -1,12 +1,21 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { buildSeamSkulkerRig, type SeamSkulkerRigParts } from './buildSeamSkulkerRig'
 
 type AttackPhase = 'IDLE' | 'WINDUP' | 'STRIKE' | 'RECOVERY'
 
-/** Basis-skala; halveret vs. første iteration (ønske: ~50 % mindre figur). */
-const MOB_MODEL_SCALE = 0.34 * 0.5
+/** Verdens-skala × halveret figur — samme faktor som rig `scale`. */
+export const SEAM_SKULKER_SCALE_MUL = 0.34 * 0.5
+/** Model-enheder fra grobund (≈ top af hoved + lidt luft) — matcher skaleret rig. */
+const SEAM_SKULKER_HP_LABEL_MODEL_Y = 4.75
+
+/** HP-badge lod over uhyre — brug i stedet for klippe-`labelBillboardY`. */
+export function seamSkulkerHpLabelLocalY(bulk: number): number {
+  return bulk * SEAM_SKULKER_SCALE_MUL * SEAM_SKULKER_HP_LABEL_MODEL_Y
+}
+
+const MOB_MODEL_SCALE = SEAM_SKULKER_SCALE_MUL
 const CHASE_SPEED = 2.85
 const RETREAT_SPEED = 2.65
 /** Stop jagt her — holder afstand til spilleren. */
@@ -42,6 +51,8 @@ type Props = {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
   /** Aktivt mål: ét slag pr. angreb når animationen rammer. */
   onStrikeHit?: () => void
+  /** HP-bar m.m. — under jagt-gruppe så UI følger monstret. */
+  children?: ReactNode
 }
 
 export default function SeamSkulkerMob({
@@ -53,6 +64,7 @@ export default function SeamSkulkerMob({
   onClick,
   onPointerDown,
   onStrikeHit,
+  children,
 }: Props) {
   const { camera } = useThree()
   const chaseRef = useRef<THREE.Group>(null)
@@ -330,6 +342,7 @@ export default function SeamSkulkerMob({
           </mesh>
         )}
       </group>
+      {children}
     </group>
   )
 }
