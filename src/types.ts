@@ -84,6 +84,9 @@ export type PixelItem = {
   colorMap: ColorMap
 }
 
+/** D47: oprindelse for hub-/mine-udstyr og run-loot. */
+export type LootOrigin = 'hub' | 'mine'
+
 export type RawOre = {
   metalName: MetalName
   quantity: number
@@ -117,6 +120,8 @@ export type Pickaxe = {
   durability: number
   maxDurability: number
   pixelItem: PixelItem
+  /** D47: hub (shop/smed) vs. mine-fund; default hub. */
+  origin?: LootOrigin
 }
 
 /** Fase 2: sværd til mob-combat (D27); separat tier-ladder fra hakke. */
@@ -128,6 +133,7 @@ export type Sword = {
   durability: number
   maxDurability: number
   pixelItem: PixelItem
+  origin?: LootOrigin
 }
 
 /** Fase 5 (D35): rustning — kun 2D-ikon; bonus til hpMax/manaMax mens durability > 0. */
@@ -144,6 +150,7 @@ export type Armour = {
   maxDurability: number
   bonuses: ArmourBonuses
   pixelItem: PixelItem
+  origin?: LootOrigin
 }
 
 export type EquippedWeaponKind = 'pickaxe' | 'sword'
@@ -231,9 +238,6 @@ export type EssenceStack = { essenceId: string; quantity: number }
 
 /** Fase 3: stack af mad/potions i hub- og mine-task (D21). */
 export type ConsumableStack = { consumableId: string; quantity: number }
-
-/** D47: oprindelse for run/hub-loot og udstyr. */
-export type LootOrigin = 'hub' | 'mine'
 
 /** Fase 2 (D46): fundet mine-loot der ikke er guld/consumables — tabes ved død hvis ikke reddet. */
 export type FoundLootEntry =

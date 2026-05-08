@@ -32,6 +32,7 @@ export function makeSword(tier: number, uniqueSuffix?: string): Sword {
     damage: config.damage,
     durability: config.maxDurability,
     maxDurability: config.maxDurability,
+    origin: 'hub',
     pixelItem: {
       data: [...SWORD_TEMPLATE],
       colorMap: { B: config.blade, H: config.hilt },

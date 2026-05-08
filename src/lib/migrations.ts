@@ -10,6 +10,7 @@ import type {
   LocationId,
   RunInventory,
   ConsumableStack,
+  LootOrigin,
 } from '../types'
 import { makePickaxe } from '../data/pickaxes'
 import { makeSword } from '../data/swords'
@@ -24,7 +25,7 @@ import { clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './
 import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 import { STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
 
-export const CURRENT_STATE_VERSION = 18
+export const CURRENT_STATE_VERSION = 19
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -146,6 +147,10 @@ export function migrateGem(raw: unknown): Gem {
   return gem
 }
 
+function parseLootOrigin(v: unknown): LootOrigin | undefined {
+  return v === 'mine' || v === 'hub' ? v : undefined
+}
+
 function migratePickaxe(raw: unknown, fallback: Pickaxe): Pickaxe {
   if (!raw || typeof raw !== 'object') return fallback
   const p = raw as Pickaxe
@@ -156,6 +161,7 @@ function migratePickaxe(raw: unknown, fallback: Pickaxe): Pickaxe {
     damage: typeof p.damage === 'number' ? p.damage : fallback.damage,
     durability: typeof p.durability === 'number' ? p.durability : fallback.durability,
     maxDurability: typeof p.maxDurability === 'number' ? p.maxDurability : fallback.maxDurability,
+    origin: parseLootOrigin((raw as Pickaxe).origin) ?? 'hub',
     pixelItem:
       p.pixelItem &&
       Array.isArray((p.pixelItem as PixelItemLike).data) &&
@@ -177,6 +183,7 @@ function migrateSword(raw: unknown, fallback: Sword): Sword {
     damage: typeof p.damage === 'number' ? p.damage : fallback.damage,
     durability: typeof p.durability === 'number' ? p.durability : fallback.durability,
     maxDurability: typeof p.maxDurability === 'number' ? p.maxDurability : fallback.maxDurability,
+    origin: parseLootOrigin((raw as Sword).origin) ?? 'hub',
     pixelItem:
       p.pixelItem &&
       Array.isArray((p.pixelItem as PixelItemLike).data) &&
@@ -593,6 +600,35 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       }
     }
     next.runInventory = null
+  }
+
+  if (version < 19) {
+    next.pickaxes = next.pickaxes.map((p) => ({ ...p, origin: p.origin === 'mine' ? 'mine' : 'hub' }))
+    next.swords = next.swords.map((s) => ({ ...s, origin: s.origin === 'mine' ? 'mine' : 'hub' }))
+    next.armours = next.armours.map((a) => ({ ...a, origin: a.origin === 'mine' ? 'mine' : 'hub' }))
+    if (next.runInventory) {
+      const ri = next.runInventory
+      const stowedHubGear = ri.stowedHubGear.map((slot) => {
+        const o: LootOrigin = slot.item.origin === 'mine' ? 'mine' : 'hub'
+        if (slot.kind === 'pickaxe') {
+          return {
+            ...slot,
+            item: { ...slot.item, origin: o },
+          }
+        }
+        if (slot.kind === 'sword') {
+          return {
+            ...slot,
+            item: { ...slot.item, origin: o },
+          }
+        }
+        return {
+          ...slot,
+          item: { ...slot.item, origin: o },
+        }
+      })
+      next.runInventory = { ...ri, stowedHubGear }
+    }
   }
 
   delete (next as unknown as Record<string, unknown>).gold

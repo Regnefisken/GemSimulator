@@ -29,6 +29,7 @@
       "damage": 5,
       "durability": 50,
       "maxDurability": 50,
+      "origin": "hub",
       "pixelItem": {
         "data": [
           "..............HK",
@@ -66,6 +67,7 @@
       "damage": 8,
       "durability": 60,
       "maxDurability": 60,
+      "origin": "hub",
       "pixelItem": {
         "data": [
           "..........",
@@ -138,5 +140,5 @@
   "playerManaMax": 50,
   "activeBrewId": null,
   "gameNotice": null,
-  "version": 18
+  "version": 19
 }

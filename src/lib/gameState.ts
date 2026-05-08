@@ -68,6 +68,7 @@ import {
   SHOP_CONSUMABLE_IDS,
   smelterNextUpgradeCost,
 } from '../data/shop'
+import { getNextRescueBagUpgrade } from '../data/rescueBagUpgrades'
 import { NUGGET_SELL_PRICES, ORE_SELL_PRICES } from '../data/market'
 import {
   ESSENCE_IDS,
@@ -103,6 +104,13 @@ export type Action =
   | { type: 'INCREMENT_DEPTH' }
   | { type: 'MINE_RUN_ENTER'; mineId: LocationId }
   | { type: 'MINE_RUN_EXIT' }
+  /** D7/D46: død i mine — tab `foundLoot`, behold rescueBag + questItems + stowedHubGear (+ equipped). */
+  | { type: 'MINE_PLAYER_DEATH' }
+  /** §2.5: quest-item fra mine — ingen kapacitets-check (D50). */
+  | { type: 'MINE_PICKUP_QUEST_ITEM'; questItemId: string }
+  | { type: 'MINE_MOVE_TO_RESCUE_BAG'; foundIndex: number }
+  | { type: 'MINE_MOVE_FROM_RESCUE_BAG'; rescueIndex: number }
+  | { type: 'RESCUE_BAG_UPGRADE' }
   | { type: 'MINE_SET_TARGET_SLOT'; index: number }
   | { type: 'MINE_DEAL_DAMAGE'; slotIndex: number; damage: number }
   | { type: 'MINE_DESCEND_LAYER' }
@@ -515,14 +523,131 @@ function applyFoundLootEntryToHub(state: GameState, entry: FoundLootEntry): Game
   }
 }
 
-function mergeRunLootIntoHub(state: GameState): GameState {
+function mergeQuestItemsIntoHub(state: GameState): GameState {
+  const qi = state.runInventory?.questItems
+  if (!qi?.length) return state
+  return {
+    ...state,
+    hubInventory: {
+      ...state.hubInventory,
+      equipment: [...state.hubInventory.equipment, ...qi.map((q) => ({ questItemId: q.questItemId, origin: 'hub' as const }))],
+    },
+  }
+}
+
+function restoreStowedHubGear(state: GameState): GameState {
+  const st = state.runInventory?.stowedHubGear ?? []
+  if (st.length === 0) return state
+  let pickaxes = [...state.pickaxes]
+  let swords = [...state.swords]
+  let armours = [...state.armours]
+  for (const slot of st) {
+    if (slot.kind === 'pickaxe') {
+      const i = pickaxes.findIndex((p) => p.id === slot.item.id)
+      if (i < 0) pickaxes = [...pickaxes, slot.item]
+      else pickaxes[i] = slot.item
+    } else if (slot.kind === 'sword') {
+      const i = swords.findIndex((s) => s.id === slot.item.id)
+      if (i < 0) swords = [...swords, slot.item]
+      else swords[i] = slot.item
+    } else {
+      const i = armours.findIndex((a) => a.id === slot.item.id)
+      if (i < 0) armours = [...armours, slot.item]
+      else armours[i] = slot.item
+    }
+  }
+  return clampPlayerSurvival({ ...state, pickaxes, swords, armours })
+}
+
+/** Safe ascend (D8): hele run-beholdningen inkl. `foundLoot` til hub. */
+function mergeSafeExitRunLootIntoHub(state: GameState): GameState {
   const ri = state.runInventory
   if (!ri) return state
   let next = state
   for (const entry of [...ri.foundLoot, ...ri.rescueBag]) {
     next = applyFoundLootEntryToHub(next, entry)
   }
+  next = mergeQuestItemsIntoHub(next)
+  next = restoreStowedHubGear(next)
   return next
+}
+
+/** Død (D7/D46): kun rescueBag + quest + stowed — `foundLoot` kasseres (D58 soul-bound senere). */
+function mergeDeathSurvivorsIntoHub(state: GameState): GameState {
+  const ri = state.runInventory
+  if (!ri) return state
+  let next = state
+  for (const entry of ri.rescueBag) {
+    next = applyFoundLootEntryToHub(next, entry)
+  }
+  next = mergeQuestItemsIntoHub(next)
+  next = restoreStowedHubGear(next)
+  return next
+}
+
+/** D47 / implementation-guide §2.4 (a): efter run-end er alt persisteret udstyr hub-origin for næste run. */
+function normalizeSurvivorEquipmentOriginToHub(state: GameState): GameState {
+  return {
+    ...state,
+    pickaxes: state.pickaxes.map((p) => ({ ...p, origin: 'hub' as const })),
+    swords: state.swords.map((s) => ({ ...s, origin: 'hub' as const })),
+    armours: state.armours.map((a) => ({ ...a, origin: 'hub' as const })),
+  }
+}
+
+function finalizeMineRunEnd(
+  state: GameState,
+  outcome: 'safe_exit' | 'death',
+  mineId: string | null,
+): GameState {
+  const merged = outcome === 'safe_exit' ? mergeSafeExitRunLootIntoHub(state) : mergeDeathSurvivorsIntoHub(state)
+  const mergedOrigin = normalizeSurvivorEquipmentOriginToHub(merged)
+  const notice =
+    outcome === 'death'
+      ? 'Du faldt i minen. Run-loot uden for redningspose er tabt; redningspose, quest-genstande og af-equippet hub-udstyr er gemt.'
+      : null
+  const next = restockWorkshopShelf(
+    applySafeZoneRegen({
+      ...mergedOrigin,
+      mineRun: null,
+      runInventory: null,
+      viewMode: 'map',
+      gameNotice: notice,
+    }),
+  )
+  logTelemetry('mine_run_end', { outcome, mineId: mineId ?? 'unknown' })
+  return next
+}
+
+function moveFoundLootToRescueBag(state: GameState, foundIndex: number): GameState {
+  if (!isInActiveMineRun(state) || !state.runInventory) return state
+  const ri = state.runInventory
+  if (foundIndex < 0 || foundIndex >= ri.foundLoot.length) return state
+  if (ri.rescueBag.length >= ri.rescueBagCapacity) {
+    return { ...state, gameNotice: 'Redningsposen er fuld.' }
+  }
+  const entry = ri.foundLoot[foundIndex]!
+  const foundLoot = ri.foundLoot.filter((_, i) => i !== foundIndex)
+  const rescueBag = [...ri.rescueBag, entry]
+  return {
+    ...state,
+    runInventory: { ...ri, foundLoot, rescueBag },
+    gameNotice: null,
+  }
+}
+
+function moveRescueBagToFoundLoot(state: GameState, rescueIndex: number): GameState {
+  if (!isInActiveMineRun(state) || !state.runInventory) return state
+  const ri = state.runInventory
+  if (rescueIndex < 0 || rescueIndex >= ri.rescueBag.length) return state
+  const entry = ri.rescueBag[rescueIndex]!
+  const rescueBag = ri.rescueBag.filter((_, i) => i !== rescueIndex)
+  const foundLoot = [...ri.foundLoot, entry]
+  return {
+    ...state,
+    runInventory: { ...ri, foundLoot, rescueBag },
+    gameNotice: null,
+  }
 }
 
 export function reducer(state: GameState, action: Action): GameState {
@@ -535,8 +660,13 @@ export function reducer(state: GameState, action: Action): GameState {
       return applyEligibleUnlocks(addHubGold(state, action.amount))
     case 'SPEND_GOLD':
       return patchHubInventory(state, { gold: Math.max(0, state.hubInventory.gold - action.amount) })
-    case 'PLAYER_TAKE_DAMAGE':
-      return applyDamageToPlayer(state, action.amount, action.source)
+    case 'PLAYER_TAKE_DAMAGE': {
+      const damaged = applyDamageToPlayer(state, action.amount, action.source)
+      if (damaged.playerHp <= 0 && damaged.mineRun && isInActiveMineRun(damaged)) {
+        return finalizeMineRunEnd(damaged, 'death', damaged.mineRun.mineId)
+      }
+      return damaged
+    }
     case 'SET_EQUIPPED_WEAPON': {
       if (action.weapon === 'pickaxe') {
         return { ...state, equippedWeapon: 'pickaxe', gameNotice: null }
@@ -652,17 +782,58 @@ export function reducer(state: GameState, action: Action): GameState {
       logTelemetry('mine_run_start', { mineId: action.mineId })
       return next
     }
-    case 'MINE_RUN_EXIT': {
-      const hadRun = state.mineRun != null
-      const mineId = state.mineRun?.mineId ?? null
-      const merged = mergeRunLootIntoHub(state)
-      const next = restockWorkshopShelf(
-        applySafeZoneRegen({ ...merged, mineRun: null, runInventory: null, gameNotice: null }),
-      )
-      if (hadRun) {
-        logTelemetry('mine_run_end', { outcome: 'safe_exit', mineId: mineId ?? 'unknown' })
+    case 'MINE_RUN_EXIT':
+      if (!state.mineRun) return restockWorkshopShelf(state)
+      return finalizeMineRunEnd({ ...state, gameNotice: null }, 'safe_exit', state.mineRun.mineId)
+    case 'MINE_PLAYER_DEATH':
+      if (!state.mineRun || !isInActiveMineRun(state)) return state
+      return finalizeMineRunEnd(state, 'death', state.mineRun.mineId)
+    case 'MINE_PICKUP_QUEST_ITEM': {
+      if (!isInActiveMineRun(state) || !state.runInventory) {
+        return { ...state, gameNotice: 'Quest-genstande kan kun samles op under aktiv mine.' }
       }
-      return next
+      const questItemId = action.questItemId.trim()
+      if (!questItemId) return state
+      const ri = state.runInventory
+      if (ri.questItems.some((q) => q.questItemId === questItemId)) {
+        return { ...state, gameNotice: null }
+      }
+      return {
+        ...state,
+        runInventory: {
+          ...ri,
+          questItems: [...ri.questItems, { questItemId, origin: 'mine' as const }],
+        },
+        gameNotice: null,
+      }
+    }
+    case 'MINE_MOVE_TO_RESCUE_BAG':
+      return moveFoundLootToRescueBag(state, action.foundIndex)
+    case 'MINE_MOVE_FROM_RESCUE_BAG':
+      return moveRescueBagToFoundLoot(state, action.rescueIndex)
+    case 'RESCUE_BAG_UPGRADE': {
+      if (!isInActiveMineRun(state) || !state.runInventory) {
+        return { ...state, gameNotice: 'Redningspose kan kun opgraderes under aktiv mine.' }
+      }
+      const row = getNextRescueBagUpgrade(state.runInventory.rescueBagCapacity)
+      if (!row) {
+        return { ...state, gameNotice: 'Redningsposen er allerede opgraderet til maks.' }
+      }
+      if (state.level < row.minLevel) {
+        return { ...state, gameNotice: `Kræver level ${row.minLevel}.` }
+      }
+      if (state.hubInventory.gold < row.goldCost) {
+        return { ...state, gameNotice: 'Ikke nok guld.' }
+      }
+      const paid = patchHubInventory(state, { gold: state.hubInventory.gold - row.goldCost })
+      return {
+        ...paid,
+        runInventory: {
+          ...paid.runInventory!,
+          rescueBagCapacity: row.rescueBagCapacity,
+        },
+        gameNotice: null,
+      }
     }
     case 'MINE_SET_TARGET_SLOT': {
       const r = state.mineRun

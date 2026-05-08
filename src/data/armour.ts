@@ -54,6 +54,7 @@ export function makeArmour(shopTier: number, uniqueSuffix?: string): Armour {
     durability: config.maxDurability,
     maxDurability: config.maxDurability,
     bonuses: { ...config.bonuses },
+    origin: 'hub',
     pixelItem: {
       data: [...ARMOUR_TEMPLATE],
       colorMap: {

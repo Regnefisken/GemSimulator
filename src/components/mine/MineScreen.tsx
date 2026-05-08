@@ -31,6 +31,7 @@ import MinimapHUD from './MinimapHUD'
 import RockDropBanner, { type DropNotice } from './RockDropBanner'
 import Crosshair from './Crosshair'
 import ChestLootScene from './ChestLootScene'
+import MineRunLootPanel from './MineRunLootPanel'
 import { explodeDropToEntities, type WorldLootEntity } from '../../lib/lootEntities'
 import type { WorldChestEntity } from './3d/WorldChest'
 
@@ -638,6 +639,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       </div>
 
       <Crosshair state={crosshairState} />
+
+      {state.runInventory && <MineRunLootPanel state={state} runInventory={state.runInventory} dispatch={dispatch} />}
 
       <div className="pointer-events-none absolute inset-0 z-30 flex flex-col min-h-0">
         <div className="pointer-events-auto shrink-0">

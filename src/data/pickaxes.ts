@@ -19,6 +19,7 @@ export function makePickaxe(tier: number, uniqueSuffix?: string): Pickaxe {
     damage: config.damage,
     durability: config.maxDurability,
     maxDurability: config.maxDurability,
+    origin: 'hub',
     pixelItem: {
       data: PICKAXE_TEMPLATE,
       colorMap: { T: '#8b4513', H: config.headColor, K: config.edgeColor },

@@ -192,3 +192,16 @@ describe('migrateGameState v18 hub/run inventar', () => {
     expect(next.gameNotice).toMatch(/v18/)
   })
 })
+
+describe('migrateGameState v19 D47 origin', () => {
+  it('sætter origin hub på værktøj der manglede felt', () => {
+    const raw = {
+      ...initialState,
+      version: 18,
+      pickaxes: initialState.pickaxes.map(({ origin: _o, ...rest }) => ({ ...rest })),
+    } as Record<string, unknown>
+    const next = migrateGameState(raw, initialState)
+    expect(next.version).toBe(CURRENT_STATE_VERSION)
+    expect(next.pickaxes.every((p) => p.origin === 'hub')).toBe(true)
+  })
+})

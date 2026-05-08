@@ -51,6 +51,7 @@
       "damage": 5,
       "durability": 50,
       "maxDurability": 50,
+      "origin": "hub",
       "pixelItem": {
         "data": [
           "..............HK",
@@ -88,6 +89,7 @@
       "damage": 8,
       "durability": 60,
       "maxDurability": 60,
+      "origin": "hub",
       "pixelItem": {
         "data": [
           "..........",
@@ -119,6 +121,7 @@
         "hpMax": 32,
         "manaMax": 6
       },
+      "origin": "hub",
       "pixelItem": {
         "data": [
           "...MMMM...",
@@ -144,6 +147,7 @@
         "hpMax": 48,
         "manaMax": 12
       },
+      "origin": "hub",
       "pixelItem": {
         "data": [
           "...MMMM...",
@@ -211,5 +215,5 @@
   "playerManaMax": 77,
   "activeBrewId": "brew_solar_vigor",
   "gameNotice": null,
-  "version": 18
+  "version": 19
 }
