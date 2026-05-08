@@ -687,6 +687,13 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     state.equippedWeapon === 'sword' && sword ? sword.pixelItem : (pickaxe?.pixelItem ?? null)
   const activeTool = state.equippedWeapon === 'sword' ? sword : pickaxe
 
+  const weaponRepairNotice: 'pickaxe' | 'sword' | null =
+    pickaxe && pickaxe.durability === 0 && state.equippedWeapon === 'pickaxe'
+      ? 'pickaxe'
+      : sword && sword.durability === 0 && state.equippedWeapon === 'sword'
+        ? 'sword'
+        : null
+
   return (
     <div
       className={`relative w-full h-[100dvh] min-h-0 flex flex-col bg-slate-950 transition-opacity duration-500 ${
@@ -747,6 +754,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           <HUDWeaponToggle
             equipped={state.equippedWeapon}
             swordUsable={state.swords.some((s) => s.durability > 0)}
+            repairNotice={weaponRepairNotice}
             onPickaxe={() => dispatch({ type: 'SET_EQUIPPED_WEAPON', weapon: 'pickaxe' })}
             onSword={() => dispatch({ type: 'SET_EQUIPPED_WEAPON', weapon: 'sword' })}
             trailing={
@@ -827,26 +835,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       <div className="pointer-events-none absolute inset-0 z-40">
         <DamageNumbers items={floaters} />
       </div>
-
-      {pickaxe && pickaxe.durability === 0 && state.equippedWeapon === 'pickaxe' && (
-        <div
-          className="pointer-events-auto absolute bottom-36 left-3 right-3 z-50 rounded-xl border border-amber-700/50 bg-amber-950/90 px-4 py-3 text-sm text-amber-100/95"
-          role="status"
-        >
-          🔨 Din hakke er slidt op. Gå til <strong className="text-amber-50">smedjen</strong> og reparér med{' '}
-          <strong className="text-amber-50">kul</strong> på reparationsbænken.
-        </div>
-      )}
-
-      {sword && sword.durability === 0 && state.equippedWeapon === 'sword' && (
-        <div
-          className="pointer-events-auto absolute bottom-36 left-3 right-3 z-50 rounded-xl border border-violet-700/50 bg-violet-950/90 px-4 py-3 text-sm text-violet-100/95"
-          role="status"
-        >
-          ⚔️ Dit sværd er slidt op. Gå til <strong className="text-violet-50">smedjen</strong> og reparér med{' '}
-          <strong className="text-violet-50">kul</strong>.
-        </div>
-      )}
 
       {(moonBuffActive || phoenixQ > 0 || slumberQ > 0) && (
         <div className="pointer-events-auto absolute top-28 left-3 right-3 z-50 rounded-xl border border-slate-600 bg-slate-900/95 px-4 py-3 text-sm space-y-2">

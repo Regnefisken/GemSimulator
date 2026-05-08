@@ -155,6 +155,8 @@ type WeaponToggleProps = {
   onSword: () => void
   /** Fx hurtig-forbrugs-bar — samme række som våben, ikke ved mana. */
   trailing?: ReactNode
+  /** Aktivt våben er slidt op — vis reparationstekst under toggle-rækken. */
+  repairNotice?: 'pickaxe' | 'sword' | null
 }
 
 /** Fase 2 (D23): skift mellem hakke og sværd i minen. */
@@ -165,42 +167,63 @@ export function HUDWeaponToggle({
   onPickaxe,
   onSword,
   trailing,
+  repairNotice = null,
 }: WeaponToggleProps) {
   return (
     <div
-      className={`flex flex-wrap items-center gap-2 px-3 py-2 bg-slate-950/75 border-b border-slate-800/80 pointer-events-auto ${className}`}
+      className={`border-b border-slate-800/80 bg-slate-950/75 pointer-events-auto ${className}`}
     >
-      <span className="text-[10px] uppercase tracking-wider text-slate-500 mr-1">Våben</span>
-      <button
-        type="button"
-        onClick={onPickaxe}
-        className={
-          'min-h-[40px] px-3 rounded-lg text-xs font-semibold border transition-colors ' +
-          (equipped === 'pickaxe'
-            ? 'bg-amber-700/50 border-amber-500/70 text-amber-100'
-            : 'bg-slate-900/80 border-slate-600/50 text-slate-300 hover:bg-slate-800')
-        }
-      >
-        Hakke
-      </button>
-      <button
-        type="button"
-        disabled={!swordUsable}
-        title={!swordUsable ? 'Alle sværd slidt op — reparér i smedjen' : undefined}
-        onClick={onSword}
-        className={
-          'min-h-[40px] px-3 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ' +
-          (equipped === 'sword'
-            ? 'bg-violet-700/50 border-violet-400/70 text-violet-100'
-            : 'bg-slate-900/80 border-slate-600/50 text-slate-300 hover:bg-slate-800')
-        }
-      >
-        Sværd
-      </button>
-      <span className="text-[10px] text-slate-600 hidden sm:inline">Tab</span>
-      {trailing != null ? (
-        <div className="flex flex-wrap items-center gap-1.5 shrink-0 ml-auto">{trailing}</div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+        <span className="text-[10px] uppercase tracking-wider text-slate-500 mr-1">Våben</span>
+        <button
+          type="button"
+          onClick={onPickaxe}
+          className={
+            'min-h-[40px] px-3 rounded-lg text-xs font-semibold border transition-colors ' +
+            (equipped === 'pickaxe'
+              ? 'bg-amber-700/50 border-amber-500/70 text-amber-100'
+              : 'bg-slate-900/80 border-slate-600/50 text-slate-300 hover:bg-slate-800')
+          }
+        >
+          Hakke
+        </button>
+        <button
+          type="button"
+          disabled={!swordUsable}
+          title={!swordUsable ? 'Alle sværd slidt op — reparér i smedjen' : undefined}
+          onClick={onSword}
+          className={
+            'min-h-[40px] px-3 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ' +
+            (equipped === 'sword'
+              ? 'bg-violet-700/50 border-violet-400/70 text-violet-100'
+              : 'bg-slate-900/80 border-slate-600/50 text-slate-300 hover:bg-slate-800')
+          }
+        >
+          Sværd
+        </button>
+        <span className="text-[10px] text-slate-600 hidden sm:inline">Tab</span>
+        {trailing != null ? (
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0 ml-auto">{trailing}</div>
+        ) : null}
+      </div>
+      {repairNotice === 'pickaxe' && (
+        <div
+          className="border-t border-amber-700/40 bg-amber-950/55 px-3 py-2 text-xs leading-snug text-amber-100/95 sm:text-sm"
+          role="status"
+        >
+          🔨 Din hakke er slidt op. Gå til <strong className="text-amber-50">smedjen</strong> og reparér med{' '}
+          <strong className="text-amber-50">kul</strong> på reparationsbænken.
+        </div>
+      )}
+      {repairNotice === 'sword' && (
+        <div
+          className="border-t border-violet-700/40 bg-violet-950/55 px-3 py-2 text-xs leading-snug text-violet-100/95 sm:text-sm"
+          role="status"
+        >
+          ⚔️ Dit sværd er slidt op. Gå til <strong className="text-violet-50">smedjen</strong> og reparér med{' '}
+          <strong className="text-violet-50">kul</strong> på reparationsbænken.
+        </div>
+      )}
     </div>
   )
 }
