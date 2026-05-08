@@ -25,6 +25,7 @@ export type MineRunState = {
   currentDepth: number
   /** D64/D65: klippefelter ryddet i *denne* run (til valid-run-gate). */
   rockSlotsClearedThisRun: number
+  /** `-1` = intet aktivt mål (ingen markering før første hug / valg). */
   targetSlotIndex: number
   slots: MineRunSlotState[]
 }

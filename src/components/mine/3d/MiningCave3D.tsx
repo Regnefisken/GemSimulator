@@ -25,7 +25,8 @@ export type MiningCave3DProps = {
   targetSlotIndex: number
   hitPulse: number
   disabled: boolean
-  onMineHit: () => void
+  /** Hug på slot-index (inkl. første hug uden forvalgt mål). */
+  onMineHit: (slotIndex: number) => void
   swingTrigger: number
   heldWeaponKind: 'pickaxe' | 'sword'
   weaponPixelItem: PixelItem | null
@@ -71,7 +72,10 @@ function CaveContent({
   const { camera } = useThree()
   const cfg = useMemo(() => getCaveConfig(area), [area])
   const oreSlots = cfg.oreSlots
-  const activeSlot = mineSlots.length > 0 ? targetSlotIndex % mineSlots.length : 0
+  const activeSlotIndex =
+    mineSlots.length === 0 || targetSlotIndex < 0
+      ? -1
+      : ((targetSlotIndex % mineSlots.length) + mineSlots.length) % mineSlots.length
   const accent = useMemo(() => dominantMetal(area), [area])
 
   const fogNear = cfg.depthFogScale ? cfg.fogNear + runDepth * 0.06 : cfg.fogNear
@@ -115,7 +119,9 @@ function CaveContent({
     }
   })
 
-  const burstOrigin = oreSlots[activeSlot] ?? [0, 0.55, 0]
+  const burstOrigin = (
+    activeSlotIndex >= 0 ? oreSlots[activeSlotIndex] ?? [0, 0.55, 0] : [0, 0.55, 0]
+  ) as [number, number, number]
 
   return (
     <>
@@ -142,7 +148,8 @@ function CaveContent({
         const slot = mineSlots[i]
         if (!slot || slot.kind === 'chest') return null
         const depleted = depletedSlots.has(i) || slot.cleared
-        const isTarget = i === activeSlot && !slot.cleared
+        const isVisualTarget = activeSlotIndex === i && targetSlotIndex >= 0 && !depleted
+        const canStrikeHere = !depleted && (targetSlotIndex < 0 || activeSlotIndex === i)
         return (
           <OreNode
             key={`${i}-${slot.cleared}`}
@@ -152,12 +159,16 @@ function CaveContent({
             hitPulse={hitPulse}
             rockType={slot.rockType}
             disabled={disabled}
-            interactive={isTarget}
+            interactive={isVisualTarget}
             depleted={depleted}
-            onMineHit={onMineHit}
-            onSelectTarget={!isTarget && !depleted ? () => onSelectMineSlot?.(i) : undefined}
+            onMineHit={canStrikeHere ? () => onMineHit(i) : undefined}
+            onSelectTarget={
+              targetSlotIndex >= 0 && activeSlotIndex !== i && !depleted
+                ? () => onSelectMineSlot?.(i)
+                : undefined
+            }
             accentMetal={accent}
-            hitTargetRef={isTarget ? activeOreMeshRef : undefined}
+            hitTargetRef={isVisualTarget ? activeOreMeshRef : undefined}
           />
         )
       })}

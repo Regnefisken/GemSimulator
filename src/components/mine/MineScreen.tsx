@@ -225,12 +225,13 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     return s
   }, [run])
 
-  const targetIdx = run?.targetSlotIndex ?? 0
-  const activeSlot = run?.slots[targetIdx]
+  const targetIdx = run?.targetSlotIndex ?? -1
+  const activeSlot = targetIdx >= 0 && run ? run.slots[targetIdx] : undefined
   const runDepth = run?.currentDepth ?? 0
 
   const liveMobTarget = useMemo(() => {
-    const s = run?.slots[targetIdx]
+    if (!run || targetIdx < 0) return false
+    const s = run.slots[targetIdx]
     return Boolean(s?.kind === 'mob' && !s.cleared)
   }, [run, targetIdx])
 
@@ -456,180 +457,187 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     showToast(`Ned til dybde ${run.currentDepth + 1}`, 'success', 2200)
   }, [run, lootEntities, matCount, matCap, applyDrop, dispatch, showToast, state.hubInventory.consumables])
 
-  const handleMineHit = useCallback(() => {
-    if (!run || !activeSlot || activeSlot.cleared) return
+  const handleMineStrike = useCallback(
+    (slotIndex: number) => {
+      if (!run) return
+      const struck = run.slots[slotIndex]
+      if (!struck || struck.cleared) return
 
-    if (activeSlot.kind === 'rock') {
-      if (state.equippedWeapon === 'sword') {
-        showToast('Sværd hugger ikke i sten. Skift til hakke (Tab).', 'info')
-        return
-      }
-      if (!pickaxe || pickaxe.durability <= 0) {
-        showToast('Hakken er slidt op! Gå til smedjen og reparér med kul.')
-        return
+      if (run.targetSlotIndex !== slotIndex) {
+        dispatch({ type: 'MINE_SET_TARGET_SLOT', index: slotIndex })
       }
 
-      const useDynamite = state.instantBreakNextRock
-      const isCrit = !useDynamite && Math.random() < 0.1
-      const dmg = useDynamite ? activeSlot.currentHp : isCrit ? pickaxe.damage * 2 : pickaxe.damage
+      if (struck.kind === 'rock') {
+        if (state.equippedWeapon === 'sword') {
+          showToast('Sværd hugger ikke i sten. Skift til hakke (Tab).', 'info')
+          return
+        }
+        if (!pickaxe || pickaxe.durability <= 0) {
+          showToast('Hakken er slidt op! Gå til smedjen og reparér med kul.')
+          return
+        }
 
-      dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.mineHit })
-      playMineHit()
-      if (useDynamite) dispatch({ type: 'CONSUME_DYNAMITE' })
-      setHitPulse((n) => n + 1)
-      setSwingTrigger((n) => n + 1)
-      setCrosshairMining(true)
-      window.setTimeout(() => setCrosshairMining(false), 140)
-      pushFloater({ value: dmg, isCrit })
+        const useDynamite = state.instantBreakNextRock
+        const isCrit = !useDynamite && Math.random() < 0.1
+        const dmg = useDynamite ? struck.currentHp : isCrit ? pickaxe.damage * 2 : pickaxe.damage
 
-      const nextHp = Math.max(0, activeSlot.currentHp - dmg)
-      const cave = getCaveConfig(area)
-      const brokenSlot = targetIdx
+        dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.mineHit })
+        playMineHit()
+        if (useDynamite) dispatch({ type: 'CONSUME_DYNAMITE' })
+        setHitPulse((n) => n + 1)
+        setSwingTrigger((n) => n + 1)
+        setCrosshairMining(true)
+        window.setTimeout(() => setCrosshairMining(false), 140)
+        pushFloater({ value: dmg, isCrit })
 
-      if (nextHp > 0) {
-        dispatch({ type: 'MINE_DEAL_DAMAGE', slotIndex: brokenSlot, damage: dmg })
-        return
-      }
+        const nextHp = Math.max(0, struck.currentHp - dmg)
+        const cave = getCaveConfig(area)
+        const brokenSlot = slotIndex
 
-      const drop = rollMineDrop(area, runDepth, state.activeCharms, activeSlot.rockType)
-      const coalDrop = rollCoalDrop(runDepth)
-      const origin = cave.oreSlots[brokenSlot] as [number, number, number]
+        if (nextHp > 0) {
+          dispatch({ type: 'MINE_DEAL_DAMAGE', slotIndex: brokenSlot, damage: dmg })
+          return
+        }
 
-      if (drop.kind !== 'nothing') {
-        const entities = explodeDropToEntities(drop, origin)
-        if (entities.length > 0) {
+        const drop = rollMineDrop(area, runDepth, state.activeCharms, struck.rockType)
+        const coalDrop = rollCoalDrop(runDepth)
+        const origin = cave.oreSlots[brokenSlot] as [number, number, number]
+
+        if (drop.kind !== 'nothing') {
+          const entities = explodeDropToEntities(drop, origin)
+          if (entities.length > 0) {
+            setLootEntities((prev) => {
+              const overflow = Math.max(0, prev.length + entities.length - MAX_WORLD_LOOT)
+              let next = [...prev, ...entities]
+              while (next.length > MAX_WORLD_LOOT) next.shift()
+              if (overflow > 0) {
+                pushFloater({
+                  text: 'Loot blev til støv (grænse)',
+                  color: '#a8a29e',
+                })
+              }
+              return next
+            })
+          }
+        }
+
+        if (coalDrop) {
+          const coalEnts = explodeDropToEntities(coalDrop, origin)
           setLootEntities((prev) => {
-            const overflow = Math.max(0, prev.length + entities.length - MAX_WORLD_LOOT)
-            let next = [...prev, ...entities]
+            let next = [...prev, ...coalEnts]
             while (next.length > MAX_WORLD_LOOT) next.shift()
-            if (overflow > 0) {
-              pushFloater({
-                text: 'Loot blev til støv (grænse)',
-                color: '#a8a29e',
-              })
-            }
             return next
           })
         }
-      }
 
-      if (coalDrop) {
-        const coalEnts = explodeDropToEntities(coalDrop, origin)
-        setLootEntities((prev) => {
-          let next = [...prev, ...coalEnts]
-          while (next.length > MAX_WORLD_LOOT) next.shift()
-          return next
+        dispatch({ type: 'MINE_DEAL_DAMAGE', slotIndex: brokenSlot, damage: dmg })
+
+        const bonusEss = rollBonusMineEssence(area, state.activeEffects, state.activeCharms)
+        if (bonusEss) {
+          dispatch({ type: 'ADD_ESSENCE', essenceId: bonusEss, quantity: 1 })
+          playEssenceFound()
+        }
+        const ess = bonusEss ? getEssenceDef(bonusEss) : null
+        setDropNotice({
+          id: noticeId.current++,
+          drop,
+          essenceId: bonusEss ?? null,
+          essenceName: ess?.name ?? null,
         })
-      }
+        if (drop.kind === 'gem') playGemFound()
 
-      dispatch({ type: 'MINE_DEAL_DAMAGE', slotIndex: brokenSlot, damage: dmg })
-
-      const bonusEss = rollBonusMineEssence(area, state.activeEffects, state.activeCharms)
-      if (bonusEss) {
-        dispatch({ type: 'ADD_ESSENCE', essenceId: bonusEss, quantity: 1 })
-        playEssenceFound()
-      }
-      const ess = bonusEss ? getEssenceDef(bonusEss) : null
-      setDropNotice({
-        id: noticeId.current++,
-        drop,
-        essenceId: bonusEss ?? null,
-        essenceName: ess?.name ?? null,
-      })
-      if (drop.kind === 'gem') playGemFound()
-
-      playRockBreak()
-      dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.rockBroken })
-      return
-    }
-
-    if (activeSlot.kind === 'mob') {
-      if (state.equippedWeapon === 'pickaxe') {
-        showToast('Brug sværd mod uhyret (Tab).', 'info')
-        return
-      }
-      if (!sword || sword.durability <= 0) {
-        showToast('Sværdet er slidt op! Reparér i smedjen med kul.')
+        playRockBreak()
+        dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.rockBroken })
         return
       }
 
-      const isCrit = Math.random() < 0.1
-      const dmg = isCrit ? sword.damage * 2 : sword.damage
-
-      dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.mineHit })
-      dispatch({ type: 'DAMAGE_SWORD', amount: SWORD_HIT_DURABILITY_LOSS })
-      playMineHit()
-      setHitPulse((n) => n + 1)
-      setSwingTrigger((n) => n + 1)
-      setCrosshairMining(true)
-      window.setTimeout(() => setCrosshairMining(false), 140)
-      pushFloater({ value: dmg, isCrit })
-
-      const nextHp = Math.max(0, activeSlot.currentHp - dmg)
-      const cave = getCaveConfig(area)
-      const brokenSlot = targetIdx
-
-      if (nextHp > 0) {
-        dispatch({ type: 'MINE_DEAL_DAMAGE', slotIndex: brokenSlot, damage: dmg })
-        return
-      }
-
-      const drop = rollMobMineDrop(area, runDepth, state.activeCharms)
-      const origin = cave.oreSlots[brokenSlot] as [number, number, number]
-
-      if (drop.kind !== 'nothing') {
-        const entities = explodeDropToEntities(drop, origin)
-        if (entities.length > 0) {
-          setLootEntities((prev) => {
-            const overflow = Math.max(0, prev.length + entities.length - MAX_WORLD_LOOT)
-            let next = [...prev, ...entities]
-            while (next.length > MAX_WORLD_LOOT) next.shift()
-            if (overflow > 0) {
-              pushFloater({
-                text: 'Loot blev til støv (grænse)',
-                color: '#a8a29e',
-              })
-            }
-            return next
-          })
+      if (struck.kind === 'mob') {
+        if (state.equippedWeapon === 'pickaxe') {
+          showToast('Brug sværd mod uhyret (Tab).', 'info')
+          return
         }
+        if (!sword || sword.durability <= 0) {
+          showToast('Sværdet er slidt op! Reparér i smedjen med kul.')
+          return
+        }
+
+        const isCrit = Math.random() < 0.1
+        const dmg = isCrit ? sword.damage * 2 : sword.damage
+
+        dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.mineHit })
+        dispatch({ type: 'DAMAGE_SWORD', amount: SWORD_HIT_DURABILITY_LOSS })
+        playMineHit()
+        setHitPulse((n) => n + 1)
+        setSwingTrigger((n) => n + 1)
+        setCrosshairMining(true)
+        window.setTimeout(() => setCrosshairMining(false), 140)
+        pushFloater({ value: dmg, isCrit })
+
+        const nextHp = Math.max(0, struck.currentHp - dmg)
+        const cave = getCaveConfig(area)
+        const brokenSlot = slotIndex
+
+        if (nextHp > 0) {
+          dispatch({ type: 'MINE_DEAL_DAMAGE', slotIndex: brokenSlot, damage: dmg })
+          return
+        }
+
+        const drop = rollMobMineDrop(area, runDepth, state.activeCharms)
+        const origin = cave.oreSlots[brokenSlot] as [number, number, number]
+
+        if (drop.kind !== 'nothing') {
+          const entities = explodeDropToEntities(drop, origin)
+          if (entities.length > 0) {
+            setLootEntities((prev) => {
+              const overflow = Math.max(0, prev.length + entities.length - MAX_WORLD_LOOT)
+              let next = [...prev, ...entities]
+              while (next.length > MAX_WORLD_LOOT) next.shift()
+              if (overflow > 0) {
+                pushFloater({
+                  text: 'Loot blev til støv (grænse)',
+                  color: '#a8a29e',
+                })
+              }
+              return next
+            })
+          }
+        }
+
+        dispatch({ type: 'MINE_DEAL_DAMAGE', slotIndex: brokenSlot, damage: dmg })
+
+        const bonusEss = rollBonusMineEssence(area, state.activeEffects, state.activeCharms)
+        if (bonusEss) {
+          dispatch({ type: 'ADD_ESSENCE', essenceId: bonusEss, quantity: 1 })
+          playEssenceFound()
+        }
+        const ess = bonusEss ? getEssenceDef(bonusEss) : null
+        setDropNotice({
+          id: noticeId.current++,
+          drop,
+          essenceId: bonusEss ?? null,
+          essenceName: ess?.name ?? null,
+        })
+        if (drop.kind === 'gem') playGemFound()
+
+        playRockBreak()
+        dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.rockBroken })
       }
-
-      dispatch({ type: 'MINE_DEAL_DAMAGE', slotIndex: brokenSlot, damage: dmg })
-
-      const bonusEss = rollBonusMineEssence(area, state.activeEffects, state.activeCharms)
-      if (bonusEss) {
-        dispatch({ type: 'ADD_ESSENCE', essenceId: bonusEss, quantity: 1 })
-        playEssenceFound()
-      }
-      const ess = bonusEss ? getEssenceDef(bonusEss) : null
-      setDropNotice({
-        id: noticeId.current++,
-        drop,
-        essenceId: bonusEss ?? null,
-        essenceName: ess?.name ?? null,
-      })
-      if (drop.kind === 'gem') playGemFound()
-
-      playRockBreak()
-      dispatch({ type: 'GAIN_XP', amount: XP_REWARDS.rockBroken })
-    }
-  }, [
-    run,
-    activeSlot,
-    pickaxe,
-    sword,
-    state.equippedWeapon,
-    area,
-    runDepth,
-    targetIdx,
-    state.activeCharms,
-    state.activeEffects,
-    state.instantBreakNextRock,
-    dispatch,
-    pushFloater,
-    showToast,
-  ])
+    },
+    [
+      run,
+      pickaxe,
+      sword,
+      state.equippedWeapon,
+      area,
+      runDepth,
+      state.activeCharms,
+      state.activeEffects,
+      state.instantBreakNextRock,
+      dispatch,
+      pushFloater,
+      showToast,
+    ],
+  )
 
   const canMineRock =
     state.equippedWeapon === 'pickaxe' &&
@@ -643,7 +651,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     activeSlot?.kind === 'mob' &&
     !activeSlot.cleared
 
-  const mineDisabled = !canMineRock && !canFightMob
+  /** Uden valgt mål skal første hug stadig registreres (`OreNode` validerer våben). */
+  const mineDisabled = targetIdx >= 0 && !canMineRock && !canFightMob
 
   const activeChest = activeChestId ? worldChests.find((c) => c.id === activeChestId) : null
 
@@ -687,7 +696,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           targetSlotIndex={targetIdx}
           hitPulse={hitPulse}
           disabled={mineDisabled}
-          onMineHit={handleMineHit}
+          onMineHit={handleMineStrike}
           swingTrigger={swingTrigger}
           heldWeaponKind={state.equippedWeapon}
           weaponPixelItem={weaponPixelItem}

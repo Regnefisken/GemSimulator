@@ -1215,7 +1215,7 @@ export function reducer(state: GameState, action: Action): GameState {
       const mid: GameState = {
         ...state,
         unlockedDepths,
-        mineRun: { ...r, currentDepth: nextDepth, targetSlotIndex: 0, slots },
+        mineRun: { ...r, currentDepth: nextDepth, targetSlotIndex: -1, slots },
       }
       return { ...mid, depth: computeWorldTier(mid), gameNotice: null }
     }

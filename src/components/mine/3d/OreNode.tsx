@@ -114,7 +114,7 @@ export default function OreNode({
     )
   }
 
-  const pickable = interactive || Boolean(onSelectTarget)
+  const pickable = interactive || Boolean(onSelectTarget) || Boolean(onMineHit)
 
   const hpPct = maxHp > 0 ? Math.max(0, (hp / maxHp) * 100) : 0
   const nameLabel = rockType === 'mob' ? 'Uhyre' : 'Klippe'
@@ -141,6 +141,10 @@ export default function OreNode({
               }
               if (!interactive && onSelectTarget) {
                 onSelectTarget()
+                return
+              }
+              if (!interactive && onMineHit && !onSelectTarget && !disabled) {
+                onMineHit()
               }
             }}
             onPointerDown={(e) => {
