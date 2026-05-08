@@ -253,6 +253,11 @@ export type FoundLootEntry =
   | { kind: 'sword_gear'; sword: Sword; origin: LootOrigin }
   | { kind: 'armour_gear'; armour: Armour; origin: LootOrigin }
 
+/** Delmængder af `FoundLootEntry` der kan stables med `tryMergeFoundLootEntries`. */
+export type CoalFoundLootEntry = Extract<FoundLootEntry, { kind: 'coal' }>
+export type OreFoundLootEntry = Extract<FoundLootEntry, { kind: 'ore' }>
+export type NuggetFoundLootEntry = Extract<FoundLootEntry, { kind: 'nugget' }>
+
 /** D50: pladsholder til quest-items (udvides når quest-data findes). */
 export type QuestItemEntry = { questItemId: string; origin: 'mine' }
 

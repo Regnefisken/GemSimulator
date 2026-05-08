@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { mergeFoundLootEntryIntoList, normalizeStackableFoundLoot, tryMergeFoundLootEntries } from './foundLootStack'
-import type { FoundLootEntry } from '../types'
+import type { OreFoundLootEntry } from '../types'
 
-const dummyOre = (metal: 'Tin' | 'Kobber', q: number): FoundLootEntry => ({
+const dummyOre = (metal: 'Tin' | 'Kobber', q: number): OreFoundLootEntry => ({
   kind: 'ore',
   origin: 'mine',
   ore: {

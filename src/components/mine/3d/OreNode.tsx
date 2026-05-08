@@ -1,8 +1,15 @@
-import { useMemo, useRef, useEffect, type MutableRefObject } from 'react'
+import { useMemo, useRef, useEffect, useLayoutEffect, type MutableRefObject } from 'react'
 import { Billboard, Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import type { Group, Mesh } from 'three'
+import * as THREE from 'three'
+import type { Group, Object3D } from 'three'
 import type { MetalName, RockType } from '../../../types'
+import {
+  createBaseRockGeometry,
+  createCrystalRockCluster,
+  createHardRockGeometry,
+  createRichRockGeometry,
+} from '../../../gem/procedural/buildProceduralMineRock'
 
 type Props = {
   position: [number, number, number]
@@ -10,17 +17,14 @@ type Props = {
   maxHp: number
   hitPulse: number
   rockType: RockType
+  /** Deterministisk frø — samme felt ser ens ud på tværs af sessions (hash af run/slot). */
+  visualSeed: number
   disabled?: boolean
-  /** Kun aktiv node hugger ved klik */
   interactive: boolean
   onMineHit?: () => void
-  /** Klik på ikke-aktiv (men ikke ryddet) klippe → vælg den som mål */
   onSelectTarget?: () => void
-  /** Dominant metal til svag emissive (aktiv node) */
   accentMetal?: MetalName
-  /** Kun aktiv node: raycast hit-mod mesh */
-  hitTargetRef?: MutableRefObject<Mesh | null>
-  /** Hugget ud — ingen synlig bund under verdens-loot */
+  hitTargetRef?: MutableRefObject<Object3D | null>
   depleted?: boolean
 }
 
@@ -33,7 +37,57 @@ const ROCK_TYPE_COLOR: Record<RockType, [number, number]> = {
   mob: [310, 72],
 }
 
-/** Groft metal → accent til små årer */
+const IDLE_SURFACE_LIGHT: Record<RockType, number> = {
+  normal: 27,
+  hard: 23,
+  rich: 31,
+  crystal: 38,
+  chest: 27,
+  mob: 33,
+}
+
+const IDLE_SAT_FACTOR: Record<RockType, number> = {
+  normal: 1,
+  hard: 0.75,
+  rich: 1.12,
+  crystal: 1.18,
+  chest: 1,
+  mob: 1.08,
+}
+
+const ROCK_BULK: Record<RockType, number> = {
+  normal: 1,
+  hard: 0.93,
+  rich: 1.06,
+  crystal: 1,
+  chest: 1,
+  mob: 1.04,
+}
+
+function rockSurfaceColor(rockType: RockType, interactive: boolean, pct: number): string {
+  const [hue, sat] = ROCK_TYPE_COLOR[rockType]
+  if (!interactive) {
+    const L = IDLE_SURFACE_LIGHT[rockType]
+    const s = Math.min(72, sat * IDLE_SAT_FACTOR[rockType])
+    return `hsl(${hue}, ${s}%, ${L}%)`
+  }
+  const l = Math.max(0.16, pct * 0.38 + 0.14)
+  return `hsl(${hue}, ${sat}%, ${l * 100}%)`
+}
+
+function idleRockEmissive(rockType: RockType): { color: string; intensity: number } {
+  switch (rockType) {
+    case 'crystal':
+      return { color: '#7dd3fc', intensity: 0.09 }
+    case 'rich':
+      return { color: '#eab308', intensity: 0.07 }
+    case 'mob':
+      return { color: '#e879f9', intensity: 0.06 }
+    default:
+      return { color: '#000000', intensity: 0 }
+  }
+}
+
 const METAL_ACCENT: Partial<Record<MetalName, string>> = {
   Tin: '#b8c4d4',
   Kobber: '#c97a50',
@@ -46,12 +100,18 @@ const METAL_ACCENT: Partial<Record<MetalName, string>> = {
   Runestål: '#c8b8ff',
 }
 
+type RockPayload =
+  | { kind: 'single'; geometry: THREE.BufferGeometry }
+  | { kind: 'rich'; geometry: THREE.BufferGeometry }
+  | { kind: 'crystal'; hostGeometry: THREE.BufferGeometry; shards: import('../../../gem/procedural/buildProceduralMineRock').CrystalShard[] }
+
 export default function OreNode({
   position,
   hp,
   maxHp,
   hitPulse,
   rockType,
+  visualSeed,
   disabled,
   interactive,
   onMineHit,
@@ -65,8 +125,42 @@ export default function OreNode({
   const pct = interactive && maxHp > 0 ? hp / maxHp : 1
   const isLowHp = interactive && pct < 0.25
 
+  const richBlendBase = useMemo(() => new THREE.Color(rockSurfaceColor(rockType, false, 1)), [rockType])
+
+  const rockPayload = useMemo((): RockPayload => {
+    switch (rockType) {
+      case 'hard':
+        return { kind: 'single', geometry: createHardRockGeometry(visualSeed) }
+      case 'rich':
+        return {
+          kind: 'rich',
+          geometry: createRichRockGeometry(visualSeed, richBlendBase.clone()),
+        }
+      case 'crystal': {
+        const { hostGeometry, shards } = createCrystalRockCluster(visualSeed)
+        return { kind: 'crystal', hostGeometry, shards }
+      }
+      default:
+        return { kind: 'single', geometry: createBaseRockGeometry(visualSeed) }
+    }
+  }, [visualSeed, rockType, richBlendBase])
+
   useEffect(() => {
-    if (!interactive && hitTargetRef) hitTargetRef.current = null
+    return () => {
+      if (rockPayload.kind === 'crystal') rockPayload.hostGeometry.dispose()
+      else rockPayload.geometry.dispose()
+    }
+  }, [rockPayload])
+
+  useLayoutEffect(() => {
+    if (!hitTargetRef) return
+    if (interactive && meshRef.current) {
+      hitTargetRef.current = meshRef.current
+      return () => {
+        hitTargetRef.current = null
+      }
+    }
+    hitTargetRef.current = null
   }, [interactive, hitTargetRef])
 
   useEffect(() => {
@@ -92,19 +186,32 @@ export default function OreNode({
     }
   })
 
-  const [hue, sat] = ROCK_TYPE_COLOR[rockType]
+  const color = useMemo(() => rockSurfaceColor(rockType, interactive, pct), [rockType, interactive, pct])
 
-  const color = useMemo(() => {
-    if (!interactive) {
-      return 'hsl(25, 12%, 28%)'
-    }
-    const l = Math.max(0.16, pct * 0.38 + 0.14)
-    return `hsl(${hue}, ${sat}%, ${l * 100}%)`
-  }, [pct, hue, sat, interactive])
+  const idleGlow = useMemo(() => idleRockEmissive(rockType), [rockType])
 
-  const emissiveInteractive = isLowHp ? '#ff2200' : accentMetal ? METAL_ACCENT[accentMetal] ?? '#332211' : '#000000'
-  const emissiveIntensity =
-    !interactive ? 0 : isLowHp ? 0.45 * (1 - pct / 0.25) : accentMetal ? 0.12 : 0
+  const emissiveIntensity = !interactive
+    ? idleGlow.intensity
+    : isLowHp
+      ? 0.45 * (1 - pct / 0.25)
+      : accentMetal
+        ? 0.12
+        : idleGlow.intensity
+
+  const emissiveColor = useMemo(() => {
+    if (!interactive) return idleGlow.color
+    if (isLowHp) return '#ff2200'
+    if (accentMetal) return METAL_ACCENT[accentMetal] ?? '#332211'
+    return idleGlow.color !== '#000000' ? idleGlow.color : '#000000'
+  }, [interactive, isLowHp, accentMetal, idleGlow.color])
+
+  const bulk = ROCK_BULK[rockType]
+  const roughRock =
+    rockType === 'hard' ? 0.94 : rockType === 'crystal' ? 0.78 : rockType === 'rich' ? 0.82 : 0.9
+  const metalRock =
+    rockType === 'crystal' ? 0.22 : rockType === 'rich' ? 0.18 : rockType === 'hard' ? 0.12 : 0.06
+
+  const surfaceColorThree = useMemo(() => new THREE.Color(color), [color])
 
   if (depleted) {
     return (
@@ -123,55 +230,94 @@ export default function OreNode({
       ? 'bg-gradient-to-r from-fuchsia-950 to-fuchsia-400'
       : 'bg-gradient-to-r from-amber-800 to-amber-400'
 
+  const meshHandlers = pickable
+    ? {
+        onClick: (e: { stopPropagation: () => void }) => {
+          e.stopPropagation()
+          if (interactive && !disabled && onMineHit) {
+            onMineHit()
+            return
+          }
+          if (!interactive && onSelectTarget) {
+            onSelectTarget()
+            return
+          }
+          if (!interactive && onMineHit && !onSelectTarget && !disabled) {
+            onMineHit()
+          }
+        },
+        onPointerDown: (e: { stopPropagation: () => void }) => {
+          if (interactive || onSelectTarget) e.stopPropagation()
+        },
+      }
+    : {}
+
   return (
     <group position={position}>
       <group ref={meshRef}>
-        {pickable ? (
-          <mesh
-            ref={(node) => {
-              if (hitTargetRef) {
-                hitTargetRef.current = interactive && node ? node : null
-              }
-            }}
-            onClick={(e) => {
-              e.stopPropagation()
-              if (interactive && !disabled && onMineHit) {
-                onMineHit()
-                return
-              }
-              if (!interactive && onSelectTarget) {
-                onSelectTarget()
-                return
-              }
-              if (!interactive && onMineHit && !onSelectTarget && !disabled) {
-                onMineHit()
-              }
-            }}
-            onPointerDown={(e) => {
-              if (interactive || onSelectTarget) e.stopPropagation()
-            }}
-          >
-            <boxGeometry args={[1.1, 0.95, 1.05]} />
-            <meshStandardMaterial
-              color={color}
-              roughness={interactive ? (isLowHp ? 0.65 : 0.88) : 0.92}
-              metalness={interactive ? 0.1 : 0.04}
-              emissive={interactive ? emissiveInteractive : '#000000'}
-              emissiveIntensity={emissiveIntensity}
-            />
-          </mesh>
-        ) : (
-          <mesh>
-            <boxGeometry args={[1.1, 0.95, 1.05]} />
-            <meshStandardMaterial
-              color={color}
-              roughness={0.92}
-              metalness={0.04}
-              emissive="#000000"
-              emissiveIntensity={0}
-            />
-          </mesh>
-        )}
+        <group scale={[bulk, bulk, bulk]}>
+          {rockPayload.kind === 'crystal' ? (
+            <>
+              <mesh
+                castShadow
+                receiveShadow
+                geometry={rockPayload.hostGeometry}
+                {...meshHandlers}
+              >
+                <meshStandardMaterial
+                  color="#1a1c20"
+                  roughness={0.9}
+                  metalness={0.02}
+                  flatShading
+                />
+              </mesh>
+              {rockPayload.shards.map((s) => (
+                <mesh
+                  key={s.id}
+                  position={s.position}
+                  rotation={s.euler}
+                  scale={[1, s.stretchY, 1]}
+                  castShadow
+                  receiveShadow
+                  {...meshHandlers}
+                >
+                  <octahedronGeometry args={[s.radius, 0]} />
+                  <meshStandardMaterial
+                    color={s.color}
+                    roughness={rockType === 'crystal' ? 0.38 : 0.5}
+                    metalness={0.35}
+                    emissive={s.color}
+                    emissiveIntensity={0.06}
+                    flatShading
+                  />
+                </mesh>
+              ))}
+            </>
+          ) : rockPayload.kind === 'rich' ? (
+            <mesh castShadow receiveShadow geometry={rockPayload.geometry} {...meshHandlers}>
+              <meshStandardMaterial
+                vertexColors
+                color="#ffffff"
+                roughness={interactive ? (isLowHp ? 0.65 : 0.72) : 0.72}
+                metalness={interactive ? 0.22 : 0.22}
+                emissive={emissiveColor}
+                emissiveIntensity={emissiveIntensity}
+                flatShading
+              />
+            </mesh>
+          ) : (
+            <mesh castShadow receiveShadow geometry={rockPayload.geometry} {...meshHandlers}>
+              <meshStandardMaterial
+                color={surfaceColorThree}
+                roughness={interactive ? (isLowHp ? 0.65 : 0.88) : roughRock}
+                metalness={interactive ? 0.1 : metalRock}
+                emissive={emissiveColor}
+                emissiveIntensity={emissiveIntensity}
+                flatShading
+              />
+            </mesh>
+          )}
+        </group>
       </group>
       {interactive && !depleted && (
         <group>

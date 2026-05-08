@@ -5,6 +5,7 @@ import type { Area, PixelItem } from '../../../types'
 import { getCaveConfig } from '../../../types'
 import type { MineRunSlotState } from '../../../lib/mineTypes'
 import type { WorldLootEntity } from '../../../lib/lootEntities'
+import { hashMineRockVisualSeed } from '../../../gem/procedural/mineRockSeed'
 import OreNode from './OreNode'
 import Pickaxe3D from './Pickaxe3D'
 import PlayerControls from './PlayerControls'
@@ -21,6 +22,8 @@ function dominantMetal(area: Area) {
 export type MiningCave3DProps = {
   area: Area
   mineSlots: MineRunSlotState[]
+  /** Bruges til deterministisk klippe‑mesh pr. felt. */
+  mineRunId: string
   runDepth: number
   targetSlotIndex: number
   hitPulse: number
@@ -51,6 +54,7 @@ type CaveProps = Omit<MiningCave3DProps, 'className' | 'canvasClassName'> & {
 function CaveContent({
   area,
   mineSlots,
+  mineRunId,
   runDepth,
   targetSlotIndex,
   hitPulse,
@@ -81,7 +85,7 @@ function CaveContent({
   const fogNear = cfg.depthFogScale ? cfg.fogNear + runDepth * 0.06 : cfg.fogNear
   const fogFar = cfg.depthFogScale ? cfg.fogFar + runDepth * 0.1 : cfg.fogFar
 
-  const activeOreMeshRef = useRef<THREE.Mesh | null>(null)
+  const activeOreMeshRef = useRef<THREE.Object3D | null>(null)
   const chestHits = useRef(new Map<string, THREE.Mesh>())
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const prevCrosshair = useRef(false)
@@ -111,7 +115,7 @@ function CaveContent({
 
     const oreHit =
       activeOreMeshRef.current != null &&
-      raycaster.intersectObject(activeOreMeshRef.current, false).length > 0
+      raycaster.intersectObject(activeOreMeshRef.current, true).length > 0
     const any = oreHit || hid !== null
     if (prevCrosshair.current !== any) {
       prevCrosshair.current = any
@@ -157,6 +161,7 @@ function CaveContent({
             hp={slot.currentHp}
             maxHp={slot.maxHp}
             hitPulse={hitPulse}
+            visualSeed={hashMineRockVisualSeed(mineRunId, runDepth, i, slot.rockType)}
             rockType={slot.rockType}
             disabled={disabled}
             interactive={isVisualTarget}

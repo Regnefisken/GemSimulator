@@ -693,6 +693,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           canvasClassName="w-full h-full min-h-[320px] touch-none cursor-crosshair"
           area={area}
           mineSlots={run.slots}
+          mineRunId={run.runId}
           runDepth={runDepth}
           targetSlotIndex={targetIdx}
           hitPulse={hitPulse}

@@ -1,6 +1,18 @@
-import type { FoundLootEntry } from '../types'
+import type {
+  CoalFoundLootEntry,
+  FoundLootEntry,
+  NuggetFoundLootEntry,
+  OreFoundLootEntry,
+} from '../types'
 
 /** Sammenlæg stable materialer (kul/malm/klump) med samme metal — ét UI-slot pr. type. */
+export function tryMergeFoundLootEntries(a: CoalFoundLootEntry, b: CoalFoundLootEntry): CoalFoundLootEntry | null
+export function tryMergeFoundLootEntries(a: OreFoundLootEntry, b: OreFoundLootEntry): OreFoundLootEntry | null
+export function tryMergeFoundLootEntries(
+  a: NuggetFoundLootEntry,
+  b: NuggetFoundLootEntry,
+): NuggetFoundLootEntry | null
+export function tryMergeFoundLootEntries(a: FoundLootEntry, b: FoundLootEntry): FoundLootEntry | null
 export function tryMergeFoundLootEntries(a: FoundLootEntry, b: FoundLootEntry): FoundLootEntry | null {
   if (a.kind !== b.kind) return null
   switch (a.kind) {
