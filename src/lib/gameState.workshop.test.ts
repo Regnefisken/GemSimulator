@@ -5,6 +5,14 @@ import { createInitialMineRun } from '../gem/mineLayer'
 import { AREAS } from '../data/areas'
 import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 
+const emptyRun = (): NonNullable<GameState['runInventory']> => ({
+  foundLoot: [],
+  rescueBag: [],
+  rescueBagCapacity: 3,
+  questItems: [],
+  stowedHubGear: [],
+})
+
 describe('Fase 3 alkymi & forbrug', () => {
   it('BUY_WORKSHOP_CONSUMABLE trækker guld og hyldelager', () => {
     const base: GameState = {
@@ -19,13 +27,53 @@ describe('Fase 3 alkymi & forbrug', () => {
     expect(row?.quantity).toBe(1)
   })
 
-  it('MINE_RUN_EXIT fylder værkstedshylder igen (D39)', () => {
+  it('MINE_RUN_EXIT med valid run (klippe ryddet) restocker og øger dag', () => {
+    const area = AREAS.find((a) => a.id === 'kobbermine')!
+    const run = createInitialMineRun({ area, mineId: 'kobbermine', activeCharms: [] })
+    const rockIdx = run.slots.findIndex((s) => s.kind === 'rock' && !s.cleared)
+    expect(rockIdx).toBeGreaterThanOrEqual(0)
+    const base: GameState = {
+      ...initialState,
+      viewMode: 'location',
+      currentArea: 'kobbermine',
+      mineRun: { ...run, targetSlotIndex: rockIdx },
+      runInventory: emptyRun(),
+      workshopStock: { cons_bread_minor: 1 },
+      day: 3,
+      lastRestockDay: 3,
+    }
+    const cleared = reducer(base, { type: 'MINE_DEAL_DAMAGE', slotIndex: rockIdx, damage: 1_000_000 })
+    const next = reducer(cleared, { type: 'MINE_RUN_EXIT' })
+    expect(next.workshopStock).toEqual(WORKSHOP_DEFAULT_STOCK)
+    expect(next.day).toBe(4)
+    expect(next.lastRestockDay).toBe(4)
+  })
+
+  it('MINE_RUN_EXIT uden aktivitet (invalid run) restocker ikke og øger ikke dag', () => {
+    const area = AREAS.find((a) => a.id === 'kobbermine')!
+    const run = createInitialMineRun({ area, mineId: 'kobbermine', activeCharms: [] })
+    const base: GameState = {
+      ...initialState,
+      viewMode: 'location',
+      currentArea: 'kobbermine',
+      mineRun: run,
+      runInventory: emptyRun(),
+      workshopStock: { cons_bread_minor: 1 },
+      day: 5,
+      lastRestockDay: 5,
+    }
+    const next = reducer(base, { type: 'MINE_RUN_EXIT' })
+    expect(next.workshopStock.cons_bread_minor).toBe(1)
+    expect(next.day).toBe(5)
+  })
+
+  it('MINE_RUN_EXIT uden aktiv mine-run ændrer ikke state', () => {
     const base: GameState = {
       ...initialState,
       workshopStock: { cons_bread_minor: 1 },
     }
     const next = reducer(base, { type: 'MINE_RUN_EXIT' })
-    expect(next.workshopStock).toEqual(WORKSHOP_DEFAULT_STOCK)
+    expect(next).toEqual(base)
   })
 
   it('USE_CONSUMABLE_QUICK_SLOT uden aktiv mine giver besked', () => {

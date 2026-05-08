@@ -2,16 +2,19 @@ import {
   MINEABLE_METALS,
   type ActiveEffect,
   type Area,
+  type Armour,
   type Gem,
   type LocationId,
   type MetalName,
   type MetalNugget,
+  type Pickaxe,
   type PixelItem,
   type RawOre,
   type ChestTier,
   type RockEvent,
   type RockType,
   type RoughStone,
+  type Sword,
 } from '../types'
 import { MOON_TEAR_EFFECT_ID, rollEssenceFromMine } from '../data/essences'
 import { PALETTES } from '../data/palettes'
@@ -20,6 +23,11 @@ import { createRandomGem } from './generate'
 import { makeCoalPixelItem, makeNuggetPixelItem, makeOrePixelItem, makeRoughStonePixelItem } from '../data/oreTemplates'
 import { BLUEPRINTS } from '../data/blueprints'
 import { CONSUMABLE_DEFS } from '../data/consumables'
+import {
+  rollPlaceholderMineArmour,
+  rollPlaceholderMinePickaxe,
+  rollPlaceholderMineSword,
+} from '../data/mineGearPlaceholders'
 
 export type { ChestTier, RockEvent } from '../types'
 
@@ -62,7 +70,26 @@ export type MineDrop =
   | { kind: 'blueprint'; blueprintId: string; pixelItem?: PixelItem }
   /** Fase 3: mad/potions som verdens-loot og kiste-indhold. */
   | { kind: 'consumable'; consumableId: string; quantity: number; pixelItem: PixelItem }
+  /** Placeholder: generisk fundet udstyr (tier mellem start og butik); samles i run `foundLoot`. */
+  | { kind: 'loot_pickaxe'; pickaxe: Pickaxe }
+  | { kind: 'loot_sword'; sword: Sword }
+  | { kind: 'loot_armour'; armour: Armour }
   | { kind: 'nothing' }
+
+/** Sjælden chance for generisk mine-udstyr (placeholder mellem start- og butiks-tier). */
+export function rollPlaceholderMineGearDrop(
+  depth: number,
+  runNonce: string,
+  rng: () => number = Math.random,
+): MineDrop | null {
+  const chance = Math.min(0.045, 0.0105 + depth * 0.0025)
+  if (rng() >= chance) return null
+  const token = `${runNonce}-${Math.floor(rng() * 1e9)}`
+  const w = rng()
+  if (w < 0.42) return { kind: 'loot_pickaxe', pickaxe: rollPlaceholderMinePickaxe(token, rng) }
+  if (w < 0.78) return { kind: 'loot_sword', sword: rollPlaceholderMineSword(token, rng) }
+  return { kind: 'loot_armour', armour: rollPlaceholderMineArmour(token, rng) }
+}
 
 const ROCK_EVENT_WEIGHTS: Record<RockType, number> = {
   mob: 0,
@@ -247,6 +274,8 @@ export function rollMobMineDrop(
     const c = rollLootConsumable(rng)
     if (c) return c
   }
+  const mobGear = rollPlaceholderMineGearDrop(depth, `mob-${area.id}`, rng)
+  if (mobGear) return mobGear
   return rollMineDrop(area, depth, activeCharms, 'normal', 0.04, rng)
 }
 
@@ -281,7 +310,8 @@ export function rollMineDrop(
       const c = rollLootConsumable(rng)
       if (c) return c
     }
-    return { kind: 'nothing' }
+    const crystalGear = rollPlaceholderMineGearDrop(depth, `crystal-${area.id}`, rng)
+    return crystalGear ?? { kind: 'nothing' }
   }
 
   // Rig åre: normale tærskler, men dobbelt ore-mængde og ekstra nugget-chance
@@ -301,7 +331,8 @@ export function rollMineDrop(
     const c = rollLootConsumable(rng)
     if (c) return c
   }
-  return { kind: 'nothing' }
+  const fallbackGear = rollPlaceholderMineGearDrop(depth, `rock-${area.id}`, rng)
+  return fallbackGear ?? { kind: 'nothing' }
 }
 
 function effectActive(e: ActiveEffect, nowMs: number): boolean {

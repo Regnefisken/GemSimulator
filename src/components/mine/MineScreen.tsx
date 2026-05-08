@@ -65,6 +65,9 @@ function extraMaterialsFromDrop(drop: MineDrop): number {
       return drop.quantity
     case 'consumable':
     case 'blueprint':
+    case 'loot_pickaxe':
+    case 'loot_sword':
+    case 'loot_armour':
       return 0
     default:
       return 0
@@ -91,6 +94,12 @@ function dropPickupLabel(drop: MineDrop): string {
       const bp = findBlueprint(drop.blueprintId)
       return `📜 ${bp?.name ?? drop.blueprintId}`
     }
+    case 'loot_pickaxe':
+      return drop.pickaxe.name
+    case 'loot_sword':
+      return drop.sword.name
+    case 'loot_armour':
+      return drop.armour.name
     default:
       return '+1'
   }
@@ -112,6 +121,12 @@ function pickupAccent(drop: MineDrop): string | undefined {
       return '#34d399'
     case 'blueprint':
       return '#a78bfa'
+    case 'loot_pickaxe':
+      return '#94a3b8'
+    case 'loot_sword':
+      return '#cbd5e1'
+    case 'loot_armour':
+      return '#78716c'
     default:
       return undefined
   }
@@ -305,6 +320,24 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         case 'blueprint':
           dispatch({ type: 'UNLOCK_BLUEPRINT', blueprintId: drop.blueprintId })
           break
+        case 'loot_pickaxe':
+          dispatch({
+            type: 'RUN_APPEND_FOUND_LOOT',
+            entry: { kind: 'pickaxe_gear', pickaxe: drop.pickaxe, origin: 'mine' },
+          })
+          break
+        case 'loot_sword':
+          dispatch({
+            type: 'RUN_APPEND_FOUND_LOOT',
+            entry: { kind: 'sword_gear', sword: drop.sword, origin: 'mine' },
+          })
+          break
+        case 'loot_armour':
+          dispatch({
+            type: 'RUN_APPEND_FOUND_LOOT',
+            entry: { kind: 'armour_gear', armour: drop.armour, origin: 'mine' },
+          })
+          break
         default:
           break
       }
@@ -328,7 +361,12 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           })
           return
         }
-      } else if (drop.kind !== 'blueprint') {
+      } else if (
+        drop.kind !== 'blueprint' &&
+        drop.kind !== 'loot_pickaxe' &&
+        drop.kind !== 'loot_sword' &&
+        drop.kind !== 'loot_armour'
+      ) {
         const extra = extraMaterialsFromDrop(drop)
         if (matCount + extra > matCap) {
           pushFloater({
@@ -379,6 +417,10 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         continue
       }
       if (drop.kind === 'blueprint') {
+        applyDrop(drop)
+        continue
+      }
+      if (drop.kind === 'loot_pickaxe' || drop.kind === 'loot_sword' || drop.kind === 'loot_armour') {
         applyDrop(drop)
         continue
       }

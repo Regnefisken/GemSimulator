@@ -25,7 +25,7 @@ import { clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './
 import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 import { STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
 
-export const CURRENT_STATE_VERSION = 19
+export const CURRENT_STATE_VERSION = 20
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -399,6 +399,9 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       r.workshopStock && typeof r.workshopStock === 'object' && !Array.isArray(r.workshopStock)
         ? { ...(r.workshopStock as GameState['workshopStock']) }
         : base.workshopStock,
+    rescueBagCapacity: typeof r.rescueBagCapacity === 'number' ? r.rescueBagCapacity : base.rescueBagCapacity,
+    day: typeof r.day === 'number' ? r.day : base.day,
+    lastRestockDay: typeof r.lastRestockDay === 'number' ? r.lastRestockDay : base.lastRestockDay,
     consumableQuickSlots:
       Array.isArray(r.consumableQuickSlots) && r.consumableQuickSlots.length >= 3
         ? ([
@@ -628,6 +631,33 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
         }
       })
       next.runInventory = { ...ri, stowedHubGear }
+    }
+  }
+
+  if (version < 20) {
+    const top =
+      typeof next.rescueBagCapacity === 'number' && next.rescueBagCapacity >= 3 ? next.rescueBagCapacity : 3
+    const fromRun =
+      next.runInventory &&
+      typeof next.runInventory.rescueBagCapacity === 'number' &&
+      next.runInventory.rescueBagCapacity >= 3
+        ? next.runInventory.rescueBagCapacity
+        : 3
+    next.rescueBagCapacity = Math.max(top, fromRun)
+    if (typeof next.day !== 'number' || next.day < 1) next.day = 1
+    if (typeof next.lastRestockDay !== 'number' || next.lastRestockDay < 1) {
+      next.lastRestockDay = next.day
+    }
+  }
+
+  if (next.mineRun && typeof next.mineRun === 'object') {
+    const mr = next.mineRun
+    const rock =
+      typeof mr.rockSlotsClearedThisRun === 'number' && !Number.isNaN(mr.rockSlotsClearedThisRun)
+        ? mr.rockSlotsClearedThisRun
+        : 0
+    if (rock !== mr.rockSlotsClearedThisRun) {
+      next.mineRun = { ...mr, rockSlotsClearedThisRun: rock }
     }
   }
 

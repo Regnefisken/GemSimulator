@@ -51,6 +51,10 @@ function borderClassForDrop(drop: MineDrop): string {
       return 'border-stone-600/70'
     case 'consumable':
       return 'border-emerald-600/60'
+    case 'loot_pickaxe':
+    case 'loot_sword':
+    case 'loot_armour':
+      return 'border-amber-500/55'
     case 'nothing':
       return 'border-slate-700/40'
     default:
@@ -200,6 +204,27 @@ export default function RockDropBanner({ notice, onDone, layout = 'overlay' }: P
       )
       badgeClass = 'text-emerald-300'
       badgeText = def?.kind === 'potion' ? 'Potion' : 'Mad'
+      break
+    }
+    case 'loot_pickaxe': {
+      icon = '⛏️'
+      title = <>Udstyr: {drop.pickaxe.name}</>
+      badgeClass = 'text-amber-200'
+      badgeText = 'Mine-fund'
+      break
+    }
+    case 'loot_sword': {
+      icon = '⚔️'
+      title = <>Udstyr: {drop.sword.name}</>
+      badgeClass = 'text-amber-200'
+      badgeText = 'Mine-fund'
+      break
+    }
+    case 'loot_armour': {
+      icon = '🛡️'
+      title = <>Udstyr: {drop.armour.name}</>
+      badgeClass = 'text-amber-200'
+      badgeText = 'Mine-fund'
       break
     }
     case 'nothing':

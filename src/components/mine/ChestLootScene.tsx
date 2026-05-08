@@ -44,6 +44,9 @@ function extraMaterialsFromDrop(drop: MineDrop): number {
       return drop.quantity
     case 'consumable':
     case 'blueprint':
+    case 'loot_pickaxe':
+    case 'loot_sword':
+    case 'loot_armour':
       return 0
     default:
       return 0
@@ -72,6 +75,24 @@ function applyDrop(dispatch: Dispatch<Action>, drop: MineDrop) {
       break
     case 'blueprint':
       dispatch({ type: 'UNLOCK_BLUEPRINT', blueprintId: drop.blueprintId })
+      break
+    case 'loot_pickaxe':
+      dispatch({
+        type: 'RUN_APPEND_FOUND_LOOT',
+        entry: { kind: 'pickaxe_gear', pickaxe: drop.pickaxe, origin: 'mine' },
+      })
+      break
+    case 'loot_sword':
+      dispatch({
+        type: 'RUN_APPEND_FOUND_LOOT',
+        entry: { kind: 'sword_gear', sword: drop.sword, origin: 'mine' },
+      })
+      break
+    case 'loot_armour':
+      dispatch({
+        type: 'RUN_APPEND_FOUND_LOOT',
+        entry: { kind: 'armour_gear', armour: drop.armour, origin: 'mine' },
+      })
       break
     default:
       break
@@ -126,6 +147,8 @@ export default function ChestLootScene({
       } else {
         showToast(`${def?.name ?? id} — du har allerede denne blueprint.`, 'info', 4000)
       }
+    } else if (drop.kind === 'loot_pickaxe' || drop.kind === 'loot_sword' || drop.kind === 'loot_armour') {
+      applyDrop(dispatch, drop)
     } else {
       const extra = extraMaterialsFromDrop(drop)
       if (matCount + extra > matCap) return
@@ -173,6 +196,10 @@ export default function ChestLootScene({
           dispatch({ type: 'UNLOCK_BLUEPRINT', blueprintId: d.blueprintId })
           showToast(`📜 Blueprint: ${def?.name ?? d.blueprintId}`, 'success', 5500)
         }
+        continue
+      }
+      if (d.kind === 'loot_pickaxe' || d.kind === 'loot_sword' || d.kind === 'loot_armour') {
+        applyDrop(dispatch, d)
         continue
       }
       const need = extraMaterialsFromDrop(d)
@@ -229,7 +256,13 @@ export default function ChestLootScene({
             )}
             {loot.items.map((d, idx) => {
               const extra = extraMaterialsFromDrop(d)
-              const matFull = d.kind !== 'consumable' && d.kind !== 'blueprint' && matCount + extra > matCap
+              const isGear =
+                d.kind === 'loot_pickaxe' || d.kind === 'loot_sword' || d.kind === 'loot_armour'
+              const matFull =
+                !isGear &&
+                d.kind !== 'consumable' &&
+                d.kind !== 'blueprint' &&
+                matCount + extra > matCap
               const bagFull = d.kind === 'consumable' && !canAddConsumableUnits(state, d.quantity)
               const full = matFull || bagFull
               const reason = bagFull ? 'Forbrugs-lager fuldt' : matFull ? 'Lager fuldt' : undefined

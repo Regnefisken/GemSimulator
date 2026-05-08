@@ -5,13 +5,16 @@ import type {
   HubInventory,
   Jewelry,
   LocationId,
+  LootOrigin,
   MetalName,
   MetalNugget,
   MetalIngot,
+  QuestItemEntry,
   RawOre,
   RoughStone,
   RunInventory,
   SmeltingJob,
+  StowedHubGearSlot,
   ViewMode,
 } from '../types'
 import { AREAS } from '../data/areas'
@@ -110,6 +113,12 @@ export type Action =
   | { type: 'MINE_PICKUP_QUEST_ITEM'; questItemId: string }
   | { type: 'MINE_MOVE_TO_RESCUE_BAG'; foundIndex: number }
   | { type: 'MINE_MOVE_FROM_RESCUE_BAG'; rescueIndex: number }
+  /** §2.5 D49/D52: equip gear fra fund/redningspose; hub-slot → stowed, mine-slot → foundLoot. */
+  | { type: 'MINE_EQUIP_FOUND'; source: 'found' | 'rescue'; index: number }
+  /** §2.5: hub → stowedHubGear, mine → foundLoot (mister equipped-beskyttelse). */
+  | { type: 'MINE_UNEQUIP'; slot: 'pickaxe' | 'sword' | 'armour' }
+  /** Verdens-loot: append gear til `runInventory.foundLoot` (fra MineDrop loot_*). */
+  | { type: 'RUN_APPEND_FOUND_LOOT'; entry: FoundLootEntry }
   | { type: 'RESCUE_BAG_UPGRADE' }
   | { type: 'MINE_SET_TARGET_SLOT'; index: number }
   | { type: 'MINE_DEAL_DAMAGE'; slotIndex: number; damage: number }
@@ -281,6 +290,11 @@ function restockWorkshopShelf(state: GameState): GameState {
   return { ...state, workshopStock: { ...WORKSHOP_DEFAULT_STOCK } }
 }
 
+/** D64/D65: dag-tick + restock kun efter “rigtigt” minebesøg. */
+function isMineRunEligibleForDayTick(mineRun: NonNullable<GameState['mineRun']>): boolean {
+  return mineRun.rockSlotsClearedThisRun > 0 || mineRun.currentDepth > 1
+}
+
 function addConsumableToState(state: GameState, consumableId: string, qty: number): GameState {
   const def = findConsumableDef(consumableId)
   if (!def || qty <= 0) return state
@@ -428,6 +442,9 @@ export const initialState: GameState = {
   unlockedAlchemyRecipes: [...STARTER_UNLOCKED_ALCHEMY_RECIPES],
   essences: [],
   workshopStock: { ...WORKSHOP_DEFAULT_STOCK },
+  rescueBagCapacity: 3,
+  day: 1,
+  lastRestockDay: 1,
   consumableQuickSlots: [null, null, null],
   playerHp: DEFAULT_PLAYER_HP_MAX,
   playerHpMax: DEFAULT_PLAYER_HP_MAX,
@@ -478,11 +495,11 @@ function addNugget(state: GameState, nugget: MetalNugget): GameState {
   return next
 }
 
-function emptyRunInventory(): RunInventory {
+function emptyRunInventory(rescueBagCapacity: number): RunInventory {
   return {
     foundLoot: [],
     rescueBag: [],
-    rescueBagCapacity: 3,
+    rescueBagCapacity,
     questItems: [],
     stowedHubGear: [],
   }
@@ -490,6 +507,20 @@ function emptyRunInventory(): RunInventory {
 
 function appendFoundLoot(state: GameState, entry: FoundLootEntry): GameState {
   if (!state.runInventory) return state
+  if (entry.kind === 'quest_item') {
+    const questItemId = entry.questItemId.trim()
+    if (!questItemId) return state
+    const ri = state.runInventory
+    if (ri.questItems.some((q) => q.questItemId === questItemId)) return state
+    return {
+      ...state,
+      runInventory: {
+        ...ri,
+        questItems: [...ri.questItems, { questItemId, origin: 'mine' as const }],
+      },
+      gameNotice: null,
+    }
+  }
   return {
     ...state,
     runInventory: {
@@ -519,6 +550,42 @@ function applyFoundLootEntryToHub(state: GameState, entry: FoundLootEntry): Game
         return { ...state, gameNotice: materialsFullNotice(state) }
       }
       return n
+    }
+    case 'quest_item': {
+      const id = entry.questItemId.trim()
+      if (!id) return state
+      return {
+        ...state,
+        hubInventory: {
+          ...state.hubInventory,
+          equipment: [...state.hubInventory.equipment, { questItemId: id, origin: 'hub' as const }],
+        },
+        gameNotice: null,
+      }
+    }
+    case 'pickaxe_gear': {
+      let pickaxes = [...state.pickaxes]
+      const p = entry.pickaxe
+      const i = pickaxes.findIndex((x) => x.id === p.id)
+      if (i < 0) pickaxes.push(p)
+      else pickaxes[i] = p
+      return { ...state, pickaxes, gameNotice: null }
+    }
+    case 'sword_gear': {
+      let swords = [...state.swords]
+      const s = entry.sword
+      const i = swords.findIndex((x) => x.id === s.id)
+      if (i < 0) swords.push(s)
+      else swords[i] = s
+      return { ...state, swords, gameNotice: null }
+    }
+    case 'armour_gear': {
+      let armours = [...state.armours]
+      const a = entry.armour
+      const i = armours.findIndex((x) => x.id === a.id)
+      if (i < 0) armours.push(a)
+      else armours[i] = a
+      return clampPlayerSurvival({ ...state, armours, gameNotice: null })
     }
   }
 }
@@ -572,11 +639,33 @@ function mergeSafeExitRunLootIntoHub(state: GameState): GameState {
   return next
 }
 
+function questItemEntriesFromFoundLoot(foundLoot: FoundLootEntry[]): QuestItemEntry[] {
+  const out: QuestItemEntry[] = []
+  const seen = new Set<string>()
+  for (const e of foundLoot) {
+    if (e.kind !== 'quest_item') continue
+    const id = e.questItemId.trim()
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    out.push({ questItemId: id, origin: 'mine' })
+  }
+  return out
+}
+
 /** Død (D7/D46): kun rescueBag + quest + stowed — `foundLoot` kasseres (D58 soul-bound senere). */
 function mergeDeathSurvivorsIntoHub(state: GameState): GameState {
   const ri = state.runInventory
   if (!ri) return state
-  let next = state
+  const extraQuest = questItemEntriesFromFoundLoot(ri.foundLoot)
+  const seen = new Set(ri.questItems.map((q) => q.questItemId))
+  const mergedQuest = [...ri.questItems]
+  for (const q of extraQuest) {
+    if (!seen.has(q.questItemId)) {
+      seen.add(q.questItemId)
+      mergedQuest.push(q)
+    }
+  }
+  let next: GameState = { ...state, runInventory: { ...ri, questItems: mergedQuest } }
   for (const entry of ri.rescueBag) {
     next = applyFoundLootEntryToHub(next, entry)
   }
@@ -600,23 +689,33 @@ function finalizeMineRunEnd(
   outcome: 'safe_exit' | 'death',
   mineId: string | null,
 ): GameState {
+  const mr = state.mineRun
+  const validForDay = mr != null && isMineRunEligibleForDayTick(mr)
+
   const merged = outcome === 'safe_exit' ? mergeSafeExitRunLootIntoHub(state) : mergeDeathSurvivorsIntoHub(state)
   const mergedOrigin = normalizeSurvivorEquipmentOriginToHub(merged)
   const notice =
     outcome === 'death'
       ? 'Du faldt i minen. Run-loot uden for redningspose er tabt; redningspose, quest-genstande og af-equippet hub-udstyr er gemt.'
       : null
-  const next = restockWorkshopShelf(
-    applySafeZoneRegen({
-      ...mergedOrigin,
-      mineRun: null,
-      runInventory: null,
-      viewMode: 'map',
-      gameNotice: notice,
-    }),
-  )
+  const cap = state.runInventory?.rescueBagCapacity ?? state.rescueBagCapacity
+
+  let core: GameState = applySafeZoneRegen({
+    ...mergedOrigin,
+    mineRun: null,
+    runInventory: null,
+    viewMode: 'map',
+    gameNotice: notice,
+    rescueBagCapacity: cap,
+  })
+
+  if (validForDay) {
+    const nextDay = core.day + 1
+    core = restockWorkshopShelf({ ...core, day: nextDay, lastRestockDay: nextDay })
+  }
+
   logTelemetry('mine_run_end', { outcome, mineId: mineId ?? 'unknown' })
-  return next
+  return core
 }
 
 function moveFoundLootToRescueBag(state: GameState, foundIndex: number): GameState {
@@ -648,6 +747,204 @@ function moveRescueBagToFoundLoot(state: GameState, rescueIndex: number): GameSt
     runInventory: { ...ri, foundLoot, rescueBag },
     gameNotice: null,
   }
+}
+
+function effectiveGearOrigin(item: { origin?: LootOrigin }): LootOrigin {
+  return item.origin === 'mine' ? 'mine' : 'hub'
+}
+
+function promoteFirstStowedPickaxe(state: GameState): GameState {
+  if (!state.runInventory) return state
+  const si = state.runInventory.stowedHubGear.findIndex((s) => s.kind === 'pickaxe')
+  if (si < 0) return state
+  const slot = state.runInventory.stowedHubGear[si]
+  if (!slot || slot.kind !== 'pickaxe') return state
+  const stowedHubGear = state.runInventory.stowedHubGear.filter((_, i) => i !== si)
+  const pickaxes = [...state.pickaxes, slot.item]
+  return {
+    ...state,
+    pickaxes,
+    activePickaxeId: slot.item.id,
+    runInventory: { ...state.runInventory, stowedHubGear },
+  }
+}
+
+function ensureActivePickaxe(state: GameState): GameState {
+  if (state.pickaxes.some((p) => p.id === state.activePickaxeId)) {
+    return clampPlayerSurvival(state)
+  }
+  if (state.pickaxes.length > 0) {
+    return clampPlayerSurvival({ ...state, activePickaxeId: state.pickaxes[0]!.id })
+  }
+  const promoted = promoteFirstStowedPickaxe(state)
+  if (promoted.pickaxes.length > 0 && promoted.pickaxes.some((x) => x.id === promoted.activePickaxeId)) {
+    return clampPlayerSurvival(promoted)
+  }
+  return { ...state, gameNotice: 'Ingen hakke tilbage.' }
+}
+
+function mineEquipFound(state: GameState, source: 'found' | 'rescue', index: number): GameState {
+  if (!isInActiveMineRun(state) || !state.runInventory) {
+    return { ...state, gameNotice: 'Kan kun equipes under aktiv mine.' }
+  }
+  const ri = state.runInventory
+  const list = source === 'found' ? ri.foundLoot : ri.rescueBag
+  if (index < 0 || index >= list.length) return state
+  const entry = list[index]!
+  if (entry.kind !== 'pickaxe_gear' && entry.kind !== 'sword_gear' && entry.kind !== 'armour_gear') {
+    return { ...state, gameNotice: 'Kun udstyr (hakke, sværd, rustning) kan equipes herfra.' }
+  }
+
+  const nextList = list.filter((_, i) => i !== index)
+  let foundLoot = source === 'found' ? nextList : ri.foundLoot
+  let rescueBag = source === 'rescue' ? nextList : ri.rescueBag
+  let stowedHubGear = [...ri.stowedHubGear]
+  let pickaxes = [...state.pickaxes]
+  let swords = [...state.swords]
+  let armours = [...state.armours]
+  let activePickaxeId = state.activePickaxeId
+  let activeSwordId = state.activeSwordId
+  let activeArmourId = state.activeArmourId
+  let equippedWeapon = state.equippedWeapon
+
+  const pushMineToFound = (e: FoundLootEntry) => {
+    foundLoot = [...foundLoot, e]
+  }
+  const pushHubToStowed = (slot: StowedHubGearSlot) => {
+    stowedHubGear = [...stowedHubGear, slot]
+  }
+
+  if (entry.kind === 'pickaxe_gear') {
+    const tool = { ...entry.pickaxe, origin: entry.origin }
+    const old = pickaxes.find((p) => p.id === activePickaxeId)
+    if (old && old.id !== tool.id) {
+      pickaxes = pickaxes.filter((p) => p.id !== old.id)
+      if (effectiveGearOrigin(old) === 'mine') {
+        pushMineToFound({ kind: 'pickaxe_gear', pickaxe: old, origin: 'mine' })
+      } else {
+        pushHubToStowed({ kind: 'pickaxe', item: old })
+      }
+    }
+    if (!pickaxes.some((p) => p.id === tool.id)) pickaxes = [...pickaxes, tool]
+    else pickaxes = pickaxes.map((p) => (p.id === tool.id ? tool : p))
+    activePickaxeId = tool.id
+    equippedWeapon = 'pickaxe'
+  } else if (entry.kind === 'sword_gear') {
+    const tool = { ...entry.sword, origin: entry.origin }
+    const oldId = activeSwordId
+    const old = oldId ? swords.find((s) => s.id === oldId) : undefined
+    if (old && old.id !== tool.id) {
+      swords = swords.filter((s) => s.id !== old.id)
+      if (effectiveGearOrigin(old) === 'mine') {
+        pushMineToFound({ kind: 'sword_gear', sword: old, origin: 'mine' })
+      } else {
+        pushHubToStowed({ kind: 'sword', item: old })
+      }
+    }
+    if (!swords.some((s) => s.id === tool.id)) swords = [...swords, tool]
+    else swords = swords.map((s) => (s.id === tool.id ? tool : s))
+    activeSwordId = tool.id
+    equippedWeapon = 'sword'
+  } else {
+    const tool = { ...entry.armour, origin: entry.origin }
+    const cur = activeArmourId ? armours.find((a) => a.id === activeArmourId) : undefined
+    if (cur && cur.id !== tool.id) {
+      armours = armours.filter((a) => a.id !== cur.id)
+      if (effectiveGearOrigin(cur) === 'mine') {
+        pushMineToFound({ kind: 'armour_gear', armour: cur, origin: 'mine' })
+      } else {
+        pushHubToStowed({ kind: 'armour', item: cur })
+      }
+    }
+    if (!armours.some((a) => a.id === tool.id)) armours = [...armours, tool]
+    else armours = armours.map((a) => (a.id === tool.id ? tool : a))
+    activeArmourId = tool.id
+  }
+
+  return clampPlayerSurvival({
+    ...state,
+    pickaxes,
+    swords,
+    armours,
+    activePickaxeId,
+    activeSwordId,
+    activeArmourId,
+    equippedWeapon,
+    runInventory: { ...ri, foundLoot, rescueBag, stowedHubGear },
+    gameNotice: null,
+  })
+}
+
+function mineUnequip(state: GameState, slot: 'pickaxe' | 'sword' | 'armour'): GameState {
+  if (!isInActiveMineRun(state) || !state.runInventory) {
+    return { ...state, gameNotice: 'Kan kun af-equipes under aktiv mine.' }
+  }
+  const ri = state.runInventory
+  let foundLoot = [...ri.foundLoot]
+  let stowedHubGear = [...ri.stowedHubGear]
+
+  if (slot === 'pickaxe') {
+    const cur = state.pickaxes.find((p) => p.id === state.activePickaxeId)
+    if (!cur) return { ...state, gameNotice: 'Ingen aktiv hakke.' }
+    const pickaxes = state.pickaxes.filter((p) => p.id !== cur.id)
+    if (effectiveGearOrigin(cur) === 'mine') {
+      foundLoot = [...foundLoot, { kind: 'pickaxe_gear', pickaxe: cur, origin: 'mine' }]
+    } else {
+      stowedHubGear = [...stowedHubGear, { kind: 'pickaxe', item: cur }]
+    }
+    const mid: GameState = {
+      ...state,
+      pickaxes,
+      runInventory: { ...ri, foundLoot, rescueBag: ri.rescueBag, stowedHubGear },
+      gameNotice: null,
+    }
+    return ensureActivePickaxe(mid)
+  }
+
+  if (slot === 'sword') {
+    const sid = state.activeSwordId
+    if (!sid) return { ...state, gameNotice: 'Intet aktivt sværd.' }
+    const cur = state.swords.find((s) => s.id === sid)
+    if (!cur) return state
+    const swords = state.swords.filter((s) => s.id !== cur.id)
+    if (effectiveGearOrigin(cur) === 'mine') {
+      foundLoot = [...foundLoot, { kind: 'sword_gear', sword: cur, origin: 'mine' }]
+    } else {
+      stowedHubGear = [...stowedHubGear, { kind: 'sword', item: cur }]
+    }
+    const nextS = swords.find((s) => s.durability > 0) ?? swords[0] ?? null
+    const activeSwordId = nextS?.id ?? null
+    let equippedWeapon: 'pickaxe' | 'sword' = state.equippedWeapon
+    if (state.equippedWeapon === 'sword' && sid === cur.id) {
+      equippedWeapon = activeSwordId ? 'sword' : 'pickaxe'
+    }
+    return {
+      ...state,
+      swords,
+      activeSwordId,
+      equippedWeapon,
+      runInventory: { ...ri, foundLoot, rescueBag: ri.rescueBag, stowedHubGear },
+      gameNotice: null,
+    }
+  }
+
+  const aid = state.activeArmourId
+  if (!aid) return { ...state, gameNotice: 'Du bærer ikke rustning.' }
+  const cur = state.armours.find((a) => a.id === aid)
+  if (!cur) return state
+  const armours = state.armours.filter((a) => a.id !== cur.id)
+  if (effectiveGearOrigin(cur) === 'mine') {
+    foundLoot = [...foundLoot, { kind: 'armour_gear', armour: cur, origin: 'mine' }]
+  } else {
+    stowedHubGear = [...stowedHubGear, { kind: 'armour', item: cur }]
+  }
+  return clampPlayerSurvival({
+    ...state,
+    armours,
+    activeArmourId: null,
+    runInventory: { ...ri, foundLoot, rescueBag: ri.rescueBag, stowedHubGear },
+    gameNotice: null,
+  })
 }
 
 export function reducer(state: GameState, action: Action): GameState {
@@ -769,7 +1066,7 @@ export function reducer(state: GameState, action: Action): GameState {
           mineId: action.mineId,
           activeCharms: state.activeCharms,
         }),
-        runInventory: emptyRunInventory(),
+        runInventory: emptyRunInventory(state.rescueBagCapacity),
         gameNotice: null,
       }
       const manaCap = effectiveTotalManaMax(withRun)
@@ -783,7 +1080,7 @@ export function reducer(state: GameState, action: Action): GameState {
       return next
     }
     case 'MINE_RUN_EXIT':
-      if (!state.mineRun) return restockWorkshopShelf(state)
+      if (!state.mineRun) return state
       return finalizeMineRunEnd({ ...state, gameNotice: null }, 'safe_exit', state.mineRun.mineId)
     case 'MINE_PLAYER_DEATH':
       if (!state.mineRun || !isInActiveMineRun(state)) return state
@@ -811,11 +1108,19 @@ export function reducer(state: GameState, action: Action): GameState {
       return moveFoundLootToRescueBag(state, action.foundIndex)
     case 'MINE_MOVE_FROM_RESCUE_BAG':
       return moveRescueBagToFoundLoot(state, action.rescueIndex)
-    case 'RESCUE_BAG_UPGRADE': {
+    case 'MINE_EQUIP_FOUND':
+      return mineEquipFound(state, action.source, action.index)
+    case 'MINE_UNEQUIP':
+      return mineUnequip(state, action.slot)
+    case 'RUN_APPEND_FOUND_LOOT':
       if (!isInActiveMineRun(state) || !state.runInventory) {
-        return { ...state, gameNotice: 'Redningspose kan kun opgraderes under aktiv mine.' }
+        return { ...state, gameNotice: 'Run-loot kan kun tilføjes under aktiv mine.' }
       }
-      const row = getNextRescueBagUpgrade(state.runInventory.rescueBagCapacity)
+      return appendFoundLoot(state, action.entry)
+    case 'RESCUE_BAG_UPGRADE': {
+      const inRun = Boolean(state.mineRun && state.runInventory && isInActiveMineRun(state))
+      const cap = inRun ? state.runInventory!.rescueBagCapacity : state.rescueBagCapacity
+      const row = getNextRescueBagUpgrade(cap)
       if (!row) {
         return { ...state, gameNotice: 'Redningsposen er allerede opgraderet til maks.' }
       }
@@ -826,14 +1131,22 @@ export function reducer(state: GameState, action: Action): GameState {
         return { ...state, gameNotice: 'Ikke nok guld.' }
       }
       const paid = patchHubInventory(state, { gold: state.hubInventory.gold - row.goldCost })
-      return {
-        ...paid,
-        runInventory: {
-          ...paid.runInventory!,
-          rescueBagCapacity: row.rescueBagCapacity,
-        },
-        gameNotice: null,
+      const nextCap = row.rescueBagCapacity
+      if (inRun) {
+        return {
+          ...paid,
+          rescueBagCapacity: nextCap,
+          runInventory: {
+            ...paid.runInventory!,
+            rescueBagCapacity: nextCap,
+          },
+          gameNotice: null,
+        }
       }
+      if (state.currentArea === 'smedjen' && !state.mineRun) {
+        return { ...paid, rescueBagCapacity: nextCap, gameNotice: null }
+      }
+      return { ...state, gameNotice: 'Redningspose kan kun opgraderes i smedjen eller under aktiv mine.' }
     }
     case 'MINE_SET_TARGET_SLOT': {
       const r = state.mineRun
@@ -859,7 +1172,18 @@ export function reducer(state: GameState, action: Action): GameState {
       if (nowCleared && !slot.cleared && slot.kind === 'rock') {
         totalRockSlotsCleared += 1
       }
-      let nextState: GameState = { ...state, mineRun: { ...r, slots }, totalRockSlotsCleared }
+      let rockSlotsClearedThisRun =
+        typeof r.rockSlotsClearedThisRun === 'number' && !Number.isNaN(r.rockSlotsClearedThisRun)
+          ? r.rockSlotsClearedThisRun
+          : 0
+      if (nowCleared && !slot.cleared && slot.kind === 'rock') {
+        rockSlotsClearedThisRun += 1
+      }
+      let nextState: GameState = {
+        ...state,
+        mineRun: { ...r, slots, rockSlotsClearedThisRun },
+        totalRockSlotsCleared,
+      }
       if (nowCleared && !slot.cleared && slot.kind === 'rock') {
         const pickaxes = nextState.pickaxes.map((p) =>
           p.id === nextState.activePickaxeId

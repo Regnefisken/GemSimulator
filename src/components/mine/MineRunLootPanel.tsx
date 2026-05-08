@@ -15,7 +15,19 @@ function entryLabel(e: FoundLootEntry): string {
       return `${e.nugget.quantity}× ${e.nugget.metalName} klump`
     case 'rough_stone':
       return 'Rå klippe'
+    case 'quest_item':
+      return `Quest: ${e.questItemId}`
+    case 'pickaxe_gear':
+      return `Hakke: ${e.pickaxe.name}`
+    case 'sword_gear':
+      return `Sværd: ${e.sword.name}`
+    case 'armour_gear':
+      return `Rustning: ${e.armour.name}`
   }
+}
+
+function isGearLootEntry(e: FoundLootEntry): boolean {
+  return e.kind === 'pickaxe_gear' || e.kind === 'sword_gear' || e.kind === 'armour_gear'
 }
 
 type Props = {
@@ -59,15 +71,27 @@ export default function MineRunLootPanel({ state, runInventory, dispatch }: Prop
                     className="flex items-center justify-between gap-2 rounded-md bg-slate-900/80 px-2 py-1.5 border border-slate-800/80"
                   >
                     <span className="text-slate-200 truncate min-w-0">{entryLabel(e)}</span>
-                    <button
-                      type="button"
-                      disabled={rescueBag.length >= rescueBagCapacity}
-                      title={rescueBag.length >= rescueBagCapacity ? 'Posen er fuld' : 'Flyt til redningspose'}
-                      onClick={() => dispatch({ type: 'MINE_MOVE_TO_RESCUE_BAG', foundIndex: i })}
-                      className="shrink-0 min-h-[32px] px-2 rounded bg-teal-900/60 border border-teal-600/40 text-teal-100 text-[10px] font-semibold disabled:opacity-35 disabled:cursor-not-allowed hover:bg-teal-800/60"
-                    >
-                      → Pose
-                    </button>
+                    <div className="flex shrink-0 gap-1">
+                      {isGearLootEntry(e) && (
+                        <button
+                          type="button"
+                          title="Equip fra run-beholdning"
+                          onClick={() => dispatch({ type: 'MINE_EQUIP_FOUND', source: 'found', index: i })}
+                          className="min-h-[32px] px-2 rounded bg-emerald-900/50 border border-emerald-600/40 text-emerald-100 text-[10px] font-semibold hover:bg-emerald-800/50"
+                        >
+                          Equip
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={rescueBag.length >= rescueBagCapacity}
+                        title={rescueBag.length >= rescueBagCapacity ? 'Posen er fuld' : 'Flyt til redningspose'}
+                        onClick={() => dispatch({ type: 'MINE_MOVE_TO_RESCUE_BAG', foundIndex: i })}
+                        className="min-h-[32px] px-2 rounded bg-teal-900/60 border border-teal-600/40 text-teal-100 text-[10px] font-semibold disabled:opacity-35 disabled:cursor-not-allowed hover:bg-teal-800/60"
+                      >
+                        → Pose
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -85,17 +109,56 @@ export default function MineRunLootPanel({ state, runInventory, dispatch }: Prop
                     className="flex items-center justify-between gap-2 rounded-md bg-teal-950/40 px-2 py-1.5 border border-teal-800/40"
                   >
                     <span className="text-teal-100/95 truncate min-w-0">{entryLabel(e)}</span>
-                    <button
-                      type="button"
-                      onClick={() => dispatch({ type: 'MINE_MOVE_FROM_RESCUE_BAG', rescueIndex: i })}
-                      className="shrink-0 min-h-[32px] px-2 rounded bg-slate-800/80 border border-slate-600/50 text-slate-200 text-[10px] font-semibold hover:bg-slate-700/80"
-                    >
-                      ← Fund
-                    </button>
+                    <div className="flex shrink-0 gap-1">
+                      {isGearLootEntry(e) && (
+                        <button
+                          type="button"
+                          title="Equip fra redningspose"
+                          onClick={() => dispatch({ type: 'MINE_EQUIP_FOUND', source: 'rescue', index: i })}
+                          className="min-h-[32px] px-2 rounded bg-emerald-900/50 border border-emerald-600/40 text-emerald-100 text-[10px] font-semibold hover:bg-emerald-800/50"
+                        >
+                          Equip
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: 'MINE_MOVE_FROM_RESCUE_BAG', rescueIndex: i })}
+                        className="min-h-[32px] px-2 rounded bg-slate-800/80 border border-slate-600/50 text-slate-200 text-[10px] font-semibold hover:bg-slate-700/80"
+                      >
+                        ← Fund
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
+          </section>
+          <section className="pt-1 border-t border-slate-700/60">
+            <h3 className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">Af-equip (D52 / mine)</h3>
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                onClick={() => dispatch({ type: 'MINE_UNEQUIP', slot: 'pickaxe' })}
+                className="min-h-[28px] px-2 rounded bg-slate-800/90 border border-slate-600/50 text-slate-200 text-[10px] hover:bg-slate-700/90"
+              >
+                Hakke
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch({ type: 'MINE_UNEQUIP', slot: 'sword' })}
+                className="min-h-[28px] px-2 rounded bg-slate-800/90 border border-slate-600/50 text-slate-200 text-[10px] hover:bg-slate-700/90"
+              >
+                Sværd
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch({ type: 'MINE_UNEQUIP', slot: 'armour' })}
+                disabled={!state.activeArmourId}
+                className="min-h-[28px] px-2 rounded bg-slate-800/90 border border-slate-600/50 text-slate-200 text-[10px] hover:bg-slate-700/90 disabled:opacity-35"
+              >
+                Rustning
+              </button>
+            </div>
           </section>
           {nextUpgrade && (
             <section className="pt-1 border-t border-slate-700/60">

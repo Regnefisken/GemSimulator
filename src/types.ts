@@ -246,6 +246,12 @@ export type FoundLootEntry =
   | { kind: 'ore'; ore: RawOre; origin: LootOrigin }
   | { kind: 'nugget'; nugget: MetalNugget; origin: LootOrigin }
   | { kind: 'rough_stone'; stone: RoughStone; origin: LootOrigin }
+  /** D50: quest-genstand i run-beholdning (samme slot-regler som `questItems`). */
+  | { kind: 'quest_item'; questItemId: string; origin: 'mine' }
+  /** Udstyr i run-beholdning (MINE_EQUIP_FOUND / kiste senere); `origin` følger D47. */
+  | { kind: 'pickaxe_gear'; pickaxe: Pickaxe; origin: LootOrigin }
+  | { kind: 'sword_gear'; sword: Sword; origin: LootOrigin }
+  | { kind: 'armour_gear'; armour: Armour; origin: LootOrigin }
 
 /** D50: pladsholder til quest-items (udvides når quest-data findes). */
 export type QuestItemEntry = { questItemId: string; origin: 'mine' }
@@ -440,6 +446,12 @@ export type GameState = {
 
   /** Værksteds-hylde: antal til salg pr. consumable-id (D39 restock efter run). */
   workshopStock: Partial<Record<string, number>>
+  /** D48: max pladser i redningspose (persist mellem runs; synk. med `runInventory.rescueBagCapacity` i minen). */
+  rescueBagCapacity: number
+  /** D64: in-game dag (avancerer ved valid run-exit). */
+  day: number
+  /** D65: sidste dag værksted fik default-restok. */
+  lastRestockDay: number
   /** Fase 3 (D33): hurtigtaster 1–3 binder consumable-id pr. slot. */
   consumableQuickSlots: [string | null, string | null, string | null]
 

@@ -95,6 +95,7 @@ export function createInitialMineRun(args: {
     runId,
     mineId: args.mineId,
     currentDepth: 0,
+    rockSlotsClearedThisRun: 0,
     targetSlotIndex: 0,
     slots: generateLayerState({
       area: args.area,

@@ -3,6 +3,7 @@ import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
 import PixelItemCard from '../PixelItemCard'
 import { playAnvilStrike } from '../../lib/sounds'
+import { getNextRescueBagUpgrade } from '../../data/rescueBagUpgrades'
 
 type Props = {
   state: GameState
@@ -43,6 +44,16 @@ export default function RepairStation({ state, dispatch }: Props) {
   const pickFull = pick ? pick.durability >= pick.maxDurability : true
   const swordFull = sw ? sw.durability >= sw.maxDurability : true
   const armFull = arm ? arm.durability >= arm.maxDurability : true
+
+  const smithyRescueNext = useMemo(() => {
+    if (state.currentArea !== 'smedjen' || state.mineRun) return null
+    return getNextRescueBagUpgrade(state.rescueBagCapacity)
+  }, [state.currentArea, state.mineRun, state.rescueBagCapacity])
+
+  const canSmithyRescueUpgrade =
+    smithyRescueNext != null &&
+    state.hubInventory.gold >= smithyRescueNext.goldCost &&
+    state.level >= smithyRescueNext.minLevel
 
   function sparkBurst() {
     const newSparks = Array.from({ length: 4 + Math.floor(Math.random() * 3) }, () => {
@@ -168,6 +179,34 @@ export default function RepairStation({ state, dispatch }: Props) {
           )}
         </div>
       </div>
+
+      {smithyRescueNext && (
+        <section className="rounded-xl border border-teal-900/45 bg-slate-950/50 p-4 mb-6">
+          <h3 className="text-sm font-semibold text-teal-200/90 mb-1">Redningspose</h3>
+          <p className="text-slate-400 text-sm mb-3">
+            Flere pladser i posen du tager med i minen. I dag:{' '}
+            <span className="font-mono text-slate-200">{state.rescueBagCapacity}</span> →{' '}
+            <span className="font-mono text-teal-200">{smithyRescueNext.rescueBagCapacity}</span> ·{' '}
+            <span className="text-amber-200/90">{smithyRescueNext.goldCost} guld</span> · level{' '}
+            {smithyRescueNext.minLevel}
+          </p>
+          <button
+            type="button"
+            disabled={!canSmithyRescueUpgrade}
+            title={
+              state.level < smithyRescueNext.minLevel
+                ? `Kræver level ${smithyRescueNext.minLevel}`
+                : state.hubInventory.gold < smithyRescueNext.goldCost
+                  ? 'Ikke nok guld'
+                  : undefined
+            }
+            onClick={() => dispatch({ type: 'RESCUE_BAG_UPGRADE' })}
+            className="w-full min-h-[44px] rounded-xl bg-gradient-to-b from-teal-700 to-teal-800 hover:from-teal-600 hover:to-teal-700 disabled:from-slate-700 disabled:to-slate-800 disabled:cursor-not-allowed text-slate-50 font-bold text-sm border border-teal-500/30"
+          >
+            Opgrader redningspose
+          </button>
+        </section>
+      )}
 
       <div className="relative flex flex-col items-center gap-3">
         <div className="relative w-full h-40 sm:h-44 rounded-xl bg-slate-950/60 border border-slate-700 overflow-hidden">

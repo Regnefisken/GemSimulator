@@ -14,6 +14,7 @@ function mineRunStub(mineId: GameState['currentArea']): NonNullable<GameState['m
     runId: 'test-run',
     mineId,
     currentDepth: 0,
+    rockSlotsClearedThisRun: 0,
     targetSlotIndex: 0,
     slots: [],
   }

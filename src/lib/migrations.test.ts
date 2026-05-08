@@ -102,7 +102,7 @@ describe('migrateGameState v12', () => {
       ...initialState,
       version: 11,
       depth: 42,
-      mineRun: { runId: 'x', mineId: 'kobbermine', currentDepth: 1, targetSlotIndex: 0, slots: [] },
+      mineRun: { runId: 'x', mineId: 'kobbermine', currentDepth: 1, rockSlotsClearedThisRun: 0, targetSlotIndex: 0, slots: [] },
     }
     const next = migrateGameState(raw, initialState)
     expect(next.version).toBe(CURRENT_STATE_VERSION)
@@ -203,5 +203,28 @@ describe('migrateGameState v19 D47 origin', () => {
     const next = migrateGameState(raw, initialState)
     expect(next.version).toBe(CURRENT_STATE_VERSION)
     expect(next.pickaxes.every((p) => p.origin === 'hub')).toBe(true)
+  })
+})
+
+describe('migrateGameState v20 dag + redningspose-meta', () => {
+  it('udleder rescueBagCapacity fra aktiv runInventory når felt mangler på top-level', () => {
+    const raw = {
+      ...initialState,
+      version: 19,
+      runInventory: {
+        foundLoot: [],
+        rescueBag: [],
+        rescueBagCapacity: 5,
+        questItems: [],
+        stowedHubGear: [],
+      },
+    } as Record<string, unknown>
+    delete raw.day
+    delete raw.lastRestockDay
+    delete raw.rescueBagCapacity
+    const next = migrateGameState(raw, initialState)
+    expect(next.rescueBagCapacity).toBe(5)
+    expect(next.day).toBe(1)
+    expect(next.lastRestockDay).toBeGreaterThanOrEqual(1)
   })
 })

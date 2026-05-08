@@ -116,6 +116,37 @@ describe('MINE_PLAYER_DEATH / død via skade (D46)', () => {
     expect(p?.origin).toBe('hub')
   })
 
+  it('MINE_PLAYER_DEATH uden valid run øger ikke dag eller restocker værksted', () => {
+    const base: GameState = {
+      ...inMineBase(),
+      workshopStock: { cons_bread_minor: 1 },
+      day: 7,
+      lastRestockDay: 7,
+    }
+    const next = reducer(base, { type: 'MINE_PLAYER_DEATH' })
+    expect(next.day).toBe(7)
+    expect(next.workshopStock.cons_bread_minor).toBe(1)
+  })
+
+  it('quest_item i foundLoot overlever død (D50)', () => {
+    const base: GameState = {
+      ...inMineBase(),
+      runInventory: {
+        foundLoot: [{ kind: 'quest_item', questItemId: 'q_from_loot', origin: 'mine' }],
+        rescueBag: [],
+        rescueBagCapacity: 3,
+        questItems: [],
+        stowedHubGear: [],
+      },
+    }
+    const next = reducer(base, { type: 'MINE_PLAYER_DEATH' })
+    expect(
+      next.hubInventory.equipment.some(
+        (e) => typeof e === 'object' && e && 'questItemId' in e && (e as { questItemId: string }).questItemId === 'q_from_loot',
+      ),
+    ).toBe(true)
+  })
+
   it('§2.4 (a): origin hub også efter død-merge', () => {
     const minePick = { ...makePickaxe(0, 'mine-death'), id: 'pick-mine-death', origin: 'mine' as const }
     const base: GameState = {
@@ -164,5 +195,15 @@ describe('MINE_PICKUP_QUEST_ITEM', () => {
     }
     const next = reducer(base, { type: 'MINE_PICKUP_QUEST_ITEM', questItemId: 'q_scroll' })
     expect(next.runInventory?.questItems).toHaveLength(1)
+  })
+
+  it('RUN_APPEND_FOUND_LOOT med quest_item lægger i questItems (D50)', () => {
+    const base = inMineBase()
+    const next = reducer(base, {
+      type: 'RUN_APPEND_FOUND_LOOT',
+      entry: { kind: 'quest_item', questItemId: 'q_appended', origin: 'mine' },
+    })
+    expect(next.runInventory?.questItems.some((q) => q.questItemId === 'q_appended')).toBe(true)
+    expect(next.runInventory?.foundLoot).toHaveLength(0)
   })
 })

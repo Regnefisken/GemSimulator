@@ -82,6 +82,15 @@ export default function ChestLootCard(props: Props) {
     const bp = findBlueprint(drop.blueprintId)
     title = bp?.name ?? drop.blueprintId
     viz = drop.pixelItem ?? null
+  } else if (drop.kind === 'loot_pickaxe') {
+    title = drop.pickaxe.name
+    viz = drop.pickaxe.pixelItem
+  } else if (drop.kind === 'loot_sword') {
+    title = drop.sword.name
+    viz = drop.sword.pixelItem
+  } else if (drop.kind === 'loot_armour') {
+    title = drop.armour.name
+    viz = drop.armour.pixelItem
   }
 
   return (

@@ -83,7 +83,7 @@ describe('MINE_MOVE_TO_RESCUE_BAG / MINE_MOVE_FROM_RESCUE_BAG', () => {
 })
 
 describe('RESCUE_BAG_UPGRADE (D48)', () => {
-  it('øger rescueBagCapacity og trækker guld', () => {
+  it('øger rescueBagCapacity og trækker guld (meta + run)', () => {
     const base: GameState = {
       ...mineWithRun({
         foundLoot: [],
@@ -97,25 +97,36 @@ describe('RESCUE_BAG_UPGRADE (D48)', () => {
     }
     const next = reducer(base, { type: 'RESCUE_BAG_UPGRADE' })
     expect(next.runInventory?.rescueBagCapacity).toBe(5)
+    expect(next.rescueBagCapacity).toBe(5)
     expect(next.hubInventory.gold).toBe(500 - 350)
   })
 
-  it('afviser uden aktiv mine', () => {
+  it('opgradering i smedjen (uden mine-run) opdaterer meta-kapacitet', () => {
     const base: GameState = {
       ...initialState,
-      hubInventory: { ...initialState.hubInventory, gold: 9999 },
-      level: 20,
-      runInventory: {
-        foundLoot: [],
-        rescueBag: [],
-        rescueBagCapacity: 3,
-        questItems: [],
-        stowedHubGear: [],
-      },
+      currentArea: 'smedjen',
+      viewMode: 'location',
+      hubInventory: { ...initialState.hubInventory, gold: 500 },
+      level: 5,
+      rescueBagCapacity: 3,
     }
     const next = reducer(base, { type: 'RESCUE_BAG_UPGRADE' })
-    expect(next.runInventory?.rescueBagCapacity).toBe(3)
-    expect(next.gameNotice).toMatch(/mine/)
+    expect(next.rescueBagCapacity).toBe(5)
+    expect(next.hubInventory.gold).toBe(500 - 350)
+    expect(next.gameNotice).toBeNull()
+  })
+
+  it('afviser opgradering udenfor smedjen og uden aktiv mine', () => {
+    const base: GameState = {
+      ...initialState,
+      currentArea: 'butikken',
+      hubInventory: { ...initialState.hubInventory, gold: 9999 },
+      level: 20,
+      rescueBagCapacity: 3,
+    }
+    const next = reducer(base, { type: 'RESCUE_BAG_UPGRADE' })
+    expect(next.rescueBagCapacity).toBe(3)
+    expect(next.gameNotice).toMatch(/smedjen|mine/)
   })
 
   it('afviser ved maks kapacitet', () => {
@@ -130,6 +141,19 @@ describe('RESCUE_BAG_UPGRADE (D48)', () => {
     const next = reducer(b2, { type: 'RESCUE_BAG_UPGRADE' })
     expect(next.runInventory?.rescueBagCapacity).toBe(10)
     expect(next.gameNotice).toMatch(/maks/)
+  })
+})
+
+describe('MINE_RUN_ENTER + rescueBagCapacity (D48 meta)', () => {
+  it('kopierer state.rescueBagCapacity til runInventory', () => {
+    const base: GameState = {
+      ...initialState,
+      viewMode: 'map',
+      currentArea: 'kobbermine',
+      rescueBagCapacity: 7,
+    }
+    const next = reducer(base, { type: 'MINE_RUN_ENTER', mineId: 'kobbermine' })
+    expect(next.runInventory?.rescueBagCapacity).toBe(7)
   })
 })
 

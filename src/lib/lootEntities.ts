@@ -118,6 +118,12 @@ export function explodeDropToEntities(
     }
     case 'blueprint':
       return [makeEntity(0, drop, spawnPositionsAround(origin, 1, rng)[0] ?? origin)]
+    case 'loot_pickaxe':
+      return [makeEntity(0, drop, spawnPositionsAround(origin, 1, rng)[0] ?? origin)]
+    case 'loot_sword':
+      return [makeEntity(0, drop, spawnPositionsAround(origin, 1, rng)[0] ?? origin)]
+    case 'loot_armour':
+      return [makeEntity(0, drop, spawnPositionsAround(origin, 1, rng)[0] ?? origin)]
     default:
       return []
   }
@@ -141,6 +147,12 @@ export function getDropPixelData(drop: MineDrop): { data: string[]; colorMap: Co
       const pi = drop.pixelItem ?? SCROLL_PIXEL
       return { data: pi.data, colorMap: pi.colorMap }
     }
+    case 'loot_pickaxe':
+      return { data: drop.pickaxe.pixelItem.data, colorMap: drop.pickaxe.pixelItem.colorMap }
+    case 'loot_sword':
+      return { data: drop.sword.pixelItem.data, colorMap: drop.sword.pixelItem.colorMap }
+    case 'loot_armour':
+      return { data: drop.armour.pixelItem.data, colorMap: drop.armour.pixelItem.colorMap }
     default:
       return null
   }

@@ -23,6 +23,8 @@ export type MineRunState = {
   runId: string
   mineId: string
   currentDepth: number
+  /** D64/D65: klippefelter ryddet i *denne* run (til valid-run-gate). */
+  rockSlotsClearedThisRun: number
   targetSlotIndex: number
   slots: MineRunSlotState[]
 }
