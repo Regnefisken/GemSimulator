@@ -26,7 +26,7 @@ import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../.
 import { useToast } from '../ui/ToastContext'
 import MiningCave3D from './3d/MiningCave3D'
 import DamageNumbers, { type DamageFloater } from './DamageNumbers'
-import { HUDHpBar, HUDBottomBar, HUDPlayerSurvival, HUDTopBar, HUDWeaponToggle, HUDConsumableQuickBar } from './MineHUD'
+import { HUDBottomBar, HUDPlayerSurvival, HUDTopBar, HUDWeaponToggle, HUDConsumableQuickBar } from './MineHUD'
 import MinimapHUD from './MinimapHUD'
 import RockDropBanner, { type DropNotice } from './RockDropBanner'
 import Crosshair from './Crosshair'
@@ -741,19 +741,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
             }
           />
         </div>
-        <HUDHpBar
-          className="pointer-events-none shrink-0"
-          visible={
-            (activeSlot?.kind === 'rock' || activeSlot?.kind === 'mob') && Boolean(activeSlot && !activeSlot.cleared)
-          }
-          hp={
-            activeSlot?.kind === 'rock' || activeSlot?.kind === 'mob' ? activeSlot.currentHp : 0
-          }
-          maxHp={
-            activeSlot?.kind === 'rock' || activeSlot?.kind === 'mob' ? activeSlot.maxHp : 1
-          }
-          label={activeSlot?.kind === 'mob' ? 'Uhyre' : 'Klippe'}
-        />
         {mobCombatHint && liveMobTarget && (
           <div className="pointer-events-none shrink-0 px-3 pt-1 flex justify-center" aria-live="polite">
             <div className="w-full max-w-md rounded-xl border px-3 py-2 text-sm font-medium text-center shadow-lg backdrop-blur-sm bg-slate-900/95 border-slate-600/60 text-slate-100">

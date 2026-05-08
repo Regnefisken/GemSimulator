@@ -1,6 +1,8 @@
-import { useMemo, useRef, useEffect, type MutableRefObject } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useMemo, useRef, useEffect, useState, type MutableRefObject } from 'react'
+import { Billboard, Html } from '@react-three/drei'
+import { useFrame, useThree } from '@react-three/fiber'
 import type { Group, Mesh } from 'three'
+import { Vector3 } from 'three'
 import type { MetalName, RockType } from '../../../types'
 
 type Props = {
@@ -60,6 +62,10 @@ export default function OreNode({
   depleted,
 }: Props) {
   const meshRef = useRef<Group>(null)
+  const nameplateAnchorRef = useRef<Group>(null)
+  const { camera } = useThree()
+  const [htmlDistanceFactor, setHtmlDistanceFactor] = useState(11)
+  const smoothedDfRef = useRef(11)
   const shake = useRef(0)
   const pct = interactive && maxHp > 0 ? hp / maxHp : 1
   const isLowHp = interactive && pct < 0.25
@@ -75,19 +81,29 @@ export default function OreNode({
 
   useFrame((_, delta) => {
     const m = meshRef.current
-    if (!m) return
-    if (!interactive) {
-      m.rotation.set(0, 0, 0)
-      m.position.set(0, 0, 0)
-      return
+    if (m) {
+      if (!interactive) {
+        m.rotation.set(0, 0, 0)
+        m.position.set(0, 0, 0)
+      } else {
+        shake.current *= Math.pow(0.92, delta * 50)
+        const t = performance.now() * 0.008
+        const amp = isLowHp ? shake.current * 1.5 : shake.current
+        m.rotation.z = Math.sin(t) * 0.07 * amp
+        m.rotation.x = Math.cos(t * 1.1) * 0.06 * amp
+        m.position.x = Math.sin(t * 2) * 0.09 * amp
+        m.position.y = Math.cos(t * 1.7) * 0.04 * amp
+      }
     }
-    shake.current *= Math.pow(0.92, delta * 50)
-    const t = performance.now() * 0.008
-    const amp = isLowHp ? shake.current * 1.5 : shake.current
-    m.rotation.z = Math.sin(t) * 0.07 * amp
-    m.rotation.x = Math.cos(t * 1.1) * 0.06 * amp
-    m.position.x = Math.sin(t * 2) * 0.09 * amp
-    m.position.y = Math.cos(t * 1.7) * 0.04 * amp
+    if (interactive && nameplateAnchorRef.current) {
+      const p = new Vector3()
+      nameplateAnchorRef.current.getWorldPosition(p)
+      const dist = p.distanceTo(camera.position)
+      const target = Math.min(13, Math.max(3.2, 1.15 + 0.82 * dist))
+      smoothedDfRef.current += (target - smoothedDfRef.current) * Math.min(1, delta * 20)
+      const next = smoothedDfRef.current
+      setHtmlDistanceFactor((prev) => (Math.abs(prev - next) > 0.025 ? next : prev))
+    }
   })
 
   const [hue, sat] = ROCK_TYPE_COLOR[rockType]
@@ -113,6 +129,13 @@ export default function OreNode({
   }
 
   const pickable = interactive || Boolean(onSelectTarget)
+
+  const hpPct = maxHp > 0 ? Math.max(0, (hp / maxHp) * 100) : 0
+  const nameLabel = rockType === 'mob' ? 'Uhyre' : 'Klippe'
+  const barGradient =
+    rockType === 'mob'
+      ? 'bg-gradient-to-r from-fuchsia-950 to-fuchsia-400'
+      : 'bg-gradient-to-r from-amber-800 to-amber-400'
 
   return (
     <group position={position}>
@@ -160,6 +183,33 @@ export default function OreNode({
           </mesh>
         )}
       </group>
+      {interactive && !depleted && (
+        <group ref={nameplateAnchorRef}>
+          <Billboard follow position={[0, 1.02, 0]}>
+            <Html center distanceFactor={htmlDistanceFactor} transform style={{ pointerEvents: 'none' }}>
+              <div className="flex flex-col items-center gap-0.5 select-none [transform:translateZ(0)]">
+                <span
+                  className={
+                    'text-[9px] font-bold uppercase tracking-wider drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ' +
+                    (rockType === 'mob' ? 'text-fuchsia-100' : 'text-amber-100')
+                  }
+                >
+                  {nameLabel}
+                </span>
+                <div className="h-[5px] w-[76px] rounded-full bg-black/55 ring-1 ring-white/15 overflow-hidden shadow-md">
+                  <div
+                    className={`h-full rounded-full transition-[width] duration-150 ${barGradient}`}
+                    style={{ width: `${hpPct}%` }}
+                  />
+                </div>
+                <span className="text-[8px] font-mono tabular-nums text-slate-200/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                  {hp}/{maxHp}
+                </span>
+              </div>
+            </Html>
+          </Billboard>
+        </group>
+      )}
     </group>
   )
 }
