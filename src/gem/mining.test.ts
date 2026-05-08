@@ -1,5 +1,23 @@
 import { describe, expect, it, vi } from 'vitest'
-import { rollBlueprintFromGoldChest } from './mining'
+import { rollBlueprintFromGoldChest, rollLootIngredientDrop } from './mining'
+
+describe('rollLootIngredientDrop (Fase 4)', () => {
+  it('returnerer null når chance fejler', () => {
+    const rng = vi.fn().mockReturnValue(0.99)
+    expect(rollLootIngredientDrop(5, rng)).toBeNull()
+    expect(rng).toHaveBeenCalled()
+  })
+
+  it('ved lav roll og dybde giver glød-mos som consumable-drop', () => {
+    const rng = vi.fn().mockReturnValueOnce(0).mockReturnValueOnce(0)
+    const drop = rollLootIngredientDrop(10, rng)
+    expect(drop?.kind).toBe('consumable')
+    if (drop?.kind === 'consumable') {
+      expect(drop.consumableId).toBe('ing_glow_moss')
+      expect(drop.quantity).toBe(1)
+    }
+  })
+})
 
 describe('rollBlueprintFromGoldChest', () => {
   it('returnerer null for ikke-guld-kiste', () => {

@@ -703,6 +703,14 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           manaMax={effectiveTotalManaMax(state)}
           manaAccentColor={activeBrew?.color}
           manaAbilityHint={activeBrew?.abilityDescription ?? null}
+          manaAside={
+            <HUDConsumableQuickBar
+              density="compact"
+              quickSlots={state.consumableQuickSlots}
+              consumables={state.hubInventory.consumables}
+              onUseSlot={(i) => dispatch({ type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: i })}
+            />
+          }
         />
         {activeSlot?.kind === 'mob' && !activeSlot.cleared && (
           <div className="pointer-events-none shrink-0 px-3 py-2 bg-red-950/70 border-b border-red-800/60">
@@ -736,7 +744,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
         <div className="pointer-events-auto shrink-0 px-2 pb-1 pt-1">
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
-            <div className="min-w-0 flex-1 flex flex-col gap-1 sm:max-w-[min(56%,520px)] order-2 sm:order-1">
+            <div className="min-w-0 flex-1 flex flex-col gap-1 sm:max-w-[min(56%,520px)]">
               {dropNotice && (
                 <RockDropBanner
                   key={dropNotice.id}
@@ -755,12 +763,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
                 </p>
               )}
             </div>
-            <HUDConsumableQuickBar
-              className="shrink-0 order-1 sm:order-2 self-end"
-              quickSlots={state.consumableQuickSlots}
-              consumables={state.hubInventory.consumables}
-              onUseSlot={(i) => dispatch({ type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: i })}
-            />
           </div>
         </div>
 

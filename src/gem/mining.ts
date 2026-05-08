@@ -47,6 +47,16 @@ function rollLootConsumable(rng: () => number): MineDrop | null {
   return { kind: 'consumable', consumableId: d.id, quantity: 1, pixelItem: d.pixelItem }
 }
 
+/** Fase 4: alkymi-ingredienser som verdens-/mob-/kiste-loot (tab `ingredient`). */
+export function rollLootIngredientDrop(depth: number, rng: () => number): MineDrop | null {
+  const pool = CONSUMABLE_DEFS.filter((c) => c.tab === 'ingredient')
+  if (pool.length === 0) return null
+  const chance = Math.min(0.16, 0.035 + depth * 0.01)
+  if (rng() >= chance) return null
+  const d = pool[Math.floor(rng() * pool.length)]!
+  return { kind: 'consumable', consumableId: d.id, quantity: 1, pixelItem: d.pixelItem }
+}
+
 function rollBlueprintChestDrop(depth: number, rng: () => number): string | null {
   if (LOOTABLE_SHOP_BLUEPRINT_IDS.length === 0) return null
   const chance = Math.min(0.5, 0.08 + depth * 0.015)
@@ -185,6 +195,11 @@ export function rollChestLoot(
   for (let i = 0; i < n; i++) {
     items.push(rollMineDrop(area, depth, activeCharms, 'normal', rarityAdd, rng))
   }
+  const ingChance = tier === 'gold' ? 0.22 : tier === 'silver' ? 0.14 : 0.08
+  if (rng() < ingChance) {
+    const ing = rollLootIngredientDrop(depth, rng)
+    if (ing) items.push(ing)
+  }
   const extraBp = rollBlueprintChestDrop(depth, rng)
   if (extraBp) {
     items.push({ kind: 'blueprint', blueprintId: extraBp, pixelItem: SCROLL_PIXEL })
@@ -274,6 +289,10 @@ export function rollMobMineDrop(
     const c = rollLootConsumable(rng)
     if (c) return c
   }
+  if (rng() < 0.09) {
+    const ing = rollLootIngredientDrop(depth, rng)
+    if (ing) return ing
+  }
   const mobGear = rollPlaceholderMineGearDrop(depth, `mob-${area.id}`, rng)
   if (mobGear) return mobGear
   return rollMineDrop(area, depth, activeCharms, 'normal', 0.04, rng)
@@ -310,6 +329,10 @@ export function rollMineDrop(
       const c = rollLootConsumable(rng)
       if (c) return c
     }
+    if (rng() < 0.04) {
+      const ing = rollLootIngredientDrop(depth, rng)
+      if (ing) return ing
+    }
     const crystalGear = rollPlaceholderMineGearDrop(depth, `crystal-${area.id}`, rng)
     return crystalGear ?? { kind: 'nothing' }
   }
@@ -330,6 +353,10 @@ export function rollMineDrop(
   if (rng() < 0.05) {
     const c = rollLootConsumable(rng)
     if (c) return c
+  }
+  if (rng() < 0.028) {
+    const ing = rollLootIngredientDrop(depth, rng)
+    if (ing) return ing
   }
   const fallbackGear = rollPlaceholderMineGearDrop(depth, `rock-${area.id}`, rng)
   return fallbackGear ?? { kind: 'nothing' }

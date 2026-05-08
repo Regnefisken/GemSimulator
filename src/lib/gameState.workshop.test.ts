@@ -163,4 +163,41 @@ describe('Fase 4 alkymi brew & blandning', () => {
     const next = reducer(base, { type: 'UNLOCK_ALCHEMY_RECIPE', recipeId: 'recipe_solar_elixir' })
     expect(next.unlockedAlchemyRecipes).toContain('recipe_solar_elixir')
   })
+
+  it('D20/D19: ny brew overskriver forrige og klamper mana til ny manaMax', () => {
+    const area = AREAS.find((a) => a.id === 'kobbermine')!
+    const run = createInitialMineRun({ area, mineId: 'kobbermine', activeCharms: [] })
+    const base: GameState = {
+      ...initialState,
+      viewMode: 'location',
+      currentArea: 'kobbermine',
+      mineRun: run,
+      runInventory: emptyRun(),
+      activeBrewId: 'brew_solar_vigor',
+      playerMana: 62,
+      hubInventory: {
+        ...initialState.hubInventory,
+        consumables: [{ consumableId: 'cons_brew_lunar_focus', quantity: 1 }],
+      },
+      consumableQuickSlots: ['cons_brew_lunar_focus', null, null],
+    }
+    const next = reducer(base, { type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: 0 })
+    expect(next.activeBrewId).toBe('brew_lunar_focus')
+    expect(next.playerManaMax).toBe(45)
+    expect(next.playerMana).toBe(45)
+  })
+
+  it('CRAFT_ALCHEMY_RECIPE laver måne-eliksir når opskrift er låst op', () => {
+    const base: GameState = {
+      ...initialState,
+      unlockedAlchemyRecipes: ['recipe_lunar_draught'],
+      hubInventory: {
+        ...initialState.hubInventory,
+        consumables: [{ consumableId: 'ing_glow_moss', quantity: 4 }],
+      },
+    }
+    const next = reducer(base, { type: 'CRAFT_ALCHEMY_RECIPE', recipeId: 'recipe_lunar_draught' })
+    expect(next.hubInventory.consumables.find((c) => c.consumableId === 'ing_glow_moss')?.quantity).toBe(2)
+    expect(next.hubInventory.consumables.find((c) => c.consumableId === 'cons_brew_lunar_focus')?.quantity).toBe(1)
+  })
 })

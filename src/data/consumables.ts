@@ -93,6 +93,20 @@ export const CONSUMABLE_DEFS: ConsumableDef[] = [
     brewId: 'brew_solar_vigor',
     pixelItem: GOLDEN_VIAL_PIXEL,
   },
+  {
+    id: 'cons_brew_lunar_focus',
+    name: 'Måne-eliksir',
+    description: 'Skifter aktiv bryg til Måne-fokus; overskriver tidligere brew (D20).',
+    tab: 'potion',
+    price: 0,
+    kind: 'potion',
+    effect: 'apply_brew',
+    brewId: 'brew_lunar_focus',
+    pixelItem: {
+      data: ['..CC..', '.CSSC.', '.CSSC.', '.CSSC.', '..CC..'],
+      colorMap: { C: '#7dd3fc', S: '#0ea5e9', '.': 'transparent' },
+    },
+  },
 ]
 
 export const CONSUMABLE_DEFS_BY_ID = new Map(CONSUMABLE_DEFS.map((c) => [c.id, c]))

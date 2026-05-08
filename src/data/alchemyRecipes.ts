@@ -18,7 +18,10 @@ export type AlchemyRecipeDef = {
 }
 
 /** Standard unlocked ved ny save / migration v16 — ét eksempel på blanding (Fase 4). */
-export const STARTER_UNLOCKED_ALCHEMY_RECIPES: readonly AlchemyRecipeId[] = ['recipe_solar_elixir']
+export const STARTER_UNLOCKED_ALCHEMY_RECIPES: readonly AlchemyRecipeId[] = [
+  'recipe_solar_elixir',
+  'recipe_lunar_draught',
+]
 
 export const ALCHEMY_RECIPES: AlchemyRecipeDef[] = [
   {
@@ -28,6 +31,14 @@ export const ALCHEMY_RECIPES: AlchemyRecipeDef[] = [
     requiredWorldTier: 0,
     ingredients: { ing_glow_moss: 3 },
     outputConsumableId: 'cons_brew_solar_vigor',
+  },
+  {
+    id: 'recipe_lunar_draught',
+    name: 'Måne-drik',
+    description: 'To portioner glød-mos kølet til en azur bryg (lavere mana-loft, D20-test).',
+    requiredWorldTier: 0,
+    ingredients: { ing_glow_moss: 2 },
+    outputConsumableId: 'cons_brew_lunar_focus',
   },
 ]
 

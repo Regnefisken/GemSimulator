@@ -1,8 +1,10 @@
 import { useState, type Dispatch } from 'react'
 import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
+import { isInActiveMineRun } from '../../lib/survival'
 import PixelItemCard from '../PixelItemCard'
 import ItemPreviewModal from './ItemPreviewModal'
+import LoadoutCharacterStrip from './LoadoutCharacterStrip'
 
 function CapacityLine({ used, max, label }: { used: number; max: number; label: string }) {
   const pct = max > 0 ? Math.min(100, (used / max) * 100) : 0
@@ -43,8 +45,11 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
   const previewWeapon = previewPick ?? previewSw
   const preview = previewWeapon ?? previewArm
 
+  const inMineRun = isInActiveMineRun(state)
+
   return (
     <div>
+      <LoadoutCharacterStrip state={state} />
       <CapacityLine used={used} max={cap} label="Værktøj (hakker + sværd + rustning)" />
       <h3 className="text-sm font-semibold text-slate-200 mb-2">Hakker</h3>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
@@ -90,7 +95,12 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
 
       <h3 className="text-sm font-semibold text-slate-200 mb-2">Rustning</h3>
       <p className="text-xs text-slate-500 mb-2">
-        Kun på overfladen/hub — ikke midt i mine-run (D35). Rustning er kun 2D-ikon her; ingen model-skift.
+        Kun på overfladen/hub — ikke midt i aktiv mine-run (D35). Rustning er kun 2D-ikon; ingen model-skift.
+        {inMineRun && (
+          <span className="block mt-1 text-amber-400/95 font-medium">
+            Du har et aktivt minebesøg: åbn lager fra kort/hub for at skifte rustning.
+          </span>
+        )}
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {state.armours.map((a) => (
@@ -191,11 +201,13 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
               {previewArm.id !== state.activeArmourId ? (
                 <button
                   type="button"
+                  disabled={inMineRun}
+                  title={inMineRun ? 'Rustning kan ikke skiftes under aktiv mine-run' : undefined}
                   onClick={() => {
                     dispatch({ type: 'SET_ACTIVE_ARMOUR', id: previewArm.id })
                     setPreviewId(null)
                   }}
-                  className="px-4 py-2 rounded-xl bg-slate-600 hover:bg-slate-500 text-white text-sm font-semibold"
+                  className="px-4 py-2 rounded-xl bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold"
                 >
                   Tag rustning på
                 </button>
@@ -204,11 +216,13 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
                   <span className="text-sm text-emerald-400 font-medium">Aktiv rustning</span>
                   <button
                     type="button"
+                    disabled={inMineRun}
+                    title={inMineRun ? 'Rustning kan ikke skiftes under aktiv mine-run' : undefined}
                     onClick={() => {
                       dispatch({ type: 'SET_ACTIVE_ARMOUR', id: null })
                       setPreviewId(null)
                     }}
-                    className="px-4 py-2 rounded-xl border border-slate-600 text-slate-200 text-sm font-semibold hover:bg-slate-800"
+                    className="px-4 py-2 rounded-xl border border-slate-600 text-slate-200 text-sm font-semibold hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Afmonter
                   </button>

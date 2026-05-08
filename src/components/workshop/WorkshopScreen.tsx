@@ -3,6 +3,7 @@ import type { Dispatch } from 'react'
 import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
 import { ALCHEMY_RECIPES } from '../../data/alchemyRecipes'
+import { findBrew } from '../../data/brews'
 import { CONSUMABLE_DEFS, findConsumableDef, type WorkshopTabId } from '../../data/consumables'
 import { computeWorldTier } from '../../lib/worldTier'
 import { playGoldSpend } from '../../lib/sounds'
@@ -70,6 +71,13 @@ export default function WorkshopScreen({ state, dispatch, onBack }: Props) {
 
         <div className="rounded-xl border border-violet-800/40 bg-slate-950/70 p-4 mb-6">
           <h2 className="text-sm font-bold text-violet-200 mb-2">Bland eliksirer</h2>
+          {state.activeBrewId && (
+            <p className="text-xs text-sky-300/95 mb-2 rounded-md border border-sky-800/50 bg-sky-950/40 px-2 py-1.5">
+              Aktiv bryg (fx fra gemt run):{' '}
+              <span className="font-semibold">{findBrew(state.activeBrewId)?.name ?? state.activeBrewId}</span> — nulstilles i
+              hub (D36).
+            </p>
+          )}
           <p className="text-xs text-slate-500 mb-3">
             World tier <span className="font-mono text-slate-300">{worldTier}</span> (D10). Opskrifter låses bl.a.
             op via kiste-blueprints — smykke-blueprints er et andet system (§8b).

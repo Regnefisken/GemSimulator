@@ -121,7 +121,8 @@
     "basic_pendant"
   ],
   "unlockedAlchemyRecipes": [
-    "recipe_solar_elixir"
+    "recipe_solar_elixir",
+    "recipe_lunar_draught"
   ],
   "essences": [],
   "workshopStock": {
@@ -143,5 +144,5 @@
   "playerManaMax": 50,
   "activeBrewId": null,
   "gameNotice": null,
-  "version": 20
+  "version": 21
 }

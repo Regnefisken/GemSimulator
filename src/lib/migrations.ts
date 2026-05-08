@@ -25,7 +25,7 @@ import { clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './
 import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 import { STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
 
-export const CURRENT_STATE_VERSION = 20
+export const CURRENT_STATE_VERSION = 21
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -647,6 +647,14 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     if (typeof next.day !== 'number' || next.day < 1) next.day = 1
     if (typeof next.lastRestockDay !== 'number' || next.lastRestockDay < 1) {
       next.lastRestockDay = next.day
+    }
+  }
+
+  if (version < 21) {
+    const ur = Array.isArray(next.unlockedAlchemyRecipes) ? [...next.unlockedAlchemyRecipes] : []
+    if (!ur.includes('recipe_lunar_draught')) {
+      ur.push('recipe_lunar_draught')
+      next.unlockedAlchemyRecipes = ur.sort()
     }
   }
 

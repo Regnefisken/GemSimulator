@@ -21,6 +21,13 @@ export const BREWS: BrewDef[] = [
     color: '#fbbf24',
     manaMax: 65,
   },
+  {
+    id: 'brew_lunar_focus',
+    name: 'Måne-fokus',
+    abilityDescription: 'Kølig fokus: mindre mana-pulje, skarpere kanal (D20 skift).',
+    color: '#38bdf8',
+    manaMax: 45,
+  },
 ]
 
 const BY_ID = new Map(BREWS.map((b) => [b.id, b]))

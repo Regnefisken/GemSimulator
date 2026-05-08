@@ -75,6 +75,8 @@ type PlayerSurvivalProps = {
   manaAccentColor?: string
   /** Tooltip på mana-sektionen — aktiv evne. */
   manaAbilityHint?: string | null
+  /** D33: quick-slots el.l. til højre for mana-baren (pointer-events-auto på wrapper). */
+  manaAside?: ReactNode
 }
 
 /** Spiller-Liv og mana (Fase 1.5) — kun i aktiv mine, ikke på hub/kort. */
@@ -87,6 +89,7 @@ export function HUDPlayerSurvival({
   manaMax,
   manaAccentColor,
   manaAbilityHint,
+  manaAside,
 }: PlayerSurvivalProps) {
   if (!visible) return null
   const hpPct = hpMax > 0 ? Math.max(0, (hp / hpMax) * 100) : 0
@@ -111,29 +114,34 @@ export function HUDPlayerSurvival({
           />
         </div>
       </div>
-      <div>
-        <div className="flex justify-between text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">
-          <span>Mana</span>
-          <span className="font-mono text-slate-300">
-            {mana}/{manaMax}
-          </span>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-0 flex-1 basis-[min(100%,12rem)]">
+          <div className="flex justify-between text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">
+            <span>Mana</span>
+            <span className="font-mono text-slate-300">
+              {mana}/{manaMax}
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-900 overflow-hidden">
+            <div
+              className={
+                'h-full rounded-full transition-[width] duration-150 ' +
+                (themedMana ? '' : 'bg-gradient-to-r from-indigo-900 to-violet-400')
+              }
+              style={
+                themedMana
+                  ? {
+                      width: `${manaPct}%`,
+                      background: `linear-gradient(to right, ${manaAccentColor}99, ${manaAccentColor})`,
+                    }
+                  : { width: `${manaPct}%` }
+              }
+            />
+          </div>
         </div>
-        <div className="h-2 rounded-full bg-slate-900 overflow-hidden">
-          <div
-            className={
-              'h-full rounded-full transition-[width] duration-150 ' +
-              (themedMana ? '' : 'bg-gradient-to-r from-indigo-900 to-violet-400')
-            }
-            style={
-              themedMana
-                ? {
-                    width: `${manaPct}%`,
-                    background: `linear-gradient(to right, ${manaAccentColor}99, ${manaAccentColor})`,
-                  }
-                : { width: `${manaPct}%` }
-            }
-          />
-        </div>
+        {manaAside != null && manaAside !== false ? (
+          <div className="pointer-events-auto shrink-0 max-w-full">{manaAside}</div>
+        ) : null}
       </div>
     </div>
   )
@@ -301,6 +309,8 @@ type QuickBarProps = {
   quickSlots: [string | null, string | null, string | null]
   consumables: { consumableId: string; quantity: number }[]
   onUseSlot: (slotIndex: number) => void
+  /** Kompakt layout ved siden af mana-bar (D33). */
+  density?: 'default' | 'compact'
 }
 
 /** Fase 3: hurtige forbrugsslots i minen (taster 1–3). */
@@ -309,14 +319,16 @@ export function HUDConsumableQuickBar({
   quickSlots,
   consumables,
   onUseSlot,
+  density = 'default',
 }: QuickBarProps) {
   const qtyOf = (id: string | null) => {
     if (!id) return 0
     return consumables.find((c) => c.consumableId === id)?.quantity ?? 0
   }
+  const compact = density === 'compact'
   return (
     <div
-      className={`flex flex-wrap gap-2 justify-end items-stretch pointer-events-auto ${className}`}
+      className={`flex flex-wrap gap-1.5 justify-end items-stretch pointer-events-auto ${className}`}
     >
       {([0, 1, 2] as const).map((i) => {
         const id = quickSlots[i]
@@ -331,20 +343,40 @@ export function HUDConsumableQuickBar({
             title={usable ? `Brug (${i + 1})` : `Slot ${i + 1}`}
             onClick={() => onUseSlot(i)}
             className={
-              'flex flex-col items-center justify-center min-w-[72px] max-w-[100px] min-h-[52px] px-2 py-1 rounded-lg border text-left transition-colors ' +
+              'flex flex-col items-center justify-center rounded-lg border text-left transition-colors ' +
+              (compact
+                ? 'min-w-[56px] max-w-[72px] min-h-[44px] px-1 py-0.5 '
+                : 'min-w-[72px] max-w-[100px] min-h-[52px] px-2 py-1 ') +
               (usable
                 ? 'bg-emerald-950/70 border-emerald-600/50 text-emerald-100 hover:bg-emerald-900/70'
                 : 'bg-slate-900/60 border-slate-700/50 text-slate-500 cursor-not-allowed opacity-70')
             }
           >
-            <span className="text-[9px] font-mono text-slate-500 w-full text-left">{i + 1}</span>
-            <span className="text-[10px] font-semibold leading-tight line-clamp-2 text-center w-full">
+            <span
+              className={
+                (compact ? 'text-[8px] ' : 'text-[9px] ') + 'font-mono text-slate-500 w-full text-left'
+              }
+            >
+              {i + 1}
+            </span>
+            <span
+              className={
+                (compact ? 'text-[9px] ' : 'text-[10px] ') +
+                'font-semibold leading-tight line-clamp-2 text-center w-full'
+              }
+            >
               {def?.name ?? '—'}
             </span>
             {id ? (
-              <span className="text-[9px] font-mono text-slate-400 mt-0.5">×{q}</span>
+              <span
+                className={(compact ? 'text-[8px] ' : 'text-[9px] ') + 'font-mono text-slate-400 mt-0.5'}
+              >
+                ×{q}
+              </span>
             ) : (
-              <span className="text-[9px] text-slate-600 mt-0.5">tom</span>
+              <span className={(compact ? 'text-[8px] ' : 'text-[9px] ') + 'text-slate-600 mt-0.5'}>
+                tom
+              </span>
             )}
           </button>
         )

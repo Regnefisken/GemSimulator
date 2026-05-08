@@ -228,3 +228,16 @@ describe('migrateGameState v20 dag + redningspose-meta', () => {
     expect(next.lastRestockDay).toBeGreaterThanOrEqual(1)
   })
 })
+
+describe('migrateGameState v21 måne-opskrift', () => {
+  it('tilføjer recipe_lunar_draught til eksisterende alkymi-unlocks', () => {
+    const raw = {
+      ...initialState,
+      version: 20,
+      unlockedAlchemyRecipes: ['recipe_solar_elixir'],
+    } as Record<string, unknown>
+    const next = migrateGameState(raw, initialState)
+    expect(next.version).toBe(CURRENT_STATE_VERSION)
+    expect(next.unlockedAlchemyRecipes).toContain('recipe_lunar_draught')
+  })
+})
