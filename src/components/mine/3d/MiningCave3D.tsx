@@ -168,6 +168,7 @@ function CaveContent({
             key={`${i}-${slot.cleared}`}
             position={sinkOreSlotPosition(pos, layout.extraSinkY)}
             meshScaleMultiplier={layout.meshScaleMultiplier}
+            extraSinkY={layout.extraSinkY}
             hp={slot.currentHp}
             maxHp={slot.maxHp}
             hitPulse={hitPulse}

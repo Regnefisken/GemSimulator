@@ -17,8 +17,6 @@ const LABEL_HTML_MIN_WORLD_DISTANCE = 3.25
 /** Drei: `scale ≈ objectScale * distanceFactor`; loft på produktet holder tekst/bar skarp (især uden `transform`). */
 const LABEL_HTML_MAX_CSS_SCALE = 2.65
 const LABEL_HTML_BASE_DISTANCE_FACTOR = 10
-/** Navn + HP over målets center — lidt over klippens bulk, så UI ikke kæntrer mod modellen. */
-const LABEL_BILLBOARD_OFFSET_Y = 1.32
 
 type Props = {
   position: [number, number, number]
@@ -37,6 +35,8 @@ type Props = {
   depleted?: boolean
   /** 1 = standard; fra `getRockLayoutParams` — skalerer mesh relativt til ROCK_BULK × global skala. */
   meshScaleMultiplier?: number
+  /** Fra `getRockLayoutParams`; bruges til HP‑højde vs nedsænkning (typisk ≤ 0). */
+  extraSinkY?: number
 }
 
 const ROCK_TYPE_COLOR: Record<RockType, [number, number]> = {
@@ -77,6 +77,13 @@ const ROCK_BULK: Record<RockType, number> = {
 
 /** Fælles ~20% op-skala så klippen fylder bedre mod grobund (mindre «svæv» set fra spilleren). */
 const ROCK_MESH_GLOBAL_SCALE = 1.2
+
+/** Navn/HP: basis lod over reference‑klip (normal + global skala). */
+const LABEL_BILLBOARD_BASE_Y = 1.32
+/** `LABEL_BILLBOARD_BASE_Y` ganges med `bulk /` denne (så størrelse + type følger med). */
+const LABEL_REF_BULK = ROCK_BULK.normal * ROCK_MESH_GLOBAL_SCALE
+/** Ekstra fordybning (`extraSinkY` negativ) giver yderligere lod (nedsænkning). */
+const LABEL_SINK_SCALE_PER_UNIT = 1.55
 
 function rockSurfaceColor(rockType: RockType, interactive: boolean, pct: number): string {
   const [hue, sat] = ROCK_TYPE_COLOR[rockType]
@@ -134,6 +141,7 @@ export default function OreNode({
   hitTargetRef,
   depleted,
   meshScaleMultiplier = 1,
+  extraSinkY = 0,
 }: Props) {
   const meshRef = useRef<Group>(null)
   const shake = useRef(0)
@@ -221,6 +229,10 @@ export default function OreNode({
   }, [interactive, isLowHp, accentMetal, idleGlow.color])
 
   const bulk = ROCK_BULK[rockType] * ROCK_MESH_GLOBAL_SCALE * meshScaleMultiplier
+  const labelBillboardY =
+    LABEL_BILLBOARD_BASE_Y *
+    (bulk / LABEL_REF_BULK) *
+    (1 + LABEL_SINK_SCALE_PER_UNIT * Math.max(0, -extraSinkY))
   const roughRock =
     rockType === 'hard' ? 0.94 : rockType === 'crystal' ? 0.78 : rockType === 'rich' ? 0.82 : 0.9
   const metalRock =
@@ -344,10 +356,7 @@ export default function OreNode({
       </group>
       {interactive && !depleted && (
         <group>
-          <Billboard
-            follow
-            position={[0, LABEL_BILLBOARD_OFFSET_Y * (0.88 + 0.12 * Math.min(meshScaleMultiplier, 1.85)), 0]}
-          >
+          <Billboard follow position={[0, labelBillboardY, 0]}>
             <group ref={labelAnchorRef}>
               <Html
                 center
