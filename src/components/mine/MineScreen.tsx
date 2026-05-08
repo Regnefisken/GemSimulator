@@ -272,7 +272,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       pickupFeedClearRef.current = window.setTimeout(() => {
         setPickupFeed(null)
         pickupFeedClearRef.current = null
-      }, 2400)
+      }, 3400)
       return
     }
 

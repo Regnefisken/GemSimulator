@@ -24,6 +24,7 @@ import { computeWorldTier, MINE_LOCATION_IDS } from './worldTier'
 import { clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './survival'
 import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 import { STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
+import { normalizeStackableFoundLoot } from './foundLootStack'
 
 export const CURRENT_STATE_VERSION = 21
 
@@ -254,8 +255,8 @@ function parseRunInventory(r: Record<string, unknown>, base: GameState): RunInve
   const o = ri as Record<string, unknown>
   if (!Array.isArray(o.foundLoot) || !Array.isArray(o.rescueBag)) return null
   return {
-    foundLoot: o.foundLoot as RunInventory['foundLoot'],
-    rescueBag: o.rescueBag as RunInventory['foundLoot'],
+    foundLoot: normalizeStackableFoundLoot(o.foundLoot as RunInventory['foundLoot']),
+    rescueBag: normalizeStackableFoundLoot(o.rescueBag as RunInventory['foundLoot']),
     rescueBagCapacity: typeof o.rescueBagCapacity === 'number' ? o.rescueBagCapacity : 3,
     questItems: Array.isArray(o.questItems) ? (o.questItems as RunInventory['questItems']) : [],
     stowedHubGear: Array.isArray(o.stowedHubGear) ? (o.stowedHubGear as RunInventory['stowedHubGear']) : [],

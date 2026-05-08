@@ -2,6 +2,7 @@ import { useState, type Dispatch } from 'react'
 import type { FoundLootEntry, GameState, RunInventory } from '../../types'
 import type { Action } from '../../lib/gameState'
 import { getNextRescueBagUpgrade } from '../../data/rescueBagUpgrades'
+import { METALS } from '../../data/metals'
 
 function entryLabel(e: FoundLootEntry): string {
   switch (e.kind) {
@@ -9,10 +10,14 @@ function entryLabel(e: FoundLootEntry): string {
       return e.gem.name
     case 'coal':
       return `${e.quantity} kul`
-    case 'ore':
-      return `${e.ore.quantity}× ${e.ore.metalName} malm`
-    case 'nugget':
-      return `${e.nugget.quantity}× ${e.nugget.metalName} klump`
+    case 'ore': {
+      const name = METALS[e.ore.metalName]?.name ?? e.ore.metalName
+      return `${e.ore.quantity}× ${name} malm`
+    }
+    case 'nugget': {
+      const name = METALS[e.nugget.metalName]?.name ?? e.nugget.metalName
+      return `${e.nugget.quantity}× ${name} klump`
+    }
     case 'rough_stone':
       return 'Rå klippe'
     case 'quest_item':
@@ -45,7 +50,7 @@ export default function MineRunLootPanel({ state, runInventory, dispatch }: Prop
   const meetsLevel = nextUpgrade != null && state.level >= nextUpgrade.minLevel
 
   return (
-    <div className="pointer-events-auto absolute top-[7.5rem] right-2 z-[42] max-w-[min(92vw,280px)]">
+    <div className="pointer-events-auto absolute top-[17rem] right-2 z-[42] max-w-[min(92vw,280px)]">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

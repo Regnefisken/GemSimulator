@@ -72,6 +72,7 @@ import {
   smelterNextUpgradeCost,
 } from '../data/shop'
 import { getNextRescueBagUpgrade } from '../data/rescueBagUpgrades'
+import { mergeFoundLootEntryIntoList } from './foundLootStack'
 import { NUGGET_SELL_PRICES, ORE_SELL_PRICES } from '../data/market'
 import {
   ESSENCE_IDS,
@@ -525,7 +526,7 @@ function appendFoundLoot(state: GameState, entry: FoundLootEntry): GameState {
     ...state,
     runInventory: {
       ...state.runInventory,
-      foundLoot: [...state.runInventory.foundLoot, entry],
+      foundLoot: mergeFoundLootEntryIntoList(state.runInventory.foundLoot, entry),
     },
   }
 }
@@ -727,7 +728,7 @@ function moveFoundLootToRescueBag(state: GameState, foundIndex: number): GameSta
   }
   const entry = ri.foundLoot[foundIndex]!
   const foundLoot = ri.foundLoot.filter((_, i) => i !== foundIndex)
-  const rescueBag = [...ri.rescueBag, entry]
+  const rescueBag = mergeFoundLootEntryIntoList(ri.rescueBag, entry)
   return {
     ...state,
     runInventory: { ...ri, foundLoot, rescueBag },
@@ -741,7 +742,7 @@ function moveRescueBagToFoundLoot(state: GameState, rescueIndex: number): GameSt
   if (rescueIndex < 0 || rescueIndex >= ri.rescueBag.length) return state
   const entry = ri.rescueBag[rescueIndex]!
   const rescueBag = ri.rescueBag.filter((_, i) => i !== rescueIndex)
-  const foundLoot = [...ri.foundLoot, entry]
+  const foundLoot = mergeFoundLootEntryIntoList(ri.foundLoot, entry)
   return {
     ...state,
     runInventory: { ...ri, foundLoot, rescueBag },
@@ -808,7 +809,7 @@ function mineEquipFound(state: GameState, source: 'found' | 'rescue', index: num
   let equippedWeapon = state.equippedWeapon
 
   const pushMineToFound = (e: FoundLootEntry) => {
-    foundLoot = [...foundLoot, e]
+    foundLoot = mergeFoundLootEntryIntoList(foundLoot, e)
   }
   const pushHubToStowed = (slot: StowedHubGearSlot) => {
     stowedHubGear = [...stowedHubGear, slot]
@@ -888,7 +889,7 @@ function mineUnequip(state: GameState, slot: 'pickaxe' | 'sword' | 'armour'): Ga
     if (!cur) return { ...state, gameNotice: 'Ingen aktiv hakke.' }
     const pickaxes = state.pickaxes.filter((p) => p.id !== cur.id)
     if (effectiveGearOrigin(cur) === 'mine') {
-      foundLoot = [...foundLoot, { kind: 'pickaxe_gear', pickaxe: cur, origin: 'mine' }]
+      foundLoot = mergeFoundLootEntryIntoList(foundLoot, { kind: 'pickaxe_gear', pickaxe: cur, origin: 'mine' })
     } else {
       stowedHubGear = [...stowedHubGear, { kind: 'pickaxe', item: cur }]
     }
@@ -908,7 +909,7 @@ function mineUnequip(state: GameState, slot: 'pickaxe' | 'sword' | 'armour'): Ga
     if (!cur) return state
     const swords = state.swords.filter((s) => s.id !== cur.id)
     if (effectiveGearOrigin(cur) === 'mine') {
-      foundLoot = [...foundLoot, { kind: 'sword_gear', sword: cur, origin: 'mine' }]
+      foundLoot = mergeFoundLootEntryIntoList(foundLoot, { kind: 'sword_gear', sword: cur, origin: 'mine' })
     } else {
       stowedHubGear = [...stowedHubGear, { kind: 'sword', item: cur }]
     }
@@ -934,7 +935,7 @@ function mineUnequip(state: GameState, slot: 'pickaxe' | 'sword' | 'armour'): Ga
   if (!cur) return state
   const armours = state.armours.filter((a) => a.id !== cur.id)
   if (effectiveGearOrigin(cur) === 'mine') {
-    foundLoot = [...foundLoot, { kind: 'armour_gear', armour: cur, origin: 'mine' }]
+    foundLoot = mergeFoundLootEntryIntoList(foundLoot, { kind: 'armour_gear', armour: cur, origin: 'mine' })
   } else {
     stowedHubGear = [...stowedHubGear, { kind: 'armour', item: cur }]
   }

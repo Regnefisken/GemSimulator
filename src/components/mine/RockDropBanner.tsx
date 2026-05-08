@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type TransitionEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode, type TransitionEvent } from 'react'
 import type { MineDrop } from '../../gem/mining'
 import type { ChestTier } from '../../types'
 import { METALS } from '../../data/metals'
@@ -21,6 +21,10 @@ type Props = {
   /** overlay = fuld bredde bund (legacy); inline = kompakt række ved siden af quick-slots */
   layout?: 'overlay' | 'inline'
 }
+
+/** Synlig tid før fade + fade-varighed; fallback sikrer `onDone` hvis `transitionend` udebliver. */
+const DISPLAY_MS = 3000
+const FADE_MS = 500
 
 function borderClassForChestTier(tier: ChestTier): string {
   switch (tier) {
@@ -92,14 +96,28 @@ export default function RockDropBanner({ notice, onDone, layout = 'overlay' }: P
   const { drop } = notice
   const [leaving, setLeaving] = useState(false)
   const inline = layout === 'inline'
+  const doneRef = useRef(false)
+  const onDoneRef = useRef(onDone)
+  onDoneRef.current = onDone
+
+  const finish = useCallback(() => {
+    if (doneRef.current) return
+    doneRef.current = true
+    onDoneRef.current()
+  }, [])
 
   useEffect(() => {
-    const t = window.setTimeout(() => setLeaving(true), 2000)
+    const t = window.setTimeout(() => setLeaving(true), DISPLAY_MS)
     return () => window.clearTimeout(t)
   }, [])
 
+  useEffect(() => {
+    const t = window.setTimeout(finish, DISPLAY_MS + FADE_MS + 100)
+    return () => window.clearTimeout(t)
+  }, [finish])
+
   const handleTransitionEnd = (e: TransitionEvent<HTMLDivElement>) => {
-    if (e.propertyName === 'opacity' && leaving) onDone()
+    if (e.propertyName === 'opacity' && leaving) finish()
   }
 
   let icon: string
