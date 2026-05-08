@@ -10,6 +10,15 @@ import {
   createHardRockGeometry,
   createRichRockGeometry,
 } from '../../../gem/procedural/buildProceduralMineRock'
+import { useLabelHtmlDistanceFactor } from './useLabelHtmlDistanceFactor'
+
+/** Under denne afstand (verdensenheder) skaleres `distanceFactor` ned — undgår enorm CSS-scale tæt på. */
+const LABEL_HTML_MIN_WORLD_DISTANCE = 3.25
+/** Drei: `scale ≈ objectScale * distanceFactor`; loft på produktet holder tekst/bar skarp (især uden `transform`). */
+const LABEL_HTML_MAX_CSS_SCALE = 2.65
+const LABEL_HTML_BASE_DISTANCE_FACTOR = 10
+/** Navn + HP over målets center — lidt over klippens bulk, så UI ikke kæntrer mod modellen. */
+const LABEL_BILLBOARD_OFFSET_Y = 1.18
 
 type Props = {
   position: [number, number, number]
@@ -213,6 +222,14 @@ export default function OreNode({
 
   const surfaceColorThree = useMemo(() => new THREE.Color(color), [color])
 
+  const labelAnchorRef = useRef<Group>(null)
+  const labelDistanceFactor = useLabelHtmlDistanceFactor(
+    labelAnchorRef,
+    LABEL_HTML_BASE_DISTANCE_FACTOR,
+    LABEL_HTML_MIN_WORLD_DISTANCE,
+    LABEL_HTML_MAX_CSS_SCALE,
+  )
+
   if (depleted) {
     return (
       <group position={position}>
@@ -321,28 +338,34 @@ export default function OreNode({
       </group>
       {interactive && !depleted && (
         <group>
-          <Billboard follow position={[0, 1.02, 0]}>
-            <Html center distanceFactor={10} transform style={{ pointerEvents: 'none' }}>
-              <div className="flex flex-col items-center gap-0.5 select-none [transform:translateZ(0)]">
-                <span
-                  className={
-                    'text-[9px] font-bold uppercase tracking-wider drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ' +
-                    (rockType === 'mob' ? 'text-fuchsia-100' : 'text-amber-100')
-                  }
-                >
-                  {nameLabel}
-                </span>
-                <div className="h-[5px] w-[76px] rounded-full bg-black/55 ring-1 ring-white/15 overflow-hidden shadow-md">
-                  <div
-                    className={`h-full rounded-full ${barGradient}`}
-                    style={{ width: `${hpPct}%` }}
-                  />
+          <Billboard follow position={[0, LABEL_BILLBOARD_OFFSET_Y, 0]}>
+            <group ref={labelAnchorRef}>
+              <Html
+                center
+                distanceFactor={labelDistanceFactor}
+                style={{ pointerEvents: 'none' }}
+              >
+                <div className="flex flex-col items-center gap-0.5 select-none">
+                  <span
+                    className={
+                      'text-[9px] font-bold uppercase tracking-wider drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ' +
+                      (rockType === 'mob' ? 'text-fuchsia-100' : 'text-amber-100')
+                    }
+                  >
+                    {nameLabel}
+                  </span>
+                  <div className="h-[5px] w-[76px] rounded-full bg-black/55 ring-1 ring-white/15 overflow-hidden shadow-md">
+                    <div
+                      className={`h-full rounded-full ${barGradient}`}
+                      style={{ width: `${hpPct}%` }}
+                    />
+                  </div>
+                  <span className="text-[8px] font-mono tabular-nums text-slate-200/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                    {hp}/{maxHp}
+                  </span>
                 </div>
-                <span className="text-[8px] font-mono tabular-nums text-slate-200/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                  {hp}/{maxHp}
-                </span>
-              </div>
-            </Html>
+              </Html>
+            </group>
           </Billboard>
         </group>
       )}
