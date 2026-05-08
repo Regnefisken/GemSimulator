@@ -44,6 +44,8 @@ export type MiningCave3DProps = {
   /** Venstreklik på en anden klippe for at sætte den som aktivt mål (D13). */
   onSelectMineSlot?: (slotIndex: number) => void
   onCrosshairTargetChange?: (active: boolean) => void
+  /** Kun aktivt mål-mob: kaldes når slag-animationen rammer (synk skade). */
+  onMobStrikeHit?: () => void
   className?: string
   canvasClassName?: string
 }
@@ -110,6 +112,7 @@ function CaveContent({
   onChestClick,
   onSelectMineSlot,
   onCrosshairTargetChange,
+  onMobStrikeHit,
   caveSeed,
 }: CaveProps) {
   const { camera } = useThree()
@@ -217,6 +220,8 @@ function CaveContent({
             }
             accentMetal={accent}
             hitTargetRef={isVisualTarget ? activeOreMeshRef : undefined}
+            caveBounds={cfg.bounds}
+            onMobStrikeHit={onMobStrikeHit}
           />
         )
       })}

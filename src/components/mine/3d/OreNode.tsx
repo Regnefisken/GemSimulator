@@ -11,6 +11,7 @@ import {
   createRichRockGeometry,
 } from '../../../gem/procedural/buildProceduralMineRock'
 import { useLabelHtmlDistanceFactor } from './useLabelHtmlDistanceFactor'
+import SeamSkulkerMob from './seamSkulker/SeamSkulkerMob'
 
 /** Under denne afstand (verdensenheder) skaleres `distanceFactor` ned — undgår enorm CSS-scale tæt på. */
 const LABEL_HTML_MIN_WORLD_DISTANCE = 3.25
@@ -37,6 +38,10 @@ type Props = {
   meshScaleMultiplier?: number
   /** Fra `getRockLayoutParams`; bruges til HP‑højde vs nedsænkning (typisk ≤ 0). */
   extraSinkY?: number
+  /** Player/mob bevægelsesgrænse (matcher `CaveConfig.bounds`). */
+  caveBounds?: number
+  /** Aktivt mål-mob: skade ved slag (animation). */
+  onMobStrikeHit?: () => void
 }
 
 const ROCK_TYPE_COLOR: Record<RockType, [number, number]> = {
@@ -124,7 +129,11 @@ const METAL_ACCENT: Partial<Record<MetalName, string>> = {
 type RockPayload =
   | { kind: 'single'; geometry: THREE.BufferGeometry }
   | { kind: 'rich'; geometry: THREE.BufferGeometry }
-  | { kind: 'crystal'; hostGeometry: THREE.BufferGeometry; shards: import('../../../gem/procedural/buildProceduralMineRock').CrystalShard[] }
+  | {
+      kind: 'crystal'
+      hostGeometry: THREE.BufferGeometry
+      shards: import('../../../gem/procedural/buildProceduralMineRock').CrystalShard[]
+    }
 
 export default function OreNode({
   position,
@@ -142,6 +151,8 @@ export default function OreNode({
   depleted,
   meshScaleMultiplier = 1,
   extraSinkY = 0,
+  caveBounds = 9,
+  onMobStrikeHit,
 }: Props) {
   const meshRef = useRef<Group>(null)
   const shake = useRef(0)
@@ -150,7 +161,8 @@ export default function OreNode({
 
   const richBlendBase = useMemo(() => new THREE.Color(rockSurfaceColor(rockType, false, 1)), [rockType])
 
-  const rockPayload = useMemo((): RockPayload => {
+  const rockPayload = useMemo((): RockPayload | null => {
+    if (rockType === 'mob') return null
     switch (rockType) {
       case 'hard':
         return { kind: 'single', geometry: createHardRockGeometry(visualSeed) }
@@ -169,6 +181,7 @@ export default function OreNode({
   }, [visualSeed, rockType, richBlendBase])
 
   useEffect(() => {
+    if (!rockPayload) return
     return () => {
       if (rockPayload.kind === 'crystal') rockPayload.hostGeometry.dispose()
       else rockPayload.geometry.dispose()
@@ -290,69 +303,81 @@ export default function OreNode({
   return (
     <group position={position}>
       <group ref={meshRef}>
-        <group scale={[bulk, bulk, bulk]}>
-          {rockPayload.kind === 'crystal' ? (
-            <>
-              <mesh
-                castShadow
-                receiveShadow
-                geometry={rockPayload.hostGeometry}
-                {...meshHandlers}
-              >
-                <meshStandardMaterial
-                  color="#1a1c20"
-                  roughness={0.9}
-                  metalness={0.02}
-                  flatShading
-                />
-              </mesh>
-              {rockPayload.shards.map((s) => (
+        {rockType === 'mob' ? (
+          <SeamSkulkerMob
+            bulk={bulk}
+            visualSeed={visualSeed}
+            slotWorldX={position[0]}
+            slotWorldZ={position[2]}
+            caveBounds={caveBounds}
+            onStrikeHit={interactive ? onMobStrikeHit : undefined}
+            {...(pickable ? meshHandlers : {})}
+          />
+        ) : rockPayload ? (
+          <group scale={[bulk, bulk, bulk]}>
+            {rockPayload.kind === 'crystal' ? (
+              <>
                 <mesh
-                  key={s.id}
-                  position={s.position}
-                  rotation={s.euler}
-                  scale={[1, s.stretchY, 1]}
                   castShadow
                   receiveShadow
+                  geometry={rockPayload.hostGeometry}
                   {...meshHandlers}
                 >
-                  <octahedronGeometry args={[s.radius, 0]} />
                   <meshStandardMaterial
-                    color={s.color}
-                    roughness={rockType === 'crystal' ? 0.38 : 0.5}
-                    metalness={0.35}
-                    emissive={s.color}
-                    emissiveIntensity={0.06}
+                    color="#1a1c20"
+                    roughness={0.9}
+                    metalness={0.02}
                     flatShading
                   />
                 </mesh>
-              ))}
-            </>
-          ) : rockPayload.kind === 'rich' ? (
-            <mesh castShadow receiveShadow geometry={rockPayload.geometry} {...meshHandlers}>
-              <meshStandardMaterial
-                vertexColors
-                color="#ffffff"
-                roughness={interactive ? (isLowHp ? 0.5 : 0.56) : 0.62}
-                metalness={interactive ? 0.36 : 0.34}
-                emissive={emissiveColor}
-                emissiveIntensity={emissiveIntensity}
-                flatShading
-              />
-            </mesh>
-          ) : (
-            <mesh castShadow receiveShadow geometry={rockPayload.geometry} {...meshHandlers}>
-              <meshStandardMaterial
-                color={surfaceColorThree}
-                roughness={interactive ? (isLowHp ? 0.65 : 0.88) : roughRock}
-                metalness={interactive ? 0.1 : metalRock}
-                emissive={emissiveColor}
-                emissiveIntensity={emissiveIntensity}
-                flatShading
-              />
-            </mesh>
-          )}
-        </group>
+                {rockPayload.shards.map((s) => (
+                  <mesh
+                    key={s.id}
+                    position={s.position}
+                    rotation={s.euler}
+                    scale={[1, s.stretchY, 1]}
+                    castShadow
+                    receiveShadow
+                    {...meshHandlers}
+                  >
+                    <octahedronGeometry args={[s.radius, 0]} />
+                    <meshStandardMaterial
+                      color={s.color}
+                      roughness={rockType === 'crystal' ? 0.38 : 0.5}
+                      metalness={0.35}
+                      emissive={s.color}
+                      emissiveIntensity={0.06}
+                      flatShading
+                    />
+                  </mesh>
+                ))}
+              </>
+            ) : rockPayload.kind === 'rich' ? (
+              <mesh castShadow receiveShadow geometry={rockPayload.geometry} {...meshHandlers}>
+                <meshStandardMaterial
+                  vertexColors
+                  color="#ffffff"
+                  roughness={interactive ? (isLowHp ? 0.5 : 0.56) : 0.62}
+                  metalness={interactive ? 0.36 : 0.34}
+                  emissive={emissiveColor}
+                  emissiveIntensity={emissiveIntensity}
+                  flatShading
+                />
+              </mesh>
+            ) : (
+              <mesh castShadow receiveShadow geometry={rockPayload.geometry} {...meshHandlers}>
+                <meshStandardMaterial
+                  color={surfaceColorThree}
+                  roughness={interactive ? (isLowHp ? 0.65 : 0.88) : roughRock}
+                  metalness={interactive ? 0.1 : metalRock}
+                  emissive={emissiveColor}
+                  emissiveIntensity={emissiveIntensity}
+                  flatShading
+                />
+              </mesh>
+            )}
+          </group>
+        ) : null}
       </group>
       {interactive && !depleted && (
         <group>

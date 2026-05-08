@@ -254,14 +254,10 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     return () => window.clearTimeout(tid)
   }, [run?.runId, run?.currentDepth, targetIdx, liveMobTarget])
 
-  useEffect(() => {
-    if (!run || !activeSlot || activeSlot.kind !== 'mob' || activeSlot.cleared) return
-    const tickMs = 2600
-    const id = window.setInterval(() => {
-      dispatch({ type: 'PLAYER_TAKE_DAMAGE', amount: mobDamagePerTick(runDepth), source: 'mob' })
-    }, tickMs)
-    return () => window.clearInterval(id)
-  }, [run, activeSlot, runDepth, dispatch])
+  const handleMobStrikeHit = useCallback(() => {
+    if (!run) return
+    dispatch({ type: 'PLAYER_TAKE_DAMAGE', amount: mobDamagePerTick(run.currentDepth), source: 'mob' })
+  }, [dispatch, run])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -723,6 +719,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           onChestClick={(id) => setActiveChestId(id)}
           onCrosshairTargetChange={setCrosshairOnTarget}
           onSelectMineSlot={(i) => dispatch({ type: 'MINE_SET_TARGET_SLOT', index: i })}
+          onMobStrikeHit={handleMobStrikeHit}
         />
       </div>
 
