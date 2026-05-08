@@ -4,8 +4,10 @@ import { mulberry32 } from './rng'
 
 const NOISE_SCALE = 2
 const NOISE_STRENGTH = 0.15
+/** Bundplan før `translate(0, 0.475, 0)` — alle fladede hjørner får denne y. */
 const FLAT_Y = -0.475
-const FLAT_THRESHOLD = -0.4
+/** Hjørner med y under denne grænse flades til `FLAT_Y` (bred zone = bred fod, mindre «én spids facet»). */
+const FLAT_THRESHOLD = -0.26
 
 /** OBB til raycast / collider — matcher procedurelt indhold (~1.1 × 0.95 × 1.05). */
 export const ROCK_COLLIDER_HALF = {
@@ -66,12 +68,33 @@ function deformVertices(geometry: THREE.BufferGeometry, seed: number, mode: 'nor
   geometry.computeVertexNormals()
 }
 
+/**
+ * Flytter hele mesh vertikalt så det **reelle** laveste vertex ligger ved y = 0.
+ * `FLAT_THRESHOLD` giver kun et groft bundplan; denne pass fjerner rest-uensartethed og små «vipper».
+ */
+function anchorFootToMinY(geometry: THREE.BufferGeometry): void {
+  const pos = geometry.getAttribute('position') as THREE.BufferAttribute | undefined
+  if (!pos) return
+  let minY = Infinity
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i)
+    if (y < minY) minY = y
+  }
+  if (!Number.isFinite(minY) || Math.abs(minY) < 1e-8) return
+  for (let i = 0; i < pos.count; i++) {
+    pos.setY(i, pos.getY(i) - minY)
+  }
+  pos.needsUpdate = true
+  geometry.computeVertexNormals()
+}
+
 /** Normal + rich + crystal host: icosahedron detail 2, facet displacement. */
 export function createBaseRockGeometry(seed: number): THREE.BufferGeometry {
   const geo = new THREE.IcosahedronGeometry(0.55, 2)
   deformVertices(geo, seed, 'normal')
   const nonIndexed = geo.toNonIndexed()
   nonIndexed.translate(0, 0.475, 0)
+  anchorFootToMinY(nonIndexed)
   return nonIndexed
 }
 
@@ -80,6 +103,7 @@ export function createHardRockGeometry(seed: number): THREE.BufferGeometry {
   const geo = new THREE.IcosahedronGeometry(0.55, 3).toNonIndexed()
   deformVertices(geo, seed, 'hard')
   geo.translate(0, 0.475, 0)
+  anchorFootToMinY(geo)
   return geo
 }
 
@@ -124,6 +148,7 @@ export function createRichRockGeometry(
   deformVertices(geo, seed, 'normal')
   const src = geo.toNonIndexed()
   src.translate(0, 0.475, 0)
+  anchorFootToMinY(src)
 
   const metalIdx = seed % ORE_METAL_RGB.length
   const [mr, mg, mb] = ORE_METAL_RGB[metalIdx]
@@ -171,6 +196,7 @@ export function createCrystalRockCluster(seed: number): {
   hostGeometry.translate(0, -0.475, 0)
   hostGeometry.scale(0.85, 0.85, 0.85)
   hostGeometry.translate(0, 0.475 * 0.85, 0)
+  anchorFootToMinY(hostGeometry)
 
   const rng = mulberry32(seed ^ 0xc822ad33)
   const nCrystal = Math.min(7, Math.floor(Math.pow(rng(), 1.5) * 7) + 1)

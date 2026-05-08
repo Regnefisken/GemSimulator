@@ -6,12 +6,14 @@ import { getCaveConfig } from '../../../types'
 import type { MineRunSlotState } from '../../../lib/mineTypes'
 import type { WorldLootEntity } from '../../../lib/lootEntities'
 import { hashMineRockVisualSeed } from '../../../gem/procedural/mineRockSeed'
+import { getRockLayoutParams } from '../../../gem/procedural/rockLayout'
 import OreNode from './OreNode'
 import Pickaxe3D from './Pickaxe3D'
 import PlayerControls from './PlayerControls'
 import ProceduralCave from './ProceduralCave'
 import WorldChest, { type WorldChestEntity } from './WorldChest'
 import WorldLootItem from './WorldLootItem'
+import { sinkOreSlotPosition } from '../sinkOreSlotPosition'
 
 function dominantMetal(area: Area) {
   const pool = area.metalPool
@@ -123,9 +125,15 @@ function CaveContent({
     }
   })
 
-  const burstOrigin = (
-    activeSlotIndex >= 0 ? oreSlots[activeSlotIndex] ?? [0, 0.55, 0] : [0, 0.55, 0]
-  ) as [number, number, number]
+  const burstOrigin = useMemo(() => {
+    const fallback = [0, 0.55, 0] as [number, number, number]
+    if (activeSlotIndex < 0) return sinkOreSlotPosition(fallback, 0)
+    const pos = (oreSlots[activeSlotIndex] ?? fallback) as [number, number, number]
+    const slot = mineSlots[activeSlotIndex]
+    if (!slot || slot.kind === 'chest') return sinkOreSlotPosition(pos, 0)
+    const { extraSinkY } = getRockLayoutParams(mineRunId, runDepth, activeSlotIndex, slot.rockType)
+    return sinkOreSlotPosition(pos, extraSinkY)
+  }, [activeSlotIndex, oreSlots, mineSlots, mineRunId, runDepth])
 
   return (
     <>
@@ -154,10 +162,12 @@ function CaveContent({
         const depleted = depletedSlots.has(i) || slot.cleared
         const isVisualTarget = activeSlotIndex === i && targetSlotIndex >= 0 && !depleted
         const canStrikeHere = !depleted && (targetSlotIndex < 0 || activeSlotIndex === i)
+        const layout = getRockLayoutParams(mineRunId, runDepth, i, slot.rockType)
         return (
           <OreNode
             key={`${i}-${slot.cleared}`}
-            position={pos}
+            position={sinkOreSlotPosition(pos, layout.extraSinkY)}
+            meshScaleMultiplier={layout.meshScaleMultiplier}
             hp={slot.currentHp}
             maxHp={slot.maxHp}
             hitPulse={hitPulse}

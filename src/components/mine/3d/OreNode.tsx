@@ -18,7 +18,7 @@ const LABEL_HTML_MIN_WORLD_DISTANCE = 3.25
 const LABEL_HTML_MAX_CSS_SCALE = 2.65
 const LABEL_HTML_BASE_DISTANCE_FACTOR = 10
 /** Navn + HP over målets center — lidt over klippens bulk, så UI ikke kæntrer mod modellen. */
-const LABEL_BILLBOARD_OFFSET_Y = 1.24
+const LABEL_BILLBOARD_OFFSET_Y = 1.32
 
 type Props = {
   position: [number, number, number]
@@ -35,6 +35,8 @@ type Props = {
   accentMetal?: MetalName
   hitTargetRef?: MutableRefObject<Object3D | null>
   depleted?: boolean
+  /** 1 = standard; fra `getRockLayoutParams` — skalerer mesh relativt til ROCK_BULK × global skala. */
+  meshScaleMultiplier?: number
 }
 
 const ROCK_TYPE_COLOR: Record<RockType, [number, number]> = {
@@ -72,6 +74,9 @@ const ROCK_BULK: Record<RockType, number> = {
   chest: 1,
   mob: 1.04,
 }
+
+/** Fælles ~20% op-skala så klippen fylder bedre mod grobund (mindre «svæv» set fra spilleren). */
+const ROCK_MESH_GLOBAL_SCALE = 1.2
 
 function rockSurfaceColor(rockType: RockType, interactive: boolean, pct: number): string {
   const [hue, sat] = ROCK_TYPE_COLOR[rockType]
@@ -128,6 +133,7 @@ export default function OreNode({
   accentMetal,
   hitTargetRef,
   depleted,
+  meshScaleMultiplier = 1,
 }: Props) {
   const meshRef = useRef<Group>(null)
   const shake = useRef(0)
@@ -214,7 +220,7 @@ export default function OreNode({
     return idleGlow.color !== '#000000' ? idleGlow.color : '#000000'
   }, [interactive, isLowHp, accentMetal, idleGlow.color])
 
-  const bulk = ROCK_BULK[rockType]
+  const bulk = ROCK_BULK[rockType] * ROCK_MESH_GLOBAL_SCALE * meshScaleMultiplier
   const roughRock =
     rockType === 'hard' ? 0.94 : rockType === 'crystal' ? 0.78 : rockType === 'rich' ? 0.82 : 0.9
   const metalRock =
@@ -338,7 +344,10 @@ export default function OreNode({
       </group>
       {interactive && !depleted && (
         <group>
-          <Billboard follow position={[0, LABEL_BILLBOARD_OFFSET_Y, 0]}>
+          <Billboard
+            follow
+            position={[0, LABEL_BILLBOARD_OFFSET_Y * (0.88 + 0.12 * Math.min(meshScaleMultiplier, 1.85)), 0]}
+          >
             <group ref={labelAnchorRef}>
               <Html
                 center

@@ -25,6 +25,8 @@ import { METALS } from '../../data/metals'
 import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
 import { useToast } from '../ui/ToastContext'
 import MiningCave3D from './3d/MiningCave3D'
+import { sinkOreSlotPosition } from './sinkOreSlotPosition'
+import { getRockLayoutParams } from '../../gem/procedural/rockLayout'
 import DamageNumbers, { type DamageFloater } from './DamageNumbers'
 import { HUDBottomBar, HUDPlayerSurvival, HUDTopBar, HUDWeaponToggle, HUDConsumableQuickBar } from './MineHUD'
 import MinimapHUD from './MinimapHUD'
@@ -208,7 +210,10 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       out.push({
         id: s.chestEntityId,
         slotIndex: i,
-        position: cave.oreSlots[i] as [number, number, number],
+        position: sinkOreSlotPosition(
+          cave.oreSlots[i] as [number, number, number],
+          getRockLayoutParams(run.runId, run.currentDepth, i, 'chest').extraSinkY,
+        ),
         tier: s.chestTier ?? 'wood',
         remainingLoot: s.chestLoot,
         opened: s.chestOpened ?? false,
@@ -502,7 +507,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
         const drop = rollMineDrop(area, runDepth, state.activeCharms, struck.rockType)
         const coalDrop = rollCoalDrop(runDepth)
-        const origin = cave.oreSlots[brokenSlot] as [number, number, number]
+        const { extraSinkY } = getRockLayoutParams(run.runId, runDepth, brokenSlot, struck.rockType)
+        const origin = sinkOreSlotPosition(cave.oreSlots[brokenSlot] as [number, number, number], extraSinkY)
 
         if (drop.kind !== 'nothing') {
           const entities = explodeDropToEntities(drop, origin)
@@ -584,7 +590,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         }
 
         const drop = rollMobMineDrop(area, runDepth, state.activeCharms)
-        const origin = cave.oreSlots[brokenSlot] as [number, number, number]
+        const { extraSinkY } = getRockLayoutParams(run.runId, runDepth, brokenSlot, 'mob')
+        const origin = sinkOreSlotPosition(cave.oreSlots[brokenSlot] as [number, number, number], extraSinkY)
 
         if (drop.kind !== 'nothing') {
           const entities = explodeDropToEntities(drop, origin)
