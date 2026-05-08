@@ -1,7 +1,7 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
-import type { Area, PixelItem } from '../../../types'
+import type { Area, CaveConfig, PixelItem } from '../../../types'
 import { getCaveConfig } from '../../../types'
 import type { MineRunSlotState } from '../../../lib/mineTypes'
 import type { WorldLootEntity } from '../../../lib/lootEntities'
@@ -48,9 +48,50 @@ export type MiningCave3DProps = {
   canvasClassName?: string
 }
 
-type CaveProps = Omit<MiningCave3DProps, 'className' | 'canvasClassName'> & {
+type CaveProps = Omit<
+  MiningCave3DProps,
+  'className' | 'canvasClassName' | 'weaponPixelItem' | 'swingTrigger' | 'heldWeaponKind'
+> & {
   caveSeed: number
-  pointerLocked: boolean
+}
+
+/** Kopierer hovedkamera til delt ref — overlay‑canvas tegner våben ovenpå (Html‑labels under). */
+function CameraMirrorInto({ mirror }: { mirror: THREE.PerspectiveCamera }) {
+  const { camera, size } = useThree()
+  useFrame(() => {
+    if (camera instanceof THREE.PerspectiveCamera) {
+      mirror.copy(camera)
+      mirror.aspect = size.width / Math.max(1, size.height)
+      mirror.updateProjectionMatrix()
+    }
+  })
+  return null
+}
+
+function OverlayWeaponCamera({ mirror }: { mirror: THREE.PerspectiveCamera }) {
+  const { camera, size } = useThree()
+  useFrame(() => {
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.copy(mirror)
+      camera.aspect = size.width / Math.max(1, size.height)
+      camera.updateProjectionMatrix()
+    }
+  })
+  return null
+}
+
+/** Samme lys som hovedscenen — overlay‑canvas har ingen geometri, kun våben, så lys skal gentages her. */
+function MineSceneLights({ cfg }: { cfg: CaveConfig }) {
+  return (
+    <>
+      <ambientLight color={cfg.ambientColor} intensity={cfg.ambientIntensity} />
+      <hemisphereLight color="#d8e0f0" groundColor="#5c5044" intensity={0.55} />
+      <pointLight position={[3, 3.5, 2]} intensity={44} distance={30} decay={2} color="#ffddaa" />
+      <pointLight position={[-4, 2.8, -5]} intensity={32} distance={28} decay={2} color="#a8c0f0" />
+      <pointLight position={[0, 4, -8]} intensity={22} distance={28} decay={2} color="#fff4e8" />
+      <pointLight position={[0, 2.2, 6]} intensity={19} distance={28} decay={2} color="#f0e8dc" />
+    </>
+  )
 }
 
 function CaveContent({
@@ -62,9 +103,6 @@ function CaveContent({
   hitPulse,
   disabled,
   onMineHit,
-  swingTrigger,
-  heldWeaponKind,
-  weaponPixelItem,
   lootEntities,
   depletedSlots,
   onCollectLoot,
@@ -73,7 +111,6 @@ function CaveContent({
   onSelectMineSlot,
   onCrosshairTargetChange,
   caveSeed,
-  pointerLocked,
 }: CaveProps) {
   const { camera } = useThree()
   const cfg = useMemo(() => getCaveConfig(area), [area])
@@ -140,12 +177,7 @@ function CaveContent({
       <color attach="background" args={['#18182a']} />
       <fog attach="fog" args={[cfg.fogColor, fogNear, fogFar]} />
 
-      <ambientLight color={cfg.ambientColor} intensity={cfg.ambientIntensity} />
-      <hemisphereLight color="#d8e0f0" groundColor="#5c5044" intensity={0.55} />
-      <pointLight position={[3, 3.5, 2]} intensity={44} distance={30} decay={2} color="#ffddaa" />
-      <pointLight position={[-4, 2.8, -5]} intensity={32} distance={28} decay={2} color="#a8c0f0" />
-      <pointLight position={[0, 4, -8]} intensity={22} distance={28} decay={2} color="#fff4e8" />
-      <pointLight position={[0, 2.2, 6]} intensity={19} distance={28} decay={2} color="#f0e8dc" />
+      <MineSceneLights cfg={cfg} />
 
       <ProceduralCave
         caveConfig={cfg}
@@ -202,16 +234,6 @@ function CaveContent({
       {lootEntities.map((e) => (
         <WorldLootItem key={e.id} entity={e} onCollect={onCollectLoot} />
       ))}
-
-      {weaponPixelItem && (
-        <Pickaxe3D
-          pixelItem={weaponPixelItem}
-          swingTrigger={swingTrigger}
-          disabled={disabled}
-          visible={pointerLocked}
-          heldWeaponKind={heldWeaponKind}
-        />
-      )}
     </>
   )
 }
@@ -219,13 +241,24 @@ function CaveContent({
 export default function MiningCave3D({
   className = '',
   canvasClassName = '',
-  ...props
+  weaponPixelItem,
+  swingTrigger,
+  heldWeaponKind,
+  ...caveProps
 }: MiningCave3DProps) {
   const [pointerLocked, setPointerLocked] = useState(
     typeof document !== 'undefined' && document.pointerLockElement != null,
   )
 
   const [caveSeed] = useState(() => Math.floor(Math.random() * 1e9))
+
+  const weaponCameraMirror = useMemo(() => {
+    const c = new THREE.PerspectiveCamera(58, 1, 0.1, 2000)
+    c.position.set(0, 1.55, 9.2)
+    return c
+  }, [])
+
+  const weaponCaveCfg = useMemo(() => getCaveConfig(caveProps.area), [caveProps.area])
 
   useEffect(() => {
     const onChange = () => {
@@ -256,15 +289,45 @@ export default function MiningCave3D({
           </div>
         </div>
       )}
-      <div className={canvasCn}>
+      <div className={`relative ${canvasCn}`}>
         <Canvas
           key={caveSeed}
           camera={{ position: [0, 1.55, 9.2], fov: 58 }}
           dpr={[1, 2]}
           gl={{ antialias: true }}
         >
-          <CaveContent {...props} caveSeed={caveSeed} pointerLocked={pointerLocked} />
+          <CameraMirrorInto mirror={weaponCameraMirror} />
+          <CaveContent {...caveProps} caveSeed={caveSeed} />
         </Canvas>
+        {weaponPixelItem && (
+          <div
+            className="pointer-events-none absolute inset-0 touch-none"
+            style={{ zIndex: 9000 }}
+          >
+            <Canvas
+              className="h-full w-full"
+              camera={{ position: [0, 1.55, 9.2], fov: 58 }}
+              dpr={[1, 2]}
+              gl={{
+                alpha: true,
+                antialias: true,
+                /** false gør ofte transparente lag mørke ved komposit oven på hoved-canvas */
+                premultipliedAlpha: true,
+              }}
+              onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
+            >
+              <OverlayWeaponCamera mirror={weaponCameraMirror} />
+              <MineSceneLights cfg={weaponCaveCfg} />
+              <Pickaxe3D
+                pixelItem={weaponPixelItem}
+                swingTrigger={swingTrigger}
+                disabled={caveProps.disabled}
+                visible={pointerLocked}
+                heldWeaponKind={heldWeaponKind}
+              />
+            </Canvas>
+          </div>
+        )}
       </div>
     </div>
   )

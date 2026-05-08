@@ -26,6 +26,11 @@ export type VoxelMeshProps = {
   depthWrite?: boolean
   /** Høj værdi = tegnes sent i opaque-køen (løser forkert sortering mod InstancedMesh-BB) */
   renderOrder?: number
+  /**
+   * For belyste meshes (`unlit` false): grottens tåge — slå fra for FPS-våben på overlay
+   * (ingen tåge i det lag).
+   */
+  applyFog?: boolean
 }
 
 /**
@@ -40,6 +45,7 @@ export default function VoxelMesh({
   depthTest = true,
   depthWrite,
   renderOrder = 0,
+  applyFog = true,
 }: VoxelMeshProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const geo = useMemo(() => new THREE.BoxGeometry(1, 1, 1), [])
@@ -57,13 +63,15 @@ export default function VoxelMesh({
       })
     }
     return new THREE.MeshStandardMaterial({
+      vertexColors: true,
       roughness: 0.4,
       metalness: 0.15,
       flatShading: true,
+      fog: applyFog,
       depthTest,
       depthWrite: effectiveDepthWrite,
     })
-  }, [unlit, depthTest, depthWrite])
+  }, [unlit, depthTest, depthWrite, effectiveDepthWrite, applyFog])
 
   useEffect(() => {
     const mesh = meshRef.current

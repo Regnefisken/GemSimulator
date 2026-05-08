@@ -62,7 +62,7 @@ export default function DustParticles({
   })
 
   return (
-    <points geometry={geo}>
+    <points geometry={geo} renderOrder={-80}>
       <pointsMaterial color="#c4b5a0" size={0.035} transparent opacity={0.55} depthWrite={false} />
     </points>
   )

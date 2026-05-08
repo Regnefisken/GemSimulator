@@ -112,13 +112,12 @@ export default function Pickaxe3D({
 
   return (
     <group ref={groupRef} visible={visible} frustumCulled={false} renderOrder={99999}>
-      <pointLight intensity={22} distance={4} decay={2} position={[0.15, 0.06, 0.24]} color="#fff8f0" />
       <group position={[pivotXZ[0], pivotXZ[1], 0]} rotation={t.meshOrient}>
         <VoxelMesh
           data={pixelItem.data}
           colorMap={pixelItem.colorMap}
           frustumCulled={false}
-          unlit
+          applyFog={false}
           depthTest={false}
           renderOrder={99999}
         />

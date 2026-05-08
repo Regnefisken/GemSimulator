@@ -361,6 +361,7 @@ export default function OreNode({
               <Html
                 center
                 distanceFactor={labelDistanceFactor}
+                zIndexRange={[3200, 120]}
                 style={{ pointerEvents: 'none' }}
               >
                 <div className="flex flex-col items-center gap-0.5 select-none">
