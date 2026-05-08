@@ -153,10 +153,19 @@ type WeaponToggleProps = {
   swordUsable: boolean
   onPickaxe: () => void
   onSword: () => void
+  /** Fx hurtig-forbrugs-bar — samme række som våben, ikke ved mana. */
+  trailing?: ReactNode
 }
 
 /** Fase 2 (D23): skift mellem hakke og sværd i minen. */
-export function HUDWeaponToggle({ className = '', equipped, swordUsable, onPickaxe, onSword }: WeaponToggleProps) {
+export function HUDWeaponToggle({
+  className = '',
+  equipped,
+  swordUsable,
+  onPickaxe,
+  onSword,
+  trailing,
+}: WeaponToggleProps) {
   return (
     <div
       className={`flex flex-wrap items-center gap-2 px-3 py-2 bg-slate-950/75 border-b border-slate-800/80 pointer-events-auto ${className}`}
@@ -189,6 +198,9 @@ export function HUDWeaponToggle({ className = '', equipped, swordUsable, onPicka
         Sværd
       </button>
       <span className="text-[10px] text-slate-600 hidden sm:inline">Tab</span>
+      {trailing != null ? (
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0 ml-auto">{trailing}</div>
+      ) : null}
     </div>
   )
 }
@@ -309,7 +321,7 @@ type QuickBarProps = {
   quickSlots: [string | null, string | null, string | null]
   consumables: { consumableId: string; quantity: number }[]
   onUseSlot: (slotIndex: number) => void
-  /** Kompakt layout ved siden af mana-bar (D33). */
+  /** Kompakt layout i minens våben-række (D33). */
   density?: 'default' | 'compact'
 }
 

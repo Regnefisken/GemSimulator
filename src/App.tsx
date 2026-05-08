@@ -171,7 +171,7 @@ function AppContent() {
     <>
       {state.gameNotice && (
         <div
-          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[85] max-w-[min(90vw,420px)] px-4 py-3 rounded-xl border border-amber-500/40 bg-slate-900/95 text-amber-100 text-sm shadow-xl flex items-start gap-3"
+          className="fixed bottom-36 left-1/2 -translate-x-1/2 z-[85] max-w-[min(90vw,420px)] px-4 py-3 rounded-xl border border-amber-500/40 bg-slate-900/95 text-amber-100 text-sm shadow-xl flex items-start gap-3"
           role="alert"
         >
           <span className="flex-1 pt-0.5">{state.gameNotice}</span>

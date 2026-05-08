@@ -217,10 +217,13 @@ export default function MiningCave3D({
       className={`relative w-full rounded-2xl overflow-hidden border border-slate-700 bg-gradient-to-b from-slate-900 to-slate-950 ${className}`}
     >
       {!pointerLocked && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-          <div className="rounded-xl border border-amber-700/40 bg-slate-950/85 px-4 py-3 text-center text-sm text-amber-100/95 shadow-lg max-w-sm mx-4">
+        <div
+          className="fixed left-1/2 bottom-[calc(9rem+5.75rem)] z-[83] w-full max-w-[min(90vw,420px)] -translate-x-1/2 pointer-events-none px-3"
+          role="status"
+        >
+          <div className="rounded-xl border border-amber-700/40 bg-slate-950/90 px-4 py-2.5 text-center text-sm text-amber-100/95 shadow-lg backdrop-blur-sm">
             <p className="font-semibold text-amber-50">Klik for at gå ind i minen</p>
-            <p className="mt-1 text-slate-400 text-xs">
+            <p className="mt-1 text-slate-400 text-xs leading-snug">
               WASD bevæger dig · Mus ser rundt · Venstreklik hugger malmen · ESC frigiver musen
             </p>
           </div>

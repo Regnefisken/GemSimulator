@@ -146,10 +146,13 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const [activeChestId, setActiveChestId] = useState<string | null>(null)
   const [crosshairMining, setCrosshairMining] = useState(false)
   const [crosshairOnTarget, setCrosshairOnTarget] = useState(false)
+  const [mobCombatHint, setMobCombatHint] = useState(false)
 
   const noticeId = useRef(0)
   const hitId = useRef(0)
   const pickupFeedClearRef = useRef<number | null>(null)
+  /** Én toast pr. mål-slot pr. dybde/run (ingen fast mob-banner). */
+  const mobCombatToastKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     return () => {
@@ -225,6 +228,24 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const targetIdx = run?.targetSlotIndex ?? 0
   const activeSlot = run?.slots[targetIdx]
   const runDepth = run?.currentDepth ?? 0
+
+  const liveMobTarget = useMemo(() => {
+    const s = run?.slots[targetIdx]
+    return Boolean(s?.kind === 'mob' && !s.cleared)
+  }, [run, targetIdx])
+
+  useEffect(() => {
+    if (!run || !liveMobTarget) {
+      setMobCombatHint(false)
+      return
+    }
+    const key = `${run.runId}-${run.currentDepth}-${targetIdx}`
+    if (mobCombatToastKeyRef.current === key) return
+    mobCombatToastKeyRef.current = key
+    setMobCombatHint(true)
+    const tid = window.setTimeout(() => setMobCombatHint(false), 4500)
+    return () => window.clearTimeout(tid)
+  }, [run?.runId, run?.currentDepth, targetIdx, liveMobTarget])
 
   useEffect(() => {
     if (!run || !activeSlot || activeSlot.kind !== 'mob' || activeSlot.cleared) return
@@ -703,28 +724,21 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           manaMax={effectiveTotalManaMax(state)}
           manaAccentColor={activeBrew?.color}
           manaAbilityHint={activeBrew?.abilityDescription ?? null}
-          manaAside={
-            <HUDConsumableQuickBar
-              density="compact"
-              quickSlots={state.consumableQuickSlots}
-              consumables={state.hubInventory.consumables}
-              onUseSlot={(i) => dispatch({ type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: i })}
-            />
-          }
         />
-        {activeSlot?.kind === 'mob' && !activeSlot.cleared && (
-          <div className="pointer-events-none shrink-0 px-3 py-2 bg-red-950/70 border-b border-red-800/60">
-            <p className="text-xs font-semibold text-red-200 text-center animate-pulse">
-              Uhyret angriber dig — brug sværd (Tab) og slå det ned!
-            </p>
-          </div>
-        )}
         <div className="pointer-events-auto shrink-0">
           <HUDWeaponToggle
             equipped={state.equippedWeapon}
             swordUsable={state.swords.some((s) => s.durability > 0)}
             onPickaxe={() => dispatch({ type: 'SET_EQUIPPED_WEAPON', weapon: 'pickaxe' })}
             onSword={() => dispatch({ type: 'SET_EQUIPPED_WEAPON', weapon: 'sword' })}
+            trailing={
+              <HUDConsumableQuickBar
+                density="compact"
+                quickSlots={state.consumableQuickSlots}
+                consumables={state.hubInventory.consumables}
+                onUseSlot={(i) => dispatch({ type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: i })}
+              />
+            }
           />
         </div>
         <HUDHpBar
@@ -740,6 +754,13 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           }
           label={activeSlot?.kind === 'mob' ? 'Uhyre' : 'Klippe'}
         />
+        {mobCombatHint && liveMobTarget && (
+          <div className="pointer-events-none shrink-0 px-3 pt-1 flex justify-center" aria-live="polite">
+            <div className="w-full max-w-md rounded-xl border px-3 py-2 text-sm font-medium text-center shadow-lg backdrop-blur-sm bg-slate-900/95 border-slate-600/60 text-slate-100">
+              👾 Uhyret angriber dig — skift til sværd (Tab) og slå det ned!
+            </div>
+          </div>
+        )}
         <div className="flex-1 min-h-0" />
 
         <div className="pointer-events-auto shrink-0 px-2 pb-1 pt-1">
