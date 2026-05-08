@@ -18,7 +18,7 @@ const LABEL_HTML_MIN_WORLD_DISTANCE = 3.25
 const LABEL_HTML_MAX_CSS_SCALE = 2.65
 const LABEL_HTML_BASE_DISTANCE_FACTOR = 10
 /** Navn + HP over målets center — lidt over klippens bulk, så UI ikke kæntrer mod modellen. */
-const LABEL_BILLBOARD_OFFSET_Y = 1.18
+const LABEL_BILLBOARD_OFFSET_Y = 1.24
 
 type Props = {
   position: [number, number, number]
@@ -315,8 +315,8 @@ export default function OreNode({
               <meshStandardMaterial
                 vertexColors
                 color="#ffffff"
-                roughness={interactive ? (isLowHp ? 0.65 : 0.72) : 0.72}
-                metalness={interactive ? 0.22 : 0.22}
+                roughness={interactive ? (isLowHp ? 0.5 : 0.56) : 0.62}
+                metalness={interactive ? 0.36 : 0.34}
                 emissive={emissiveColor}
                 emissiveIntensity={emissiveIntensity}
                 flatShading

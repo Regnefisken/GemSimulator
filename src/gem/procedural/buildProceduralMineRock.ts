@@ -83,40 +83,72 @@ export function createHardRockGeometry(seed: number): THREE.BufferGeometry {
   return geo
 }
 
-function smoothOreMask(n: number): number {
-  return THREE.MathUtils.smoothstep(n, 0.35, 0.55)
+/**
+ * Malmpletter der læses tydeligt i spil: flere oktaver + «knæk» i midtonerne (ikke grå gryde).
+ * Finere mesh (detail 3) giver flere vertices så pletter ikke kun er store trekanter.
+ */
+function richOreMetalMask(
+  noise3D: (x: number, y: number, z: number) => number,
+  v: THREE.Vector3,
+  off: number,
+): number {
+  const x = v.x
+  const y = v.y
+  const z = v.z
+  const u = (n: number) => n * 0.5 + 0.5
+
+  const vein = u(noise3D(x * 1.95 + off, y * 1.95 + off, z * 1.95 + off))
+  const patch = u(noise3D(x * 8.5 + off * 2.1, y * 8.5 + off * 2.1, z * 8.5 + off * 2.1))
+  const fleck = u(noise3D(x * 16 + 3.2, y * 16 + 3.2, z * 16 + 3.2))
+  const chips = u(noise3D(x * 22 + 9.1, y * 22 + 9.1, z * 22 + 9.1))
+
+  const veinM = THREE.MathUtils.smoothstep(vein, 0.18, 0.46)
+  const patchM = THREE.MathUtils.smoothstep(patch, 0.32, 0.66)
+  const fleckM = THREE.MathUtils.smoothstep(fleck, 0.44, 0.78)
+  const chipM = THREE.MathUtils.smoothstep(chips, 0.58, 0.9)
+
+  // Pletter og små flager dominerer visuelt (Gemini-lignende); årer binder dem sammen
+  let m = veinM * 0.42 + patchM * 0.62 + fleckM * 0.42 + chipM * 0.22
+  m = THREE.MathUtils.clamp(m, 0, 1)
+  // Fjern «mudder» i midten: enten mere sten eller mere malm
+  m = THREE.MathUtils.smoothstep(m, 0.34, 0.76)
+  return m
 }
 
-/** Rig malm: samme form som normal, vertex‑farver malm vs sten (ingen custom shader). */
+/** Rig malm: finere mesh end normal klippe + skarp vertex‑kontrast malm/sten. */
 export function createRichRockGeometry(
   seed: number,
   baseRockColor: THREE.Color,
 ): THREE.BufferGeometry {
-  const src = createBaseRockGeometry(seed)
-  const geo = src.clone()
-  src.dispose()
+  const geo = new THREE.IcosahedronGeometry(0.55, 3)
+  deformVertices(geo, seed, 'normal')
+  const src = geo.toNonIndexed()
+  src.translate(0, 0.475, 0)
+
   const metalIdx = seed % ORE_METAL_RGB.length
   const [mr, mg, mb] = ORE_METAL_RGB[metalIdx]
-  const ore = new THREE.Color(mr, mg, mb)
+  const ore = new THREE.Color(mr, mg, mb).multiplyScalar(1.14)
 
   const noise3D = createNoise3D(mulberry32(seed ^ 0x51f4e5c7))
   const off = noiseOffset(seed)
-  const pos = geo.getAttribute('position') as THREE.BufferAttribute
+  const pos = src.getAttribute('position') as THREE.BufferAttribute
   const colors = new Float32Array(pos.count * 3)
   const v = new THREE.Vector3()
+  const stoneBase = baseRockColor.clone().multiplyScalar(0.78)
 
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i)
-    const n = noise3D(v.x * 3 + off, v.y * 3 + off, v.z * 3 + off)
-    const mask = smoothOreMask(n)
-    const c = baseRockColor.clone().lerp(ore, mask)
+    let mask = richOreMetalMask(noise3D, v, off)
+    // Skub malmområder hurtigere mod fuld metal‑farve (pletter «lettere» end diffus tint)
+    mask = Math.pow(mask, 0.62)
+    const c = stoneBase.clone().lerp(ore, mask)
     colors[i * 3] = c.r
     colors[i * 3 + 1] = c.g
     colors[i * 3 + 2] = c.b
   }
 
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-  return geo
+  src.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  return src
 }
 
 export type CrystalShard = {
