@@ -1,4 +1,16 @@
-import type { GameState, Gem, MagicProperty, MetalInclusion, Pickaxe, Sword, Armour, LocationId } from '../types'
+import type {
+  GameState,
+  Gem,
+  HubInventory,
+  MagicProperty,
+  MetalInclusion,
+  Pickaxe,
+  Sword,
+  Armour,
+  LocationId,
+  RunInventory,
+  ConsumableStack,
+} from '../types'
 import { makePickaxe } from '../data/pickaxes'
 import { makeSword } from '../data/swords'
 import { blueprintFromLegacyRecipeId, migrateJewelry } from '../data/jewelry'
@@ -7,21 +19,12 @@ import { METALS } from '../data/metals'
 import { PALETTES } from '../data/palettes'
 import { computeGoldValue } from '../gem/generate'
 import { deriveGemName } from '../gem/naming'
-import { computeWorldTier } from './worldTier'
+import { computeWorldTier, MINE_LOCATION_IDS } from './worldTier'
 import { clampPlayerSurvival, DEFAULT_PLAYER_HP_MAX, NEUTRAL_MANA_MAX } from './survival'
 import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 import { STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
 
-export const CURRENT_STATE_VERSION = 17
-
-const MINE_LOCATION_IDS: LocationId[] = [
-  'kobbermine',
-  'jernkloeften',
-  'soelvhulen',
-  'guldgrotten',
-  'mithrilbjerget',
-  'rune-dybet',
-]
+export const CURRENT_STATE_VERSION = 18
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -187,6 +190,71 @@ function migrateSword(raw: unknown, fallback: Sword): Sword {
 
 type PixelItemLike = { data: string[]; colorMap: Record<string, string> }
 
+function isConsumableStack(x: unknown): x is ConsumableStack {
+  return (
+    typeof x === 'object' &&
+    x !== null &&
+    typeof (x as ConsumableStack).consumableId === 'string' &&
+    typeof (x as ConsumableStack).quantity === 'number' &&
+    (x as ConsumableStack).quantity > 0
+  )
+}
+
+function mergeHubInventory(r: Record<string, unknown>, base: GameState, fromVersion: number): HubInventory {
+  let parsed: HubInventory | null = null
+  const hb = r.hubInventory
+  if (hb && typeof hb === 'object' && !Array.isArray(hb)) {
+    const rec = hb as Record<string, unknown>
+    const gold = typeof rec.gold === 'number' ? rec.gold : base.hubInventory.gold
+    const consumables = Array.isArray(rec.consumables)
+      ? (rec.consumables as unknown[]).filter(isConsumableStack)
+      : base.hubInventory.consumables
+    const equipment = Array.isArray(rec.equipment) ? (rec.equipment as unknown[]) : base.hubInventory.equipment
+    const materials =
+      rec.materials && typeof rec.materials === 'object' && !Array.isArray(rec.materials)
+        ? (rec.materials as HubInventory['materials'])
+        : base.hubInventory.materials
+    parsed = { gold, consumables, equipment, materials }
+  }
+
+  if (fromVersion < 18) {
+    const gold = typeof r.gold === 'number' ? r.gold : (parsed?.gold ?? base.hubInventory.gold)
+    const consumables = Array.isArray(r.consumables)
+      ? (r.consumables as unknown[]).filter(isConsumableStack)
+      : (parsed?.consumables ?? base.hubInventory.consumables)
+    return {
+      gold,
+      consumables,
+      equipment: parsed?.equipment ?? base.hubInventory.equipment,
+      materials: parsed?.materials ?? base.hubInventory.materials,
+    }
+  }
+
+  if (parsed) return parsed
+  return {
+    gold: base.hubInventory.gold,
+    consumables: base.hubInventory.consumables,
+    equipment: base.hubInventory.equipment,
+    materials: base.hubInventory.materials,
+  }
+}
+
+function parseRunInventory(r: Record<string, unknown>, base: GameState): RunInventory | null {
+  const ri = r.runInventory
+  if (ri === undefined) return base.runInventory
+  if (ri === null) return null
+  if (typeof ri !== 'object' || Array.isArray(ri)) return null
+  const o = ri as Record<string, unknown>
+  if (!Array.isArray(o.foundLoot) || !Array.isArray(o.rescueBag)) return null
+  return {
+    foundLoot: o.foundLoot as RunInventory['foundLoot'],
+    rescueBag: o.rescueBag as RunInventory['foundLoot'],
+    rescueBagCapacity: typeof o.rescueBagCapacity === 'number' ? o.rescueBagCapacity : 3,
+    questItems: Array.isArray(o.questItems) ? (o.questItems as RunInventory['questItems']) : [],
+    stowedHubGear: Array.isArray(o.stowedHubGear) ? (o.stowedHubGear as RunInventory['stowedHubGear']) : [],
+  }
+}
+
 export function migrateGameState(raw: unknown, base: GameState): GameState {
   if (!raw || typeof raw !== 'object') {
     return { ...base }
@@ -216,7 +284,7 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
     ...r,
     level: typeof r.level === 'number' ? r.level : base.level,
     xp: typeof r.xp === 'number' ? r.xp : base.xp,
-    gold: typeof r.gold === 'number' ? r.gold : base.gold,
+    hubInventory: mergeHubInventory(r, base, version),
     reputation: typeof r.reputation === 'number' ? r.reputation : base.reputation,
     depth: typeof r.depth === 'number' ? r.depth : base.depth,
     unlockedDepths:
@@ -229,6 +297,7 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       r.mineRun && typeof r.mineRun === 'object'
         ? (r.mineRun as GameState['mineRun'])
         : base.mineRun,
+    runInventory: parseRunInventory(r, base),
     coal: typeof r.coal === 'number' ? r.coal : base.coal,
     totalRockSlotsCleared:
       typeof r.totalRockSlotsCleared === 'number' ? r.totalRockSlotsCleared : base.totalRockSlotsCleared,
@@ -319,15 +388,6 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
             e.quantity > 0,
         )
       : base.essences,
-    consumables: Array.isArray(r.consumables)
-      ? (r.consumables as GameState['consumables']).filter(
-          (c) =>
-            c &&
-            typeof c.consumableId === 'string' &&
-            typeof c.quantity === 'number' &&
-            c.quantity > 0,
-        )
-      : base.consumables,
     workshopStock:
       r.workshopStock && typeof r.workshopStock === 'object' && !Array.isArray(r.workshopStock)
         ? { ...(r.workshopStock as GameState['workshopStock']) }
@@ -494,7 +554,9 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
   }
 
   if (version < 15) {
-    if (!Array.isArray(next.consumables)) next.consumables = []
+    if (!Array.isArray(next.hubInventory.consumables)) {
+      next.hubInventory = { ...next.hubInventory, consumables: [] }
+    }
     if (!next.workshopStock || typeof next.workshopStock !== 'object' || Array.isArray(next.workshopStock)) {
       next.workshopStock = { ...WORKSHOP_DEFAULT_STOCK }
     }
@@ -522,6 +584,19 @@ export function migrateGameState(raw: unknown, base: GameState): GameState {
       next.activeArmourId = null
     }
   }
+
+  if (version < 18) {
+    if (next.mineRun) {
+      next.mineRun = null
+      if (next.gameNotice == null) {
+        next.gameNotice = 'Aktiv mine-run blev nulstillet ved opdatering (v18 hub/run-inventar).'
+      }
+    }
+    next.runInventory = null
+  }
+
+  delete (next as unknown as Record<string, unknown>).gold
+  delete (next as unknown as Record<string, unknown>).consumables
 
   return clampPlayerSurvival(next)
 }

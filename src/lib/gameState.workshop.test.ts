@@ -9,13 +9,13 @@ describe('Fase 3 alkymi & forbrug', () => {
   it('BUY_WORKSHOP_CONSUMABLE trækker guld og hyldelager', () => {
     const base: GameState = {
       ...initialState,
-      gold: 1000,
+      hubInventory: { ...initialState.hubInventory, gold: 1000 },
       workshopStock: { ...WORKSHOP_DEFAULT_STOCK },
     }
     const next = reducer(base, { type: 'BUY_WORKSHOP_CONSUMABLE', consumableId: 'cons_bread_minor' })
-    expect(next.gold).toBe(1000 - 25)
+    expect(next.hubInventory.gold).toBe(1000 - 25)
     expect(next.workshopStock.cons_bread_minor).toBe((WORKSHOP_DEFAULT_STOCK.cons_bread_minor ?? 0) - 1)
-    const row = next.consumables.find((c) => c.consumableId === 'cons_bread_minor')
+    const row = next.hubInventory.consumables.find((c) => c.consumableId === 'cons_bread_minor')
     expect(row?.quantity).toBe(1)
   })
 
@@ -31,12 +31,15 @@ describe('Fase 3 alkymi & forbrug', () => {
   it('USE_CONSUMABLE_QUICK_SLOT uden aktiv mine giver besked', () => {
     const base: GameState = {
       ...initialState,
-      consumables: [{ consumableId: 'cons_bread_minor', quantity: 1 }],
+      hubInventory: {
+        ...initialState.hubInventory,
+        consumables: [{ consumableId: 'cons_bread_minor', quantity: 1 }],
+      },
       consumableQuickSlots: ['cons_bread_minor', null, null],
     }
     const next = reducer(base, { type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: 0 })
     expect(next.gameNotice).toMatch(/Kun i minen/)
-    expect(next.consumables[0]?.quantity).toBe(1)
+    expect(next.hubInventory.consumables[0]?.quantity).toBe(1)
   })
 
   it('USE_CONSUMABLE_QUICK_SLOT i mine bruger genstand og helbreder', () => {
@@ -49,12 +52,15 @@ describe('Fase 3 alkymi & forbrug', () => {
       mineRun: run,
       playerHp: 10,
       playerHpMax: 100,
-      consumables: [{ consumableId: 'cons_bread_minor', quantity: 2 }],
+      hubInventory: {
+        ...initialState.hubInventory,
+        consumables: [{ consumableId: 'cons_bread_minor', quantity: 2 }],
+      },
       consumableQuickSlots: ['cons_bread_minor', null, null],
     }
     const next = reducer(base, { type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: 0 })
     expect(next.playerHp).toBeGreaterThan(10)
-    const row = next.consumables.find((c) => c.consumableId === 'cons_bread_minor')
+    const row = next.hubInventory.consumables.find((c) => c.consumableId === 'cons_bread_minor')
     expect(row?.quantity).toBe(1)
   })
 })
@@ -63,11 +69,14 @@ describe('Fase 4 alkymi brew & blandning', () => {
   it('CRAFT_ALCHEMY_RECIPE forbruger ingredienser og giver sol-eliksir', () => {
     const base: GameState = {
       ...initialState,
-      consumables: [{ consumableId: 'ing_glow_moss', quantity: 5 }],
+      hubInventory: {
+        ...initialState.hubInventory,
+        consumables: [{ consumableId: 'ing_glow_moss', quantity: 5 }],
+      },
     }
     const next = reducer(base, { type: 'CRAFT_ALCHEMY_RECIPE', recipeId: 'recipe_solar_elixir' })
-    expect(next.consumables.find((c) => c.consumableId === 'ing_glow_moss')?.quantity).toBe(2)
-    expect(next.consumables.find((c) => c.consumableId === 'cons_brew_solar_vigor')?.quantity).toBe(1)
+    expect(next.hubInventory.consumables.find((c) => c.consumableId === 'ing_glow_moss')?.quantity).toBe(2)
+    expect(next.hubInventory.consumables.find((c) => c.consumableId === 'cons_brew_solar_vigor')?.quantity).toBe(1)
   })
 
   it('USE_CONSUMABLE sol-eliksir sætter aktiv brew og manaMax', () => {
@@ -78,8 +87,18 @@ describe('Fase 4 alkymi brew & blandning', () => {
       viewMode: 'location',
       currentArea: 'kobbermine',
       mineRun: run,
+      runInventory: {
+        foundLoot: [],
+        rescueBag: [],
+        rescueBagCapacity: 3,
+        questItems: [],
+        stowedHubGear: [],
+      },
       playerMana: 40,
-      consumables: [{ consumableId: 'cons_brew_solar_vigor', quantity: 1 }],
+      hubInventory: {
+        ...initialState.hubInventory,
+        consumables: [{ consumableId: 'cons_brew_solar_vigor', quantity: 1 }],
+      },
       consumableQuickSlots: ['cons_brew_solar_vigor', null, null],
     }
     const next = reducer(base, { type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: 0 })

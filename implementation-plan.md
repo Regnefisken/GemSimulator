@@ -1,8 +1,8 @@
 # GemSimulator — Samlet implementeringsplan
 
-**Status:** Master-plan, ny sandhed for mine-spor, survival/alkymi-spor og equipment/combat-spor. **Fase 3 leveret i kode; næste planlagte leverance: Fase 4.** Hop-ind til ny chat: **§8b**.
+**Status:** Master-plan, ny sandhed for mine-spor, survival/alkymi-spor og equipment/combat-spor. **Fase 3 leveret i kode; næste planlagte leverance: Fase 4.** Hop-ind til ny chat: **§8b**. **Post-v1.x udvidelser (D40–D69) scopet i [`implementation-guide.md`](./implementation-guide.md); se §2.3 og §9.**
 **Erstatter:** [`mine-layers-implementation-guide.md`](./mine-layers-implementation-guide.md) og [`alchemist-workshop-survival-concept.md`](./alchemist-workshop-survival-concept.md) som ledende kilde til *implementeringsrækkefølge*. Konceptdokumentet `mine-layers-depth-target-concept.md` v2.1 er stadig den narrative/produktmæssige sandhed; ved konflikt opdateres beslutningsloggen her **og** der.
-**Version:** 1.4 (2026-05-07)
+**Version:** 1.6 (2026-05-08)
 
 ---
 
@@ -23,7 +23,7 @@ Systemerne er **orthogonale i logik**, men **integreres** via run-inventory, run
 
 ## 2. Beslutningslog
 
-D1–D14 er overført ordret fra konceptdokumentet og er **ikke-forhandlingsbare**. D15–D39 er nye, låst i denne plan.
+D1–D14 er overført ordret fra konceptdokumentet og er **ikke-forhandlingsbare**. D15–D39 er låst i denne plan. **D40–D69 (§2.3) udvider planen med post-v1.x-faser (Fase 0–6 i `implementation-guide.md`) og overstyrer enkelte tidligere rækker** — se supersede-markeringer.
 
 ### 2.1 Mine-spor (D1–D14, uændret)
 
@@ -34,8 +34,8 @@ D1–D14 er overført ordret fra konceptdokumentet og er **ikke-forhandlingsbare
 | **D3** | Encounter/HP per slot ved lag-generering (ingen reroll ved målskift). |
 | **D4** | Auto-saml ground loot før fade. |
 | **D5–D6** | Kister som i koncept-loggen; halvåbnet kræver afslutning. |
-| **D7** | Død = fuldt tab af run-inventory. |
-| **D8** | Safe ascend = behold alt til hub. |
+| **D7** | Død = fuldt tab af run-inventory. *[se D43; reelt implementeret per D43; mekanik raffineret af D46 (Sikret Loadout + Redningstaske) — equipped, rescueBag, questItems, stowedHubGear og soul-bound items overlever.]* |
+| **D8** | Safe ascend = behold alt til hub. *[se D43; reelt implementeret per D43; mekanik beskrevet af D46 — hele runInventory merges til hubInventory.]* |
 | **D9** | Samme økonomi, separate drop-tabeller for mob vs. klippe (Fase 2). |
 | **D10** | Crafting m.m.: `worldTier` fra meta; mine-dybde kun til mining i minen. |
 | **D11** | Achievements: primært per `mineId` + dybde, sekundært “any mine”. |
@@ -69,9 +69,79 @@ D1–D14 er overført ordret fra konceptdokumentet og er **ikke-forhandlingsbare
 | **D34** | **Blueprints i kister: % chance pr. kiste, depth-vægtet** (højere chance på dybe lag). | Belønner både bredt udforskning og dybde-progression. |
 | **D35** | **Armour er usynlig på character. Equipping/swap sker kun via inventory på overfladen** (ikke mid-run). 2D-ikon i inventory. Lille stat-bonus (fx +HP eller +mana). **Én armour-slot i v1**, udvidelse til hjelm/støvler er fremtidig. | Lille scope, simpel datamodel, klare bonus-effekter. |
 | **D36** | **Brew-varighed = `until_swap`** (indtil spilleren drikker en anden brew, dør, eller går tilbage til hub). | Matcher D20 hard overskriv; ingen timere. |
-| **D37** | **Ingen soul-bound consumables** — alt taber pr. D7. Eneste D7-undtagelse er blueprints (D26). | Holder reglen ren: items tabes, viden bevares. |
+| **D37** | **Ingen soul-bound consumables** — alt taber pr. D7. Eneste D7-undtagelse er blueprints (D26). *[Supersedet af D58: soul-bound-flag introduceres for udvalgte equipment-typer (quest-tools + tier-N hub-craft) i Fase 3.]* | Holder reglen ren: items tabes, viden bevares. |
 | **D38** | **`manaMax` bestemmes af aktiv brew** — hver brew har egen `manaMax`. Neutral mana har en fast baseline (default 50). Skift af brew → `manaCurrent` clampes til ny max (D19). Intet player-level-system kræves. | Simplest og forudsigelig; ingen XP-system pålægges. |
-| **D39** | **Hub-butikker restocker efter hvert run** — både ved safe ascend og død. | Ren hub→dive-loop, ingen ventetid. |
+| **D39** | **Hub-butikker restocker efter hvert run** — både ved safe ascend og død. *[Raffineret af D65 (v1.6): restock kun ved **valid** run-exit; instant-exit-spam tæller ikke. Den oprindelige "efter hvert run"-logik holder for valide runs.]* | Ren hub→dive-loop, ingen ventetid. |
+
+### 2.3 Post-v1.x-udvidelser (D40–D69)
+
+D-rækkerne nedenfor er låst i [`implementation-guide.md`](./implementation-guide.md) og dækker Fase 0 (scaffolding), Fase 1 (foundation), Fase 2 (run/hub-split), Fase 3 (armour + soul-bound), Fase 4 (player level), Fase 5 (tid + brew+) og Fase 6 (polering). For fulde leverance-kontrakter, kode-targets, migrations-skemaer og test-kontrakter, se guiden.
+
+**Foundational (Fase 0):**
+
+| ID | Beslutning | Begrundelse |
+|----|-----------|-------------|
+| **D40** | **Håndhævet `effectiveTotal*`-pipeline.** Alle nye bonus-kilder for player-stats skal gå gennem `effectiveTotalHpMax`/`effectiveTotalManaMax`/`clampPlayerSurvival`. Direkte mutation af `playerHpMax` etc. er forbudt. | Forhindrer balance-eksplosion ved level/armour/brew-stacking. Audit-test håndhæver. |
+| **D41** | **Schema-version pr. subsystem (valgfri).** Hvis `migrateGameState`-blokke bliver uoverskuelige, må subsystemer få egen `subsystemVersion`. Ad hoc beslutning pr. fase, dokumenteres her. | Migration-blokke kan ellers eksplodere når flere parallelle systemer udvikler sig. |
+| **D42** | **Progression-autoritet: `worldTier`/`depth` alene.** Player-level (D61) påvirker udelukkende butik. Ingen nye gates fra level på crafting/drops/alkymi. | Undgår dobbelt-grind og parallel progression-track. Konsoliderer D10. |
+| **D43** | **Run/hub-inventory implementeres reelt (Fase 2).** D7 og D8 går fra "delvist" til "implementeret"; mekanik defineres af D46. | Låser soul-bound, tidsmodel og brew+ op for design og implementering. |
+
+**Fase 1 (achievements + telemetri):**
+
+| ID | Beslutning | Begrundelse |
+|----|-----------|-------------|
+| **D44** | **"Any mine"-aggregering ved query.** Achievement-statistikker beregnes ved read-tid fra `unlockedDepths`/`mineId`/`depth`. Ingen nye persisterede tællere. | Undgår dobbelt-tælling og divergens. Konsoliderer D11. |
+| **D45** | **Telemetri: kun lokal logging.** Debug + offline statistik gemt lokalt på enheden. Ingen netværks-upload i v1.x. | Privacy-clean; offline-first; ingen GDPR-overhead. |
+
+**Fase 2 (Sikret Loadout + Redningstaske):**
+
+| ID | Beslutning | Begrundelse |
+|----|-----------|-------------|
+| **D46** | **Sikret Loadout + Redningstaske.** Hub-medbragt altid fredet. Fundet guld og consumables auto-fredes ved pickup (puljes med hub-beholdning). Fundet gear/materialer i `runInventory.foundLoot` tabes ved død. `runInventory.rescueBag` (begrænset kapacitet) overlever død. Raffinerer D7/D8. | Klare regler for død-tab; bevarer roguelike-tension uden friction for hyppige items. |
+| **D47** | **`origin`-tag på items.** Hver `EquipmentInstance` og `FoundLootEntry` har `origin: 'hub' \| 'mine'` sat ved acquisition; ændres aldrig. Origin er autoritativ for fredning. | Eliminerer ambiguitet om "hvor kom dette fra?" ved død-merge. |
+| **D48** | **Redningstaske er opgraderbar.** Initial kapacitet 3 slots; opgraderes via smithing eller butik. Tier-tabel i `data/rescueBagUpgrades.json`. | Belønner progression uden hardkodede tal. |
+| **D49** | **Auto-equip-policy: altid manuel.** Fundet gear går til `foundLoot` ved pickup; spilleren skal eksplicit equip eller flytte til rescueBag. | Undgår overraskelser; spillerens valg er tydeligt. |
+| **D50** | **Quest-items i særskilt slot.** Items med `isQuestItem: true` auto-placeres i `runInventory.questItems`; tæller ikke mod `rescueBagCapacity`; overlever altid død. | Quest-items kan ikke glemmes eller tabes. |
+| **D51** | **Equipped-protection-rule.** Items i `equipped*`-slots overlever død uanset origin. | Equipping er en eksplicit safeguard-handling; bevidst tactical design. |
+| **D52** | **Stowed hub-gear forbliver fredet.** Af-equippet hub-origin item lever i `runInventory.stowedHubGear` for resten af run; altid fredet (origin='hub' bevares). | Hub-origin status er invariant for varigheden af et run. |
+
+**Fase 3 (armour-slots + soul-bound):**
+
+| ID | Beslutning | Begrundelse |
+|----|-----------|-------------|
+| **D53** | **Tre armour-slots.** `equippedHelmetId`/`equippedChestId`/`equippedBootsId`. `activeArmourId` udfases (migration → `equippedChestId`). Yderligere slots (handsker, amulet) udskydes til v1.x+. **Erstatter D35's "én slot v1".** | Klassisk loadout med minimum scope; D35's "fremtidig udvidelse" konkretiseres her. |
+| **D54** | **Per-slot durability.** Hver `EquipmentInstance` har egen `durability`/`maxDurability`. Nedslidning sker pr. slot. | Taktisk dybde i hvad der prioriteres for repair. |
+| **D55** | **Brudt slot = 0 bonus.** Ved durability=0 forbliver item equipped men giver 0 bonus indtil repareret. Ingen auto-unequip. | Klart visuelt signal; ingen "magisk" item-flytning ved bruddskade. |
+| **D56** | **Additivt armour-stacking.** Slots summeres direkte uden cap eller diminishing returns i `effectiveTotal*`-pipelinen. **Balance-disciplin:** eksplicit stat-budget pr. (slot, tier) i `data/armourTiers.json` — fx tier-1 bryst max +15 HP, tier-1 støvler max +5 HP. Maksimum-stacking pr. worldTier kendes på forhånd og bruges som baseline for fjende-skade-tabel. | Simplest formel; balance kontrolleres via data-budgetter i stedet for matematik. **Balance-watch i Fase 6** — kan overstyres med soft cap hvis test alligevel viser eksplosion. |
+| **D57** | **Centraliseret smithing-cost-funktion.** `computeSmithingCost(item, operation, params)` dækker våben + alle armour-slots, repair + upgrade. Tier-tabel i `data/smithingTiers.json`. **Konsoliderer D25.** | Testbar balance; én sandhed for alle smithing-cost. |
+| **D58** | **Soul-bound bypasser rescueBag-cap.** `EquipmentInstance.soulBound: boolean`. Soul-bound items overlever død uanset placering — også i `foundLoot`. **Overstyrer D37.** | Beskyttelses-niveau over rescueBag for sjældne items. |
+| **D59** | **Soul-bound-kategorier: quest-tools + tier-N hub-craft.** Quest tools får defensiv soul-bound oven på D50. Hub-craftet equipment over tier-N (data-defineret) auto-flagges ved smithing. Signaturvåben og cosmetics udskydes. | Belønner crafting-investering; redundant beskyttelse for quest-items. |
+| **D60** | **Ingen tals-cap på soul-bound.** Begrænsningen ligger i D59's typer alene; flag sættes af systemet, ikke spilleren. | Forhindrer "soul-bound alt"-strategi via type-restriktion fremfor talsmæssig cap. |
+
+**Fase 4 (player level):**
+
+| ID | Beslutning | Begrundelse |
+|----|-----------|-------------|
+| **D61** | **Level påvirker udelukkende butik.** Ingen `manaMax`/`hpMax`-multiplikator, ingen achievements/cosmetics, ingen gates. Eneste effekt: rabat-kurve og level-låste varer. | Holder D38 ren; konsoliderer D42. Audit-test håndhæver at `state.level` ikke læses i `effectiveTotal*`. |
+| **D62** | **XP-kilder.** Mine-kills, dybde-milestones, hakkede klipper/malm, crafting, alkymi, quest-completions. Butik-transaktioner giver IKKE XP. | Forhindrer farm-loop via butik. Mining giver XP udover combat (D62-tilpasning under design). |
+| **D63** | **Plateau-XP-kurve.** 10 levels per worldTier. Tabel i `data/xpCurve.json`. Level-cap = `worldTierMax × 10`. | Knytter level til eksisterende worldTier-struktur; forhindrer divergens. |
+
+**Fase 5 (tidsmodel + brew+ AoE):**
+
+| ID | Beslutning | Begrundelse |
+|----|-----------|-------------|
+| **D64** | **Run-exit tidsmodel (v1.6 revision).** En "dag" avancerer ved exit fra mine (safe-ascend eller død) hvis runnet er **valid**: `slotsClearedThisRun > 0` ELLER `currentDepth > 1`. Invalid runs (instant-exit uden aktivitet) tæller ikke; intet døgn-skift, ingen restock. Ingen separat `HUB_SLEEP`-action; ingen real-time. *[Erstatter v1.5-formuleringen om separat hub-sleep-action — ændringen reflekterer brugerens mentale model "exit-mine = nyt døgn" og lukker spam-exploit via valid-run-gate.]* | Strømlinet brugeroplevelse; lukker "forlad-mine"-spam-exploit; ingen ekstra HUD-knap nødvendig. |
+| **D65** | **Restock ved valid run-exit (v1.6).** Restock af butik og værksted trigges af valid-run-exit (jf. D64). Raffinerer D39 med valid-run-gate. *[Erstatter v1.5-formuleringen om HUB_SLEEP som trigger.]* | Tidsystemet får reel betydning; lukker exploit; minimum kode-ændring fra D39. |
+| **D66** | **Håndhævet brew-`abilityId`-kontrakt.** Hver `abilityId` skal mappe til mindst én numerisk effekt i mine-reducer. "Fluff"-effekter er forbudt; narrativ tekst flyttes til item-tooltip. Audit-test håndhæver. | Test- og balance-arbejde forudsætter målbare effekter. |
+| **D67** | **Fork AoE-mål-model.** AoE-evner rammer primært mål + N tilfældige sekundære (deterministisk via seedet RNG). N parametriseret per `abilityId`; sekundære kan have reduceret multiplier. | Ingen position-grid kræves; chain-følelse intuitivt; tunable via N. |
+| **D68** | **Felt-baseret slot-model bevares.** Ingen position-grid-refaktor i v1.x. Senere AoE-pattern der kræver position rejses som ny D-række. | Fork-AoE har ikke brug for det; reducerer Fase 5-scope. |
+
+**Fase 6 (polering):**
+
+| ID | Beslutning | Begrundelse |
+|----|-----------|-------------|
+| **D69** | **Mine-state recovery: dialog med fallback.** Ved load: validér `runInventory` shape; vis "Genoptag run?"-dialog hvis state er valid og aktivt run findes. Hvis invalid: best-effort reset (`runInventory = null`, `location = 'hub'`, advarsel-toast). Hub-state berøres aldrig. | Hub-state altid sikker; spilleren strandes aldrig efter crash eller korrupt save. |
+| **D70** | **`isInsideMine`-flag mod force-close-save-scumming (deferred til v1.1+).** Boolean i save-fil: sættes `true` ved mine-entry, `false` ved valid run-exit (safe-ascend eller død). Ved load: hvis `true` ved boot, behandl som død — discard `foundLoot`, behold equipped + rescueBag + questItems + stowedHubGear, sæt flaget til `false`, send tilbage til hub. **Status: deferred** — implementeres kun hvis force-close-exploit observeres i praksis eller balancen kræver det. Når implementeret, bumpes `CURRENT_STATE_VERSION` for det ene felt. | Lukker force-close som "gratis" exit fra dårlige runs; ~5 linjer kode hvis behov opstår. |
 
 ---
 
@@ -452,16 +522,22 @@ Gennemgå alle stier der tidligere har øget global dybde eller antaget ét akti
 
 ---
 
-## 9. Fremtidige overvejelser (uden for v1.x scope)
+## 9. Post-v1.x scoping (nu låst i `implementation-guide.md`)
 
-Disse er bevidst udskudt til efter Fase 5 og kræver ikke beslutning nu. Tilføjes som nye D-rækker når tiden kommer.
+De seks oprindelige fremtids-punkter er nu fuldt scopet og låst i [`implementation-guide.md`](./implementation-guide.md) som Fase 0–6. D-rækker D40–D69 dækker dem; se §2.3 for tabel-form og guiden for fulde leverance-kontrakter, kode-targets, migrations-skemaer og test-kontrakter.
 
-1. **Armour-slot-udvidelse** — fra én slot til hjelm/torso/støvler. Tilføjes uden save-brud (kun nye slot-felter på `PlayerState`).
-2. **Player level / XP-system** — hvis det tilføjes senere, integreres det med `manaMax`-formlen som multiplikator oven på brew-baseline (D38 holder).
-3. **In-game tid / dag-nat-cyklus** — hvis tilføjet, kan restock-frekvensen (D39) justeres til daglig i stedet for pr. run.
-4. **Soul-bound items** — kan introduceres senere som ny D-række med `soulBound: true` flag (D37 holder indtil videre).
-5. **Multi-target combat / AoE-evner** — Fase 4+ udvidelse til brews med større rækkevidde.
-6. **Achievement-udvidelser** — D11 "any mine" achievements som senere telemetri-pas.
+| Oprindeligt punkt | Scopet i guide som | Primære D-rækker |
+|---|---|---|
+| 1. Armour-slot-udvidelse | Fase 3 (3 slots, per-slot durability, additivt stacking, central smithing-cost) | D53–D57 |
+| 2. Player level / XP-system | Fase 4 (level kun butik, plateau-kurve, brede XP-kilder) | D61–D63 |
+| 3. In-game tid / dag-nat-cyklus | Fase 5 (hub-sleep model, daglig restock) | D64–D65 |
+| 4. Soul-bound items | Fase 3 (bypasser rescueBag-cap; quest-tools + tier-N hub-craft) | D58–D60 |
+| 5. Multi-target combat / AoE-evner | Fase 5 (Fork-model, håndhævet abilityId-kontrakt, felt-model bevares) | D66–D68 |
+| 6. Achievement-udvidelser | Fase 1 (any-mine aggregeret ved query, lokal telemetri) | D44–D45 |
+
+Yderligere D-rækker (D40–D43, D46–D52, D69) dækker run/hub-split-mekanikken, foundational-arkitektur og crash recovery. Se §2.3.
+
+Senere udvidelser udover dette (fx signaturvåben som soul-bound, refaktor til position-grid, opt-in telemetri-upload, real-time tidsmodel) kræver nye D-rækker når de besluttes; de er eksplicit udskudt i de relevante D-rækker i §2.3.
 
 ---
 
@@ -483,3 +559,5 @@ Når denne plans beslutningslog (§2) ændres:
 - **v1.2 (2026-05-07)** — Låser de 12 sidste åbne beslutninger som D28–D39: smedjen er allerede den eksisterende facilitet (kun item-input + kul-flow mangler), hakke-slid pr. cleared slot, depth-vægtet kul- og blueprint-drop, sværd kan ikke bryde rocks, HUD-bars skjulte på overflade, 3 quick-slots, armour usynlig på character med swap kun på overflade, brew `until_swap`, ingen soul-bound, manaMax fra brew, restock efter hvert run. Trimmer §9 til reelle fremtids-overvejelser.
 - **v1.3 (2026-05-07)** — Dokumenterer Fase 1-kodejusteringer: `MINE_RUN_EXIT` ved forladelse af mine-scene (frisk lag ved genbesøg), målvalg via minimap + 3D-klik på klipper, note om fade vs. plan. **Næste leverance i planen:** Fase 1.5 (survival MVP, §6).
 - **v1.4 (2026-05-07)** — Teknisk oprydning: `MINE_RUN_EXIT` flyttet fra `MineScreen`-unmount til `goToMapView()` (kun når `mineRun` findes). Ny **§8b** med noter til Fase 4-frisk chat (`unlockedBlueprints` vs. planens `unlockedRecipes`, D39, foreslået implementeringsrækkefølge). JSDoc på `unlockedBlueprints` i `types.ts`.
+- **v1.5 (2026-05-08)** — Tilføjer **§2.3** med D40–D69 (30 nye D-rækker) der scoper de seks oprindelige §9-fremtids-punkter som Fase 0–6 i ny [`implementation-guide.md`](./implementation-guide.md). Markerer D7, D8 som reelt implementeret per D43/D46. Markerer D37 som supersedet af D58 (soul-bound) og D39 som supersedet af D65 (daglig restock). Konsoliderer D10 (under D42), D11 (under D44), D25 (under D57) og D35 (under D53). §9 omskrevet til scoping-tabel der kortlægger de oprindelige seks punkter til faser og D-rækker. **Ingen ændring af D1–D14 (mine-spor) eller D15–D38 (survival/equipment/alkymi-spor) ud over supersede-markeringer.**
+- **v1.6 (2026-05-08)** — Reaktion på review-feedback (Gemini-review). **D64 omskrevet:** tidsmodel ændret fra separat `HUB_SLEEP`-action til run-exit-trigger med valid-run-check (`slotsClearedThisRun > 0` ELLER `currentDepth > 1`); reflekterer brugerens mentale model "exit-mine = nyt døgn" og lukker spam-exploit. **D65 omskrevet:** restock trigges af valid-run-exit; raffinerer D39 i stedet for at supersede den. **D39's note opdateret** fra "supersedet af D65" til "raffineret af D65". **D56 udvidet** med eksplicit stat-budget-disciplin pr. (slot, tier) i `data/armourTiers.json` — additivt-system bevares per brugerens ønske om udviklings-overblik; balance kontrolleres via data-budgetter. **Ny D70 tilføjet:** `isInsideMine`-flag mod force-close-save-scumming, eksplicit deferred til v1.1+. **Afvist:** brew-lock per lag (Geminis punkt 5) — D20 og D36 bevares uændret efter eksplicit beslutning.

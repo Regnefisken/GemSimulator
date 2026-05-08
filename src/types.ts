@@ -232,6 +232,44 @@ export type EssenceStack = { essenceId: string; quantity: number }
 /** Fase 3: stack af mad/potions i hub- og mine-task (D21). */
 export type ConsumableStack = { consumableId: string; quantity: number }
 
+/** D47: oprindelse for run/hub-loot og udstyr. */
+export type LootOrigin = 'hub' | 'mine'
+
+/** Fase 2 (D46): fundet mine-loot der ikke er guld/consumables — tabes ved død hvis ikke reddet. */
+export type FoundLootEntry =
+  | { kind: 'gem'; gem: Gem; origin: LootOrigin }
+  | { kind: 'coal'; quantity: number; origin: LootOrigin }
+  | { kind: 'ore'; ore: RawOre; origin: LootOrigin }
+  | { kind: 'nugget'; nugget: MetalNugget; origin: LootOrigin }
+  | { kind: 'rough_stone'; stone: RoughStone; origin: LootOrigin }
+
+/** D50: pladsholder til quest-items (udvides når quest-data findes). */
+export type QuestItemEntry = { questItemId: string; origin: 'mine' }
+
+/** D52: af-equippet hub-udstyr under run. */
+export type StowedHubGearSlot =
+  | { kind: 'pickaxe'; item: Pickaxe }
+  | { kind: 'sword'; item: Sword }
+  | { kind: 'armour'; item: Armour }
+
+/** Fase 2 (D46): run-beholdning; null udenfor aktiv mine. */
+export type RunInventory = {
+  foundLoot: FoundLootEntry[]
+  rescueBag: FoundLootEntry[]
+  rescueBagCapacity: number
+  questItems: QuestItemEntry[]
+  stowedHubGear: StowedHubGearSlot[]
+}
+
+/** Fase 2: hub-beholdning — guld/consumables auto-fredet (D46). */
+export type HubInventory = {
+  gold: number
+  consumables: ConsumableStack[]
+  /** Forberedt til senere equipment-instanser; tom i v18. */
+  equipment: unknown[]
+  materials: Partial<Record<string, number>>
+}
+
 export type BlueprintCategory =
   | 'ring'
   | 'necklace'
@@ -327,7 +365,7 @@ export type RockEvent = {
 export type GameState = {
   level: number
   xp: number
-  gold: number
+  hubInventory: HubInventory
   reputation: number
 
   depth: number
@@ -335,6 +373,8 @@ export type GameState = {
   unlockedDepths: Partial<Record<LocationId, number>>
   /** Aktiv mine-run med ét lag ad gangen (D1); null uden for minen. */
   mineRun: MineRunState | null
+  /** Fase 2 (D46): run-beholdning; kun sat under aktiv mineRun. */
+  runInventory: RunInventory | null
   /** Kul fra klippe-mining (Fase 1); senere smedje-repair. */
   coal: number
   /** Livsvarigt antal ryddede klippe-felter (præstationer). */
@@ -394,8 +434,6 @@ export type GameState = {
 
   essences: EssenceStack[]
 
-  /** Fase 3: forbrugsvarer (mad/potions/ingredienser). Max stykker styres i reducer. */
-  consumables: ConsumableStack[]
   /** Værksteds-hylde: antal til salg pr. consumable-id (D39 restock efter run). */
   workshopStock: Partial<Record<string, number>>
   /** Fase 3 (D33): hurtigtaster 1–3 binder consumable-id pr. slot. */

@@ -3,6 +3,7 @@ import { migrateGameState, migrateGem } from './migrations'
 import { initialState } from './gameState'
 import { applyEligibleUnlocks } from './unlocks'
 import { refundActiveSmeltingJobs } from '../gem/smelting'
+import { logTelemetry } from '../telemetry/localLogger'
 
 const STATE_KEY = 'gem-game-state'
 const LEGACY_COLLECTION_KEY = 'gem-collection'
@@ -15,18 +16,24 @@ export function loadState(): GameState {
   try {
     const raw = localStorage.getItem(STATE_KEY)
     if (raw) {
-      return hydrate(migrateGameState(JSON.parse(raw), initialState))
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      const fromVersion = typeof parsed.version === 'number' ? parsed.version : 'missing'
+      const next = hydrate(migrateGameState(parsed, initialState))
+      logTelemetry('save_migration_run', { fromVersion, toVersion: next.version })
+      return next
     }
     const legacy = localStorage.getItem(LEGACY_COLLECTION_KEY)
     if (legacy) {
       const parsed = JSON.parse(legacy) as unknown
       const gems = Array.isArray(parsed) ? parsed.map(migrateGem) : []
-      return hydrate(
+      const next = hydrate(
         migrateGameState(
           { ...initialState, gems, totalGemsFound: gems.length },
           initialState,
         ),
       )
+      logTelemetry('save_migration_run', { source: 'legacy_collection', toVersion: next.version })
+      return next
     }
   } catch {
     // ignore

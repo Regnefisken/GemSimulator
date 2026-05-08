@@ -1,6 +1,8 @@
 import type {
   GameState,
+  FoundLootEntry,
   Gem,
+  HubInventory,
   Jewelry,
   LocationId,
   MetalName,
@@ -8,6 +10,7 @@ import type {
   MetalIngot,
   RawOre,
   RoughStone,
+  RunInventory,
   SmeltingJob,
   ViewMode,
 } from '../types'
@@ -30,6 +33,7 @@ import { buildJewelryVoxel3d } from '../gem/drawJewelry3d'
 import { canDescendFromLayer, createInitialMineRun, generateLayerState } from '../gem/mineLayer'
 import type { ChestLootResult } from '../gem/mining'
 import { ENABLE_DEV_CHEATS } from '../dev/featureFlags'
+import { logTelemetry } from '../telemetry/localLogger'
 import { computeWorldTier } from './worldTier'
 import {
   applySafeZoneRegen,
@@ -258,7 +262,7 @@ export const CONSUMABLE_BAG_MAX = 36
 const CONSUMABLE_STACK_MAX = 99
 
 export function totalConsumableQty(state: GameState): number {
-  return state.consumables.reduce((s, c) => s + c.quantity, 0)
+  return state.hubInventory.consumables.reduce((s, c) => s + c.quantity, 0)
 }
 
 export function canAddConsumableUnits(state: GameState, qty: number): boolean {
@@ -275,18 +279,25 @@ function addConsumableToState(state: GameState, consumableId: string, qty: numbe
   if (totalConsumableQty(state) + qty > CONSUMABLE_BAG_MAX) {
     return { ...state, gameNotice: `Forbrugs-lager fuldt (${CONSUMABLE_BAG_MAX} stk. max).` }
   }
-  const idx = state.consumables.findIndex((c) => c.consumableId === consumableId)
+  const idx = state.hubInventory.consumables.findIndex((c) => c.consumableId === consumableId)
   if (idx < 0) {
     return {
       ...state,
-      consumables: [...state.consumables, { consumableId, quantity: Math.min(qty, CONSUMABLE_STACK_MAX) }],
+      hubInventory: {
+        ...state.hubInventory,
+        consumables: [...state.hubInventory.consumables, { consumableId, quantity: Math.min(qty, CONSUMABLE_STACK_MAX) }],
+      },
       gameNotice: null,
     }
   }
-  const row = state.consumables[idx]!
+  const row = state.hubInventory.consumables[idx]!
   const nq = Math.min(CONSUMABLE_STACK_MAX, row.quantity + qty)
-  const consumables = state.consumables.map((c, i) => (i === idx ? { ...c, quantity: nq } : c))
-  return { ...state, consumables, gameNotice: null }
+  const consumables = state.hubInventory.consumables.map((c, i) => (i === idx ? { ...c, quantity: nq } : c))
+  return {
+    ...state,
+    hubInventory: { ...state.hubInventory, consumables },
+    gameNotice: null,
+  }
 }
 
 function pruneConsumableQuickSlots(state: GameState): GameState {
@@ -295,7 +306,7 @@ function pruneConsumableQuickSlots(state: GameState): GameState {
   for (let i = 0; i < 3; i++) {
     const id = qs[i]
     if (!id) continue
-    const ok = state.consumables.some((c) => c.consumableId === id && c.quantity > 0)
+    const ok = state.hubInventory.consumables.some((c) => c.consumableId === id && c.quantity > 0)
     if (!ok) {
       qs[i] = null
       dirty = true
@@ -308,7 +319,7 @@ function subtractConsumableStacks(
   state: GameState,
   ingredients: Partial<Record<string, number>>,
 ): GameState | null {
-  let consumables = [...state.consumables]
+  let consumables = [...state.hubInventory.consumables]
   for (const [id, need] of Object.entries(ingredients)) {
     const n = need ?? 0
     if (n <= 0) continue
@@ -320,7 +331,7 @@ function subtractConsumableStacks(
     if (left <= 0) consumables = consumables.filter((_, i) => i !== idx)
     else consumables[idx] = { ...row, quantity: left }
   }
-  return pruneConsumableQuickSlots({ ...state, consumables })
+  return pruneConsumableQuickSlots(patchHubInventory(state, { consumables }))
 }
 
 function applyBrewToState(state: GameState, brewId: string): GameState {
@@ -354,14 +365,28 @@ function applyConsumableDefToState(
 const starter = makePickaxe(0)
 const starterSword = makeSword(0)
 
+function patchHubInventory(state: GameState, patch: Partial<HubInventory>): GameState {
+  return { ...state, hubInventory: { ...state.hubInventory, ...patch } }
+}
+
+function addHubGold(state: GameState, delta: number): GameState {
+  return patchHubInventory(state, { gold: state.hubInventory.gold + delta })
+}
+
 export const initialState: GameState = {
   level: 1,
   xp: 0,
-  gold: 0,
+  hubInventory: {
+    gold: 0,
+    consumables: [],
+    equipment: [],
+    materials: {},
+  },
   reputation: 0,
   depth: 0,
   unlockedDepths: {},
   mineRun: null,
+  runInventory: null,
   coal: 0,
   totalRockSlotsCleared: 0,
   totalGemsFound: 0,
@@ -394,7 +419,6 @@ export const initialState: GameState = {
   unlockedBlueprints: [...STARTER_BLUEPRINT_IDS],
   unlockedAlchemyRecipes: [...STARTER_UNLOCKED_ALCHEMY_RECIPES],
   essences: [],
-  consumables: [],
   workshopStock: { ...WORKSHOP_DEFAULT_STOCK },
   consumableQuickSlots: [null, null, null],
   playerHp: DEFAULT_PLAYER_HP_MAX,
@@ -404,6 +428,11 @@ export const initialState: GameState = {
   activeBrewId: null,
   gameNotice: null,
   version: CURRENT_STATE_VERSION,
+}
+
+/** Frisk spiltilstand til migrationstests og fixtures (Fase 0 / implementation-guide §0.2). */
+export function defaultGameState(): GameState {
+  return structuredClone(initialState)
 }
 
 function addOre(state: GameState, ore: RawOre): GameState {
@@ -441,6 +470,61 @@ function addNugget(state: GameState, nugget: MetalNugget): GameState {
   return next
 }
 
+function emptyRunInventory(): RunInventory {
+  return {
+    foundLoot: [],
+    rescueBag: [],
+    rescueBagCapacity: 3,
+    questItems: [],
+    stowedHubGear: [],
+  }
+}
+
+function appendFoundLoot(state: GameState, entry: FoundLootEntry): GameState {
+  if (!state.runInventory) return state
+  return {
+    ...state,
+    runInventory: {
+      ...state.runInventory,
+      foundLoot: [...state.runInventory.foundLoot, entry],
+    },
+  }
+}
+
+function applyFoundLootEntryToHub(state: GameState, entry: FoundLootEntry): GameState {
+  switch (entry.kind) {
+    case 'gem':
+      return addGemWithRewards(state, entry.gem)
+    case 'coal':
+      return { ...state, coal: state.coal + entry.quantity, gameNotice: null }
+    case 'ore':
+      return addOre(state, entry.ore)
+    case 'nugget':
+      return addNugget(state, entry.nugget)
+    case 'rough_stone': {
+      const n = {
+        ...state,
+        roughStones: [...state.roughStones, entry.stone],
+        gameNotice: null as string | null,
+      }
+      if (materialsCount(n) > state.inventoryCapacity.materials) {
+        return { ...state, gameNotice: materialsFullNotice(state) }
+      }
+      return n
+    }
+  }
+}
+
+function mergeRunLootIntoHub(state: GameState): GameState {
+  const ri = state.runInventory
+  if (!ri) return state
+  let next = state
+  for (const entry of [...ri.foundLoot, ...ri.rescueBag]) {
+    next = applyFoundLootEntryToHub(next, entry)
+  }
+  return next
+}
+
 export function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'GAIN_XP':
@@ -448,9 +532,9 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'GAIN_REPUTATION':
       return applyEligibleUnlocks({ ...state, reputation: state.reputation + action.amount })
     case 'EARN_GOLD':
-      return applyEligibleUnlocks({ ...state, gold: state.gold + action.amount })
+      return applyEligibleUnlocks(addHubGold(state, action.amount))
     case 'SPEND_GOLD':
-      return { ...state, gold: Math.max(0, state.gold - action.amount) }
+      return patchHubInventory(state, { gold: Math.max(0, state.hubInventory.gold - action.amount) })
     case 'PLAYER_TAKE_DAMAGE':
       return applyDamageToPlayer(state, action.amount, action.source)
     case 'SET_EQUIPPED_WEAPON': {
@@ -512,14 +596,26 @@ export function reducer(state: GameState, action: Action): GameState {
       if (state.unlockedLocations.includes(action.location)) return state
       return { ...state, unlockedLocations: [...state.unlockedLocations, action.location] }
     case 'ADD_GEM':
+      if (state.mineRun && state.runInventory) {
+        return appendFoundLoot(state, { kind: 'gem', gem: action.gem, origin: 'mine' })
+      }
       return addGemWithRewards(state, action.gem)
     case 'CLEAR_GEMS':
       return { ...state, gems: [] }
     case 'ADD_ORE':
+      if (state.mineRun && state.runInventory) {
+        return appendFoundLoot(state, { kind: 'ore', ore: action.ore, origin: 'mine' })
+      }
       return addOre(state, action.ore)
     case 'ADD_NUGGET':
+      if (state.mineRun && state.runInventory) {
+        return appendFoundLoot(state, { kind: 'nugget', nugget: action.nugget, origin: 'mine' })
+      }
       return addNugget(state, action.nugget)
     case 'ADD_ROUGH_STONE': {
+      if (state.mineRun && state.runInventory) {
+        return appendFoundLoot(state, { kind: 'rough_stone', stone: action.stone, origin: 'mine' })
+      }
       const next = {
         ...state,
         roughStones: [...state.roughStones, action.stone],
@@ -543,18 +639,31 @@ export function reducer(state: GameState, action: Action): GameState {
           mineId: action.mineId,
           activeCharms: state.activeCharms,
         }),
+        runInventory: emptyRunInventory(),
         gameNotice: null,
       }
       const manaCap = effectiveTotalManaMax(withRun)
       const hpCap = effectiveTotalHpMax(withRun)
-      return clampPlayerSurvival({
+      const next = clampPlayerSurvival({
         ...withRun,
         playerHp: hpCap,
         playerMana: manaCap,
       })
+      logTelemetry('mine_run_start', { mineId: action.mineId })
+      return next
     }
-    case 'MINE_RUN_EXIT':
-      return restockWorkshopShelf(applySafeZoneRegen({ ...state, mineRun: null, gameNotice: null }))
+    case 'MINE_RUN_EXIT': {
+      const hadRun = state.mineRun != null
+      const mineId = state.mineRun?.mineId ?? null
+      const merged = mergeRunLootIntoHub(state)
+      const next = restockWorkshopShelf(
+        applySafeZoneRegen({ ...merged, mineRun: null, runInventory: null, gameNotice: null }),
+      )
+      if (hadRun) {
+        logTelemetry('mine_run_end', { outcome: 'safe_exit', mineId: mineId ?? 'unknown' })
+      }
+      return next
+    }
     case 'MINE_SET_TARGET_SLOT': {
       const r = state.mineRun
       if (!r || r.slots.length === 0) return state
@@ -633,6 +742,9 @@ export function reducer(state: GameState, action: Action): GameState {
     }
     case 'ADD_COAL': {
       if (action.amount <= 0) return state
+      if (state.mineRun && state.runInventory) {
+        return appendFoundLoot(state, { kind: 'coal', quantity: action.amount, origin: 'mine' })
+      }
       return { ...state, coal: state.coal + action.amount, gameNotice: null }
     }
     case 'ADD_CONSUMABLE': {
@@ -646,9 +758,13 @@ export function reducer(state: GameState, action: Action): GameState {
       const avail = state.workshopStock[action.consumableId] ?? 0
       if (avail < qty) return { ...state, gameNotice: 'Ikke flere på hylden.' }
       const cost = def.price * qty
-      if (state.gold < cost) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.hubInventory.gold < cost) return { ...state, gameNotice: 'Ikke nok guld.' }
       const workshopStock = { ...state.workshopStock, [action.consumableId]: avail - qty }
-      const paid = { ...state, gold: state.gold - cost, workshopStock, gameNotice: null as string | null }
+      const paid = {
+        ...patchHubInventory(state, { gold: state.hubInventory.gold - cost }),
+        workshopStock,
+        gameNotice: null as string | null,
+      }
       return addConsumableToState(paid, action.consumableId, qty)
     }
     case 'SET_CONSUMABLE_QUICK_SLOT': {
@@ -659,7 +775,7 @@ export function reducer(state: GameState, action: Action): GameState {
         consumableQuickSlots[slotIndex] = null
         return { ...state, consumableQuickSlots, gameNotice: null }
       }
-      const stack = state.consumables.find((c) => c.consumableId === action.consumableId && c.quantity > 0)
+      const stack = state.hubInventory.consumables.find((c) => c.consumableId === action.consumableId && c.quantity > 0)
       if (!stack) return { ...state, gameNotice: 'Du har ikke denne vare.' }
       const consumableQuickSlots = [...state.consumableQuickSlots] as [string | null, string | null, string | null]
       consumableQuickSlots[slotIndex] = action.consumableId
@@ -673,14 +789,16 @@ export function reducer(state: GameState, action: Action): GameState {
       if (!consumableId) return state
       const def = findConsumableDef(consumableId)
       if (!def) return state
-      const idx = state.consumables.findIndex((c) => c.consumableId === consumableId)
-      if (idx < 0 || state.consumables[idx]!.quantity < 1) return state
+      const idx = state.hubInventory.consumables.findIndex((c) => c.consumableId === consumableId)
+      if (idx < 0 || state.hubInventory.consumables[idx]!.quantity < 1) return state
       let next = applyConsumableDefToState(state, def)
-      const row = next.consumables[idx]!
+      const row = next.hubInventory.consumables[idx]!
       const nq = row.quantity - 1
       const consumables =
-        nq <= 0 ? next.consumables.filter((_, i) => i !== idx) : next.consumables.map((c, i) => (i === idx ? { ...c, quantity: nq } : c))
-      next = { ...next, consumables, gameNotice: null }
+        nq <= 0
+          ? next.hubInventory.consumables.filter((_, i) => i !== idx)
+          : next.hubInventory.consumables.map((c, i) => (i === idx ? { ...c, quantity: nq } : c))
+      next = patchHubInventory({ ...next, gameNotice: null }, { consumables })
       let consumableQuickSlots = [...next.consumableQuickSlots] as [string | null, string | null, string | null]
       if (nq <= 0 && consumableQuickSlots[slotIndex] === consumableId) consumableQuickSlots[slotIndex] = null
       return { ...next, consumableQuickSlots }
@@ -696,7 +814,9 @@ export function reducer(state: GameState, action: Action): GameState {
       if (!canAddConsumableUnits(without, 1)) {
         return { ...state, gameNotice: `Forbrugs-lager fuldt (${CONSUMABLE_BAG_MAX} stk. max).` }
       }
-      return addConsumableToState(without, recipe.outputConsumableId, 1)
+      const crafted = addConsumableToState(without, recipe.outputConsumableId, 1)
+      logTelemetry('alchemy_craft_success', { recipeId: recipe.id, outputConsumableId: recipe.outputConsumableId })
+      return crafted
     }
     case 'UNLOCK_ALCHEMY_RECIPE': {
       const recipe = findAlchemyRecipe(action.recipeId)
@@ -709,10 +829,8 @@ export function reducer(state: GameState, action: Action): GameState {
       }
     }
     case 'OPEN_CHEST': {
-      const next = applyXpGain(
-        { ...state, gold: state.gold + action.gold, gameNotice: null },
-        XP_REWARDS.rockBroken,
-      )
+      const withGold = patchHubInventory(state, { gold: state.hubInventory.gold + action.gold })
+      const next = applyXpGain({ ...withGold, gameNotice: null }, XP_REWARDS.rockBroken)
       return applyEligibleUnlocks(next)
     }
     case 'DAMAGE_PICKAXE': {
@@ -916,7 +1034,7 @@ export function reducer(state: GameState, action: Action): GameState {
       if (state.level < offer.minLevel) {
         return { ...state, gameNotice: `Kræver level ${offer.minLevel}.` }
       }
-      if (state.gold < offer.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.hubInventory.gold < offer.price) return { ...state, gameNotice: 'Ikke nok guld.' }
       if (state.pickaxes.some((p) => p.tier === action.tier)) {
         return { ...state, gameNotice: 'Du ejer allerede denne hakke. Reparér den i smedjen.' }
       }
@@ -929,8 +1047,7 @@ export function reducer(state: GameState, action: Action): GameState {
       const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const pickaxe = makePickaxe(offer.tier, unique)
       return {
-        ...state,
-        gold: state.gold - offer.price,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold - offer.price }),
         pickaxes: [...state.pickaxes, pickaxe],
         activePickaxeId: pickaxe.id,
         gameNotice: null,
@@ -942,7 +1059,7 @@ export function reducer(state: GameState, action: Action): GameState {
       if (state.level < offer.minLevel) {
         return { ...state, gameNotice: `Kræver level ${offer.minLevel}.` }
       }
-      if (state.gold < offer.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.hubInventory.gold < offer.price) return { ...state, gameNotice: 'Ikke nok guld.' }
       if (state.swords.some((s) => s.tier === action.tier)) {
         return { ...state, gameNotice: 'Du ejer allerede dette sværd. Reparér det i smedjen.' }
       }
@@ -955,8 +1072,7 @@ export function reducer(state: GameState, action: Action): GameState {
       const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const sword = makeSword(offer.tier, unique)
       return {
-        ...state,
-        gold: state.gold - offer.price,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold - offer.price }),
         swords: [...state.swords, sword],
         activeSwordId: sword.id,
         gameNotice: null,
@@ -968,7 +1084,7 @@ export function reducer(state: GameState, action: Action): GameState {
       if (state.level < offer.minLevel) {
         return { ...state, gameNotice: `Kræver level ${offer.minLevel}.` }
       }
-      if (state.gold < offer.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.hubInventory.gold < offer.price) return { ...state, gameNotice: 'Ikke nok guld.' }
       if (state.armours.some((a) => a.tier === action.tier)) {
         return { ...state, gameNotice: 'Du ejer allerede denne rustning. Reparér den i smedjen.' }
       }
@@ -981,8 +1097,7 @@ export function reducer(state: GameState, action: Action): GameState {
       const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const armour = makeArmour(offer.tier, unique)
       return clampPlayerSurvival({
-        ...state,
-        gold: state.gold - offer.price,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold - offer.price }),
         armours: [...state.armours, armour],
         activeArmourId: armour.id,
         gameNotice: null,
@@ -991,10 +1106,9 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'UPGRADE_SMELTER': {
       const cost = smelterNextUpgradeCost(state.smelterTier)
       if (cost == null) return { ...state, gameNotice: 'Smelter er allerede på maks.' }
-      if (state.gold < cost) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.hubInventory.gold < cost) return { ...state, gameNotice: 'Ikke nok guld.' }
       return {
-        ...state,
-        gold: state.gold - cost,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold - cost }),
         smelterTier: state.smelterTier + 1,
         gameNotice: null,
       }
@@ -1002,10 +1116,9 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'BUY_CONSUMABLE': {
       const c = findConsumable(action.id)
       if (!c) return state
-      if (state.gold < c.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.hubInventory.gold < c.price) return { ...state, gameNotice: 'Ikke nok guld.' }
       let next: GameState = {
-        ...state,
-        gold: state.gold - c.price,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold - c.price }),
         gameNotice: null,
       }
       if (c.id === SHOP_CONSUMABLE_IDS.dynamite) {
@@ -1018,10 +1131,9 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'EXPAND_INVENTORY': {
       const pack = findInventoryPack(action.packId)
       if (!pack) return state
-      if (state.gold < pack.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.hubInventory.gold < pack.price) return { ...state, gameNotice: 'Ikke nok guld.' }
       return {
-        ...state,
-        gold: state.gold - pack.price,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold - pack.price }),
         inventoryCapacity: {
           gems: state.inventoryCapacity.gems + pack.gems,
           materials: state.inventoryCapacity.materials + pack.materials,
@@ -1039,10 +1151,9 @@ export function reducer(state: GameState, action: Action): GameState {
       if (state.level < ch.minLevel) {
         return { ...state, gameNotice: `Kræver level ${ch.minLevel}.` }
       }
-      if (state.gold < ch.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      if (state.hubInventory.gold < ch.price) return { ...state, gameNotice: 'Ikke nok guld.' }
       return {
-        ...state,
-        gold: state.gold - ch.price,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold - ch.price }),
         activeCharms: [...state.activeCharms, ch.id],
         gameNotice: null,
       }
@@ -1059,12 +1170,11 @@ export function reducer(state: GameState, action: Action): GameState {
       if (state.level < bp.requires.level) {
         return { ...state, gameNotice: `Kræver level ${bp.requires.level}.` }
       }
-      if (state.gold < bp.shopPrice) {
+      if (state.hubInventory.gold < bp.shopPrice) {
         return { ...state, gameNotice: 'Ikke nok guld.' }
       }
       return {
-        ...state,
-        gold: state.gold - bp.shopPrice,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold - bp.shopPrice }),
         unlockedBlueprints: [...state.unlockedBlueprints, bp.id],
         gameNotice: null,
       }
@@ -1244,9 +1354,8 @@ export function reducer(state: GameState, action: Action): GameState {
       const item = state.jewelry[idx]
       const jewelry = state.jewelry.filter((j) => j.id !== action.id)
       const next: GameState = {
-        ...state,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold + item.goldValue }),
         jewelry,
-        gold: state.gold + item.goldValue,
         reputation: state.reputation + item.reputationValue,
         gameNotice: null,
       }
@@ -1256,9 +1365,8 @@ export function reducer(state: GameState, action: Action): GameState {
       const gem = state.gems.find((g) => g.id === action.id)
       if (!gem) return state
       const next: GameState = {
-        ...state,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold + gem.goldValue }),
         gems: state.gems.filter((g) => g.id !== action.id),
-        gold: state.gold + gem.goldValue,
         gameNotice: null,
       }
       return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.gemSold))
@@ -1269,9 +1377,8 @@ export function reducer(state: GameState, action: Action): GameState {
       const totalGold = selling.reduce((s, g) => s + g.goldValue, 0)
       const totalXp = selling.length * XP_REWARDS.gemSold
       const next: GameState = {
-        ...state,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold + totalGold }),
         gems: state.gems.filter((g) => !action.ids.includes(g.id)),
-        gold: state.gold + totalGold,
         gameNotice: null,
       }
       return applyEligibleUnlocks(applyXpGain(next, totalXp))
@@ -1288,9 +1395,8 @@ export function reducer(state: GameState, action: Action): GameState {
           ? state.rawOre.map((o) => (o.metalName === action.metalName ? newRow : o))
           : state.rawOre.filter((o) => o.metalName !== action.metalName)
       const next: GameState = {
-        ...state,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold + price * qty }),
         rawOre,
-        gold: state.gold + price * qty,
         gameNotice: null,
       }
       return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.rawOreSold * qty))
@@ -1307,9 +1413,8 @@ export function reducer(state: GameState, action: Action): GameState {
           ? state.metalNuggets.map((n) => (n.metalName === action.metalName ? newRow : n))
           : state.metalNuggets.filter((n) => n.metalName !== action.metalName)
       const next: GameState = {
-        ...state,
+        ...patchHubInventory(state, { gold: state.hubInventory.gold + price * qty }),
         metalNuggets,
-        gold: state.gold + price * qty,
         gameNotice: null,
       }
       return applyEligibleUnlocks(applyXpGain(next, XP_REWARDS.nuggetSold * qty))
@@ -1374,8 +1479,12 @@ export function reducer(state: GameState, action: Action): GameState {
       if (!isValidEssenceMarketOffer(action.essenceId, action.price)) {
         return { ...state, gameNotice: 'Ugyldigt markedstilbud (ny dag?).' }
       }
-      if (state.gold < action.price) return { ...state, gameNotice: 'Ikke nok guld.' }
-      return addEssence({ ...state, gold: state.gold - action.price, gameNotice: null }, action.essenceId, 1)
+      if (state.hubInventory.gold < action.price) return { ...state, gameNotice: 'Ikke nok guld.' }
+      return addEssence(
+        { ...patchHubInventory(state, { gold: state.hubInventory.gold - action.price }), gameNotice: null },
+        action.essenceId,
+        1,
+      )
     }
     case 'PRUNE_EXPIRED_EFFECTS': {
       const now = Date.now()
@@ -1386,6 +1495,9 @@ export function reducer(state: GameState, action: Action): GameState {
     }
     case 'UNLOCK_ACHIEVEMENTS': {
       if (action.ids.length === 0) return state
+      for (const id of action.ids) {
+        logTelemetry('achievement_unlock', { id })
+      }
       const set = new Set([...state.achievementsUnlocked, ...action.ids])
       let unlockedBlueprints = state.unlockedBlueprints
       if (action.ids.includes('master_jeweler') && !unlockedBlueprints.includes('tiara')) {

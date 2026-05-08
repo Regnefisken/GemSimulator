@@ -1,6 +1,7 @@
 import type { GameState, LocationId } from '../types'
 
-const MINE_IDS: LocationId[] = [
+/** Kendte mine-lokations-id'er (D12/D44 / per-mine dybde). */
+export const MINE_LOCATION_IDS: LocationId[] = [
   'kobbermine',
   'jernkloeften',
   'soelvhulen',
@@ -12,7 +13,7 @@ const MINE_IDS: LocationId[] = [
 /** D10: meta-tier til crafting m.m. — max af legacy `depth` og per-mine `unlockedDepths`. */
 export function computeWorldTier(state: GameState): number {
   let maxU = 0
-  for (const id of MINE_IDS) {
+  for (const id of MINE_LOCATION_IDS) {
     const v = state.unlockedDepths[id]
     if (typeof v === 'number' && v > maxU) maxU = v
   }
@@ -20,5 +21,5 @@ export function computeWorldTier(state: GameState): number {
 }
 
 export function isMineLocationId(id: string): id is LocationId {
-  return (MINE_IDS as string[]).includes(id)
+  return (MINE_LOCATION_IDS as string[]).includes(id)
 }

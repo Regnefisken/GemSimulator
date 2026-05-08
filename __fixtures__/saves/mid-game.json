@@ -1,0 +1,156 @@
+{
+  "level": 9,
+  "xp": 120,
+  "hubInventory": {
+    "gold": 4200,
+    "consumables": [
+      {
+        "consumableId": "cons_bread_minor",
+        "quantity": 4
+      },
+      {
+        "consumableId": "cons_minor_heal_potion",
+        "quantity": 2
+      }
+    ],
+    "equipment": [],
+    "materials": {}
+  },
+  "reputation": 0,
+  "depth": 4,
+  "unlockedDepths": {
+    "kobbermine": 6,
+    "jernkloeften": 4,
+    "soelvhulen": 2
+  },
+  "mineRun": null,
+  "runInventory": null,
+  "coal": 45,
+  "totalRockSlotsCleared": 120,
+  "totalGemsFound": 0,
+  "totalJewelryCrafted": 0,
+  "totalEssencesCollected": 0,
+  "achievementsUnlocked": [
+    "first_gem",
+    "level_10"
+  ],
+  "activePickaxeId": "pickaxe-tin",
+  "pickaxes": [
+    {
+      "id": "pickaxe-tin",
+      "tier": 0,
+      "name": "Tinhakke",
+      "damage": 5,
+      "durability": 50,
+      "maxDurability": 50,
+      "pixelItem": {
+        "data": [
+          "..............HK",
+          ".............HHK",
+          "............HHHK",
+          "..........HHHKK.",
+          ".........HHHK...",
+          "........HHHK....",
+          ".......THKK.....",
+          "......TT........",
+          ".....TT.........",
+          "....TT..........",
+          "...TT...........",
+          "..TT............",
+          ".TT.............",
+          "TT..............",
+          "T...............",
+          "................"
+        ],
+        "colorMap": {
+          "T": "#8b4513",
+          "H": "#cbd5e1",
+          "K": "#64748b"
+        }
+      }
+    }
+  ],
+  "equippedWeapon": "pickaxe",
+  "activeSwordId": "sword-rust",
+  "swords": [
+    {
+      "id": "sword-rust",
+      "tier": 0,
+      "name": "Rustent sværd",
+      "damage": 8,
+      "durability": 60,
+      "maxDurability": 60,
+      "pixelItem": {
+        "data": [
+          "..........",
+          "....BB....",
+          "....BB....",
+          "...BBBB...",
+          "....BB....",
+          "....BB....",
+          "....HH....",
+          "....HH....",
+          "...HHHH...",
+          "....HH...."
+        ],
+        "colorMap": {
+          "B": "#94a3b8",
+          "H": "#78350f"
+        }
+      }
+    }
+  ],
+  "armours": [],
+  "activeArmourId": null,
+  "gems": [],
+  "roughStones": [],
+  "rawOre": [],
+  "metalNuggets": [],
+  "metalIngots": [],
+  "inventoryCapacity": {
+    "gems": 40,
+    "materials": 200,
+    "tools": 10
+  },
+  "smelterTier": 1,
+  "smeltingJobs": [],
+  "viewMode": "map",
+  "currentArea": "kobbermine",
+  "unlockedLocations": [
+    "kobbermine",
+    "smedjen",
+    "butikken",
+    "alkymistvaerkstedet"
+  ],
+  "activeCharms": [],
+  "activeEffects": [],
+  "instantBreakNextRock": false,
+  "roughCraftPurityBonus": 0,
+  "jewelry": [],
+  "unlockedBlueprints": [
+    "simple_band",
+    "stud_earrings",
+    "basic_pendant"
+  ],
+  "unlockedAlchemyRecipes": [
+    "recipe_solar_elixir"
+  ],
+  "essences": [],
+  "workshopStock": {
+    "cons_bread_minor": 12,
+    "cons_minor_heal_potion": 10,
+    "ing_glow_moss": 20
+  },
+  "consumableQuickSlots": [
+    null,
+    null,
+    null
+  ],
+  "playerHp": 100,
+  "playerHpMax": 100,
+  "playerMana": 50,
+  "playerManaMax": 50,
+  "activeBrewId": null,
+  "gameNotice": null,
+  "version": 18
+}

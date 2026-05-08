@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
 import type { GameState } from '../../types'
 import { ACHIEVEMENTS } from '../../data/achievements'
+import { selectAnyMineStats } from '../../selectors/achievements'
 
 export default function AchievementsTab({ state }: { state: GameState }) {
   const unlocked = useMemo(() => new Set(state.achievementsUnlocked), [state.achievementsUnlocked])
   const count = state.achievementsUnlocked.length
+  const anyMine = useMemo(() => selectAnyMineStats(state), [state])
 
   function progressText(id: string): { value: string; next: string } {
     switch (id) {
@@ -40,7 +42,7 @@ export default function AchievementsTab({ state }: { state: GameState }) {
         }
       case 'gold_1000':
         return {
-          value: `Fremskridt ${Math.min(state.gold, 1000)}/1000`,
+          value: `Fremskridt ${Math.min(state.hubInventory.gold, 1000)}/1000`,
           next: 'Tip: Sælg ædelsten, råvarer og smykker for hurtigere guld.',
         }
       case 'rep_5':
@@ -58,6 +60,27 @@ export default function AchievementsTab({ state }: { state: GameState }) {
           value: `Fremskridt ${Math.min(state.level, 10)}/10`,
           next: 'Tip: Saml XP via minedrift, smeltning og salg.',
         }
+      case 'any_mine_depth_3': {
+        const d = anyMine.deepestAcrossMines
+        return {
+          value: `Fremskridt ${Math.min(d, 3)}/3 (dybde på tværs af miner)`,
+          next: 'Tip: Nedstig dybere i en vilkårlig mine.',
+        }
+      }
+      case 'any_mine_two_mines': {
+        const m = anyMine.minesWithProgress
+        return {
+          value: `Fremskridt ${Math.min(m, 2)}/2 miner med dybde ≥1`,
+          next: 'Tip: Besøg flere forskellige miner.',
+        }
+      }
+      case 'any_mine_depth_10': {
+        const d = anyMine.deepestAcrossMines
+        return {
+          value: `Fremskridt ${Math.min(d, 10)}/10 (dybde på tværs af miner)`,
+          next: 'Tip: Hold ved i den dybeste mine du tør.',
+        }
+      }
       default:
         return { value: 'Fremskridt —', next: 'Tip: Fortsæt med at spille.' }
     }

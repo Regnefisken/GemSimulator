@@ -7,7 +7,7 @@ function meetsRequirements(state: GameState, area: (typeof AREAS)[number]): bool
   if (!req) return false
   if (req.level !== undefined && state.level < req.level) return false
   if (req.reputation !== undefined && state.reputation < req.reputation) return false
-  if (req.gold !== undefined && state.gold < req.gold) return false
+  if (req.gold !== undefined && state.hubInventory.gold < req.gold) return false
   return true
 }
 

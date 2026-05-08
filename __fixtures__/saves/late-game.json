@@ -1,0 +1,215 @@
+{
+  "level": 28,
+  "xp": 4000,
+  "hubInventory": {
+    "gold": 88000,
+    "consumables": [
+      {
+        "consumableId": "cons_bread_minor",
+        "quantity": 12
+      },
+      {
+        "consumableId": "cons_minor_heal_potion",
+        "quantity": 8
+      },
+      {
+        "consumableId": "cons_brew_solar_vigor",
+        "quantity": 2
+      }
+    ],
+    "equipment": [],
+    "materials": {}
+  },
+  "reputation": 0,
+  "depth": 12,
+  "unlockedDepths": {
+    "kobbermine": 14,
+    "jernkloeften": 11,
+    "soelvhulen": 9,
+    "guldgrotten": 6,
+    "mithrilbjerget": 4,
+    "rune-dybet": 2
+  },
+  "mineRun": null,
+  "runInventory": null,
+  "coal": 200,
+  "totalRockSlotsCleared": 2400,
+  "totalGemsFound": 42,
+  "totalJewelryCrafted": 0,
+  "totalEssencesCollected": 0,
+  "achievementsUnlocked": [
+    "first_gem",
+    "gems_25",
+    "gold_1000"
+  ],
+  "activePickaxeId": "pickaxe-tin",
+  "pickaxes": [
+    {
+      "id": "pickaxe-tin",
+      "tier": 0,
+      "name": "Tinhakke",
+      "damage": 5,
+      "durability": 50,
+      "maxDurability": 50,
+      "pixelItem": {
+        "data": [
+          "..............HK",
+          ".............HHK",
+          "............HHHK",
+          "..........HHHKK.",
+          ".........HHHK...",
+          "........HHHK....",
+          ".......THKK.....",
+          "......TT........",
+          ".....TT.........",
+          "....TT..........",
+          "...TT...........",
+          "..TT............",
+          ".TT.............",
+          "TT..............",
+          "T...............",
+          "................"
+        ],
+        "colorMap": {
+          "T": "#8b4513",
+          "H": "#cbd5e1",
+          "K": "#64748b"
+        }
+      }
+    }
+  ],
+  "equippedWeapon": "pickaxe",
+  "activeSwordId": "sword-rust",
+  "swords": [
+    {
+      "id": "sword-rust",
+      "tier": 0,
+      "name": "Rustent sværd",
+      "damage": 8,
+      "durability": 60,
+      "maxDurability": 60,
+      "pixelItem": {
+        "data": [
+          "..........",
+          "....BB....",
+          "....BB....",
+          "...BBBB...",
+          "....BB....",
+          "....BB....",
+          "....HH....",
+          "....HH....",
+          "...HHHH...",
+          "....HH...."
+        ],
+        "colorMap": {
+          "B": "#94a3b8",
+          "H": "#78350f"
+        }
+      }
+    }
+  ],
+  "armours": [
+    {
+      "id": "armour-plate-fixture-a",
+      "tier": 3,
+      "name": "Stålplade",
+      "durability": 260,
+      "maxDurability": 260,
+      "bonuses": {
+        "hpMax": 32,
+        "manaMax": 6
+      },
+      "pixelItem": {
+        "data": [
+          "...MMMM...",
+          "..MMMMMM..",
+          ".MMMMMMMM.",
+          ".MMMMMMMM.",
+          "..MMMMMM..",
+          "...MMMM..."
+        ],
+        "colorMap": {
+          "M": "#94a3b8",
+          ".": "transparent"
+        }
+      }
+    },
+    {
+      "id": "armour-mithril_mail-fixture-b",
+      "tier": 4,
+      "name": "Mithril-trøje",
+      "durability": 420,
+      "maxDurability": 420,
+      "bonuses": {
+        "hpMax": 48,
+        "manaMax": 12
+      },
+      "pixelItem": {
+        "data": [
+          "...MMMM...",
+          "..MMMMMM..",
+          ".MMMMMMMM.",
+          ".MMMMMMMM.",
+          "..MMMMMM..",
+          "...MMMM..."
+        ],
+        "colorMap": {
+          "M": "#6ee7b7",
+          ".": "transparent"
+        }
+      }
+    }
+  ],
+  "activeArmourId": "armour-mithril_mail-fixture-b",
+  "gems": [],
+  "roughStones": [],
+  "rawOre": [],
+  "metalNuggets": [],
+  "metalIngots": [],
+  "inventoryCapacity": {
+    "gems": 40,
+    "materials": 200,
+    "tools": 10
+  },
+  "smelterTier": 3,
+  "smeltingJobs": [],
+  "viewMode": "map",
+  "currentArea": "kobbermine",
+  "unlockedLocations": [
+    "kobbermine",
+    "smedjen",
+    "butikken",
+    "alkymistvaerkstedet"
+  ],
+  "activeCharms": [],
+  "activeEffects": [],
+  "instantBreakNextRock": false,
+  "roughCraftPurityBonus": 0,
+  "jewelry": [],
+  "unlockedBlueprints": [
+    "simple_band",
+    "stud_earrings",
+    "basic_pendant"
+  ],
+  "unlockedAlchemyRecipes": [
+    "recipe_solar_elixir"
+  ],
+  "essences": [],
+  "workshopStock": {
+    "cons_bread_minor": 12,
+    "cons_minor_heal_potion": 10,
+    "ing_glow_moss": 20
+  },
+  "consumableQuickSlots": [
+    null,
+    null,
+    null
+  ],
+  "playerHp": 100,
+  "playerHpMax": 100,
+  "playerMana": 50,
+  "playerManaMax": 77,
+  "activeBrewId": "brew_solar_vigor",
+  "gameNotice": null,
+  "version": 18
+}

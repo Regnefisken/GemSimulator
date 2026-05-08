@@ -133,7 +133,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
   const noticeId = useRef(0)
   const hitId = useRef(0)
-  const pickupFeedClearRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const pickupFeedClearRef = useRef<number | null>(null)
 
   useEffect(() => {
     return () => {
@@ -368,7 +368,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       return
     }
     let usedMat = matCount
-    let bagUsed = state.consumables.reduce((s, c) => s + c.quantity, 0)
+    let bagUsed = state.hubInventory.consumables.reduce((s, c) => s + c.quantity, 0)
     for (const e of lootEntities) {
       const drop = e.drop
       if (drop.kind === 'consumable') {
@@ -390,7 +390,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     setLootEntities([])
     dispatch({ type: 'MINE_DESCEND_LAYER' })
     showToast(`Ned til dybde ${run.currentDepth + 1}`, 'success', 2200)
-  }, [run, lootEntities, matCount, matCap, applyDrop, dispatch, showToast, state.consumables])
+  }, [run, lootEntities, matCount, matCap, applyDrop, dispatch, showToast, state.hubInventory.consumables])
 
   const handleMineHit = useCallback(() => {
     if (!run || !activeSlot || activeSlot.cleared) return
@@ -713,7 +713,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
             <HUDConsumableQuickBar
               className="shrink-0 order-1 sm:order-2 self-end"
               quickSlots={state.consumableQuickSlots}
-              consumables={state.consumables}
+              consumables={state.hubInventory.consumables}
               onUseSlot={(i) => dispatch({ type: 'USE_CONSUMABLE_QUICK_SLOT', slotIndex: i })}
             />
           </div>

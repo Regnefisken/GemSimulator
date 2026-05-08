@@ -152,7 +152,7 @@ describe('migrateGameState v15 consumables & alkymi', () => {
     delete raw.consumableQuickSlots
     raw.unlockedLocations = ['kobbermine', 'smedjen', 'butikken']
     const next = migrateGameState(raw, initialState)
-    expect(next.consumables).toEqual([])
+    expect(next.hubInventory.consumables).toEqual([])
     expect(next.consumableQuickSlots).toEqual([null, null, null])
     expect(next.workshopStock).toEqual(expect.objectContaining({ cons_bread_minor: 12 }))
     expect(next.unlockedLocations).toContain('alkymistvaerkstedet')
@@ -174,17 +174,21 @@ describe('migrateGameState v16 brew / alkymi-opskrifter', () => {
   })
 })
 
-describe('migrateGameState v17 rustning', () => {
-  it('tilføjer armours og activeArmourId på ældre save', () => {
+describe('migrateGameState v18 hub/run inventar', () => {
+  it('flytter top-level guld og consumables til hubInventory og nulstiller aktiv mine-run', () => {
     const raw = {
       ...initialState,
-      version: 16,
+      version: 17,
+      gold: 333,
+      consumables: [{ consumableId: 'cons_bread_minor', quantity: 3 }],
+      mineRun: { stub: true },
     } as Record<string, unknown>
-    delete raw.armours
-    delete raw.activeArmourId
     const next = migrateGameState(raw, initialState)
     expect(next.version).toBe(CURRENT_STATE_VERSION)
-    expect(Array.isArray(next.armours)).toBe(true)
-    expect(next.activeArmourId).toBeNull()
+    expect(next.hubInventory.gold).toBe(333)
+    expect(next.hubInventory.consumables).toEqual([{ consumableId: 'cons_bread_minor', quantity: 3 }])
+    expect(next.mineRun).toBeNull()
+    expect(next.runInventory).toBeNull()
+    expect(next.gameNotice).toMatch(/v18/)
   })
 })

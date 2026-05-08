@@ -49,11 +49,11 @@ export default function ConsumablesInventoryTab({ state, dispatch }: Props) {
         </div>
       </div>
 
-      {state.consumables.length === 0 ? (
+      {state.hubInventory.consumables.length === 0 ? (
         <p className="text-slate-500 text-sm">Ingen forbrugsvarer endnu — besøg alkymistværkstedet.</p>
       ) : (
         <ul className="space-y-3">
-          {state.consumables.map((row) => {
+          {state.hubInventory.consumables.map((row) => {
             const def = findConsumableDef(row.consumableId)
             if (!def) return null
             return (

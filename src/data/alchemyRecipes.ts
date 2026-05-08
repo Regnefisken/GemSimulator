@@ -11,7 +11,7 @@ export type AlchemyRecipeDef = {
   description: string
   /** Krævet `computeWorldTier(state)` for at kunne blande. */
   requiredWorldTier: number
-  /** Ingredienser trækkes fra `GameState.consumables` (consumable-id → antal). */
+  /** Ingredienser trækkes fra `GameState.hubInventory.consumables` (consumable-id → antal). */
   ingredients: Partial<Record<string, number>>
   /** Resultat som `ConsumableDef.id` (typisk potion med `apply_brew`). */
   outputConsumableId: string

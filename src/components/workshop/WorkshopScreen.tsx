@@ -43,7 +43,7 @@ export default function WorkshopScreen({ state, dispatch, onBack }: Props) {
 
   function ingredientLine(consumableId: string, qty: number): string {
     const def = findConsumableDef(consumableId)
-    const owned = state.consumables.find((c) => c.consumableId === consumableId)?.quantity ?? 0
+    const owned = state.hubInventory.consumables.find((c) => c.consumableId === consumableId)?.quantity ?? 0
     return `${def?.name ?? consumableId} ×${qty} (har ${owned})`
   }
 
@@ -62,7 +62,7 @@ export default function WorkshopScreen({ state, dispatch, onBack }: Props) {
           <div>
             <h1 className="text-xl font-bold text-emerald-100 flex items-center gap-2">⚗️ Alkymistværkstedet</h1>
             <p className="text-slate-500 text-sm mt-0.5">
-              Guld: <span className="text-amber-200 font-mono font-semibold">{state.gold}</span> · Hylderne fyldes
+              Guld: <span className="text-amber-200 font-mono font-semibold">{state.hubInventory.gold}</span> · Hylderne fyldes
               op igen når du forlader minen.
             </p>
           </div>
@@ -84,7 +84,7 @@ export default function WorkshopScreen({ state, dispatch, onBack }: Props) {
                 const entries = Object.entries(rec.ingredients).filter(([, q]) => (q ?? 0) > 0)
                 const hasAll = entries.every(([id, q]) => {
                   const need = q ?? 0
-                  const row = state.consumables.find((c) => c.consumableId === id)
+                  const row = state.hubInventory.consumables.find((c) => c.consumableId === id)
                   return row != null && row.quantity >= need
                 })
                 const canCraft = tierOk && hasAll
@@ -152,7 +152,7 @@ export default function WorkshopScreen({ state, dispatch, onBack }: Props) {
         <ul className="space-y-3">
           {defs.map((d) => {
             const stock = state.workshopStock[d.id] ?? 0
-            const canBuy = state.gold >= d.price && stock > 0
+            const canBuy = state.hubInventory.gold >= d.price && stock > 0
             return (
               <li
                 key={d.id}

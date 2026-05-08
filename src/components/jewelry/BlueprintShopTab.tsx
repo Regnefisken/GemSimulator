@@ -75,7 +75,7 @@ export default function BlueprintShopTab({ state, dispatch }: Props) {
         {rows.map((bp) => {
           const owned = state.unlockedBlueprints.includes(bp.id)
           const levelOk = state.level >= bp.requires.level
-          const goldOk = state.gold >= bp.shopPrice
+          const goldOk = state.hubInventory.gold >= bp.shopPrice
           return (
             <li key={bp.id}>
               <BlueprintCard

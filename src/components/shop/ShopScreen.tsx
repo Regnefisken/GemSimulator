@@ -27,7 +27,7 @@ type Props = {
 }
 
 function goldOk(state: GameState, price: number) {
-  return state.gold >= price
+  return state.hubInventory.gold >= price
 }
 
 export default function ShopScreen({ state, dispatch, onBack }: Props) {
@@ -105,7 +105,7 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
           <div>
             <h1 className="text-xl font-bold text-amber-100 flex items-center gap-2">🪙 Butikken</h1>
             <p className="text-slate-500 text-sm mt-0.5">
-              Guld: <span className="text-amber-200 font-mono font-semibold">{state.gold}</span> · lvl{' '}
+              Guld: <span className="text-amber-200 font-mono font-semibold">{state.hubInventory.gold}</span> · lvl{' '}
               <span className="text-slate-200 font-mono">{state.level}</span>
             </p>
           </div>

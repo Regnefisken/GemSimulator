@@ -18,7 +18,7 @@ function formatRequirementsWithState(
   if (r.reputation !== undefined)
     parts.push({ label: `Omdømme ${r.reputation}`, met: state.reputation >= r.reputation })
   if (r.gold !== undefined)
-    parts.push({ label: `${r.gold.toLocaleString()} g`, met: state.gold >= r.gold })
+    parts.push({ label: `${r.gold.toLocaleString()} g`, met: state.hubInventory.gold >= r.gold })
   return parts
 }
 

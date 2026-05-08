@@ -1,4 +1,5 @@
 import type { GameState } from '../types'
+import { selectAnyMineStats } from '../selectors/achievements'
 
 export type AchievementDef = {
   id: string
@@ -56,7 +57,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     title: 'Velhavende',
     description: 'Have mindst 1000 guld på én gang.',
     icon: '🪙',
-    check: (s) => s.gold >= 1000,
+    check: (s) => s.hubInventory.gold >= 1000,
   },
   {
     id: 'rep_5',
@@ -85,6 +86,27 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     description: 'Nå level 10.',
     icon: '⭐',
     check: (s) => s.level >= 10,
+  },
+  {
+    id: 'any_mine_depth_3',
+    title: 'Hul i jorden',
+    description: 'Nå mindst dybde 3 i mindst én mine (samlet på tværs af miner).',
+    icon: '🕳️',
+    check: (s) => selectAnyMineStats(s).deepestAcrossMines >= 3,
+  },
+  {
+    id: 'any_mine_two_mines',
+    title: 'Vandringsmand',
+    description: 'Har haft dybde mindst 1 i mindst to forskellige miner.',
+    icon: '🧭',
+    check: (s) => selectAnyMineStats(s).minesWithProgress >= 2,
+  },
+  {
+    id: 'any_mine_depth_10',
+    title: 'Dybt spor',
+    description: 'Nå mindst dybde 10 i mindst én mine.',
+    icon: '⛰️',
+    check: (s) => selectAnyMineStats(s).deepestAcrossMines >= 10,
   },
 ]
 

@@ -200,7 +200,7 @@ export default function JewelryWorkshopScreen({ state, dispatch, onBack }: Props
           <ul className="grid gap-3 sm:grid-cols-2">
             {getDailyEssenceMarketOffers().map((o) => {
               const def = getEssenceDef(o.essenceId)
-              const canBuy = state.gold >= o.price
+              const canBuy = state.hubInventory.gold >= o.price
               return (
                 <li
                   key={o.essenceId}

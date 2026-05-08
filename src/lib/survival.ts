@@ -65,12 +65,11 @@ export function applySafeZoneRegen(state: GameState): GameState {
   const cleared = { ...state, activeBrewId: null }
   const hpCap = effectiveTotalHpMax(cleared)
   const manaCap = effectiveTotalManaMax(cleared)
-  return {
+  return clampPlayerSurvival({
     ...cleared,
     playerHp: hpCap,
-    playerManaMax: manaCap,
     playerMana: manaCap,
-  }
+  })
 }
 
 export function clampPlayerSurvival(state: GameState): GameState {

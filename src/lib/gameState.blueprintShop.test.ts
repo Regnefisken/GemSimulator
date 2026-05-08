@@ -7,12 +7,12 @@ describe('BUY_BLUEPRINT', () => {
     const base: GameState = {
       ...initialState,
       level: 15,
-      gold: 2000,
+      hubInventory: { ...initialState.hubInventory, gold: 2000 },
       unlockedBlueprints: initialState.unlockedBlueprints.filter((id) => id !== 'bangle'),
     }
     const next = reducer(base, { type: 'BUY_BLUEPRINT', blueprintId: 'bangle' })
     expect(next.unlockedBlueprints).toContain('bangle')
-    expect(next.gold).toBe(2000 - 600)
+    expect(next.hubInventory.gold).toBe(2000 - 600)
     expect(next.gameNotice).toBeNull()
   })
 
