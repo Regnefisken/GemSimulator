@@ -1,8 +1,7 @@
-import { useMemo, useRef, useEffect, useState, type MutableRefObject } from 'react'
+import { useMemo, useRef, useEffect, type MutableRefObject } from 'react'
 import { Billboard, Html } from '@react-three/drei'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import type { Group, Mesh } from 'three'
-import { Vector3 } from 'three'
 import type { MetalName, RockType } from '../../../types'
 
 type Props = {
@@ -62,10 +61,6 @@ export default function OreNode({
   depleted,
 }: Props) {
   const meshRef = useRef<Group>(null)
-  const nameplateAnchorRef = useRef<Group>(null)
-  const { camera } = useThree()
-  const [htmlDistanceFactor, setHtmlDistanceFactor] = useState(11)
-  const smoothedDfRef = useRef(11)
   const shake = useRef(0)
   const pct = interactive && maxHp > 0 ? hp / maxHp : 1
   const isLowHp = interactive && pct < 0.25
@@ -94,15 +89,6 @@ export default function OreNode({
         m.position.x = Math.sin(t * 2) * 0.09 * amp
         m.position.y = Math.cos(t * 1.7) * 0.04 * amp
       }
-    }
-    if (interactive && nameplateAnchorRef.current) {
-      const p = new Vector3()
-      nameplateAnchorRef.current.getWorldPosition(p)
-      const dist = p.distanceTo(camera.position)
-      const target = Math.min(13, Math.max(3.2, 1.15 + 0.82 * dist))
-      smoothedDfRef.current += (target - smoothedDfRef.current) * Math.min(1, delta * 20)
-      const next = smoothedDfRef.current
-      setHtmlDistanceFactor((prev) => (Math.abs(prev - next) > 0.025 ? next : prev))
     }
   })
 
@@ -184,9 +170,9 @@ export default function OreNode({
         )}
       </group>
       {interactive && !depleted && (
-        <group ref={nameplateAnchorRef}>
+        <group>
           <Billboard follow position={[0, 1.02, 0]}>
-            <Html center distanceFactor={htmlDistanceFactor} transform style={{ pointerEvents: 'none' }}>
+            <Html center distanceFactor={10} transform style={{ pointerEvents: 'none' }}>
               <div className="flex flex-col items-center gap-0.5 select-none [transform:translateZ(0)]">
                 <span
                   className={
@@ -198,7 +184,7 @@ export default function OreNode({
                 </span>
                 <div className="h-[5px] w-[76px] rounded-full bg-black/55 ring-1 ring-white/15 overflow-hidden shadow-md">
                   <div
-                    className={`h-full rounded-full transition-[width] duration-150 ${barGradient}`}
+                    className={`h-full rounded-full ${barGradient}`}
                     style={{ width: `${hpPct}%` }}
                   />
                 </div>
