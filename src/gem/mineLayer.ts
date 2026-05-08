@@ -76,9 +76,9 @@ export function generateLayerState(args: {
   return slots
 }
 
-/** Obligatoriske felter skal være ryddet før nedstigning (D2). Fase 1: alle felter. */
-export function isMineSlotMandatory(_s: MineRunSlotState): boolean {
-  return true
+/** Klipper og uhyrer skal ryddes; kister er valgfrie for nedstigning. */
+export function isMineSlotMandatory(s: MineRunSlotState): boolean {
+  return s.kind !== 'chest'
 }
 
 export function canDescendFromLayer(slots: MineRunSlotState[]): boolean {

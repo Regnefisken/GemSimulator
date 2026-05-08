@@ -203,7 +203,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     const out: WorldChestEntity[] = []
     for (let i = 0; i < run.slots.length; i++) {
       const s = run.slots[i]
-      if (s.kind !== 'chest' || s.cleared || !s.chestEntityId || !s.chestLoot) continue
+      /** Tomme kister forbliver i scenen (`cleared` sættes ved tom loot — vi despawner ikke). */
+      if (s.kind !== 'chest' || !s.chestEntityId || !s.chestLoot) continue
       out.push({
         id: s.chestEntityId,
         slotIndex: i,
@@ -425,7 +426,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const handleDescend = useCallback(() => {
     if (!run) return
     if (!canDescendFromLayer(run.slots)) {
-      showToast('Ryd alle felter (inkl. kister) før du går dybere.', 'info')
+      showToast('Ryd alle klipper og uhyrer før du går dybere.', 'info')
       return
     }
     let usedMat = matCount
