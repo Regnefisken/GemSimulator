@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
@@ -19,6 +19,11 @@ export type VoxelSceneProps2D = {
   className?: string
   canvasStyle?: CSSProperties
   cameraTilt?: number
+  /**
+   * Uden OrbitControls (ingen pointer-listeners på canvas) — bruges til små klik-flader
+   * ovenpå knapper (fx kiste-kort), så pointer ikke “hænger” i preview.
+   */
+  disableOrbitControls?: boolean
 }
 
 export type VoxelSceneProps3D = {
@@ -111,14 +116,54 @@ function AdaptiveCamera3D({ voxel3d }: { voxel3d: Voxel3DGrid }) {
   return null
 }
 
-function Scene2D({ data, colorMap, tilt }: { data: string[]; colorMap: ColorMap; tilt: number }) {
+/** Samme vinkel som OrbitControls-start i Scene2D med controls. */
+const SCENE2D_YAW = -0.45
+
+function Scene2DNoPointer({ data, colorMap, tilt }: { data: string[]; colorMap: ColorMap; tilt: number }) {
+  const spinRef = useRef<THREE.Group>(null)
+  useFrame((_, dt) => {
+    const g = spinRef.current
+    if (!g) return
+    g.rotation.y += dt * 0.55
+  })
+
+  return (
+    <>
+      <AdaptiveCamera data={data} />
+      <group ref={spinRef} rotation={[0, SCENE2D_YAW, 0]}>
+        <group rotation={[tilt, 0, 0]}>
+          <VoxelMesh data={data} colorMap={colorMap} />
+        </group>
+      </group>
+      <ambientLight intensity={0.58} />
+      <directionalLight color="#ffffff" intensity={0.9} position={[5, 8, 10]} />
+      <directionalLight color="#c7d2fe" intensity={0.32} position={[-6, -3, -4]} />
+    </>
+  )
+}
+
+function Scene2D({
+  data,
+  colorMap,
+  tilt,
+  disableOrbitControls,
+}: {
+  data: string[]
+  colorMap: ColorMap
+  tilt: number
+  disableOrbitControls?: boolean
+}) {
+  if (disableOrbitControls) {
+    return <Scene2DNoPointer data={data} colorMap={colorMap} tilt={tilt} />
+  }
+
   const [autoRotate, setAutoRotate] = useState(true)
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
 
   useLayoutEffect(() => {
     const c = controlsRef.current
     if (!c) return
-    c.setAzimuthalAngle(-0.45)
+    c.setAzimuthalAngle(SCENE2D_YAW)
     c.update()
   }, [])
 
@@ -207,7 +252,12 @@ export default function VoxelScene(props: VoxelSceneProps) {
       {is3d ? (
         <Scene3D voxel3d={props.voxel3d} tilt={tilt} />
       ) : (
-        <Scene2D data={props.data} colorMap={props.colorMap} tilt={tilt} />
+        <Scene2D
+          data={props.data}
+          colorMap={props.colorMap}
+          tilt={tilt}
+          disableOrbitControls={props.disableOrbitControls}
+        />
       )}
     </Canvas>
   )

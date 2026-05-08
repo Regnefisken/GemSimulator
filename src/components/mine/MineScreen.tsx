@@ -696,7 +696,10 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         entered ? 'opacity-100' : 'opacity-0'
       }`}
     >
-      <div className="absolute inset-0 z-0 min-h-0">
+      <div
+        className={`absolute inset-0 z-0 min-h-0${activeChestId != null ? ' pointer-events-none' : ''}`}
+        aria-hidden={activeChestId != null ? true : undefined}
+      >
         <MiningCave3D
           key={`${area.id}-${run.runId}-${run.currentDepth}`}
           className="h-full min-h-0 rounded-none border-0 bg-transparent"
@@ -716,10 +719,14 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           depletedSlots={depletedSlots}
           onCollectLoot={handleCollectLoot}
           worldChests={worldChests}
-          onChestClick={(id) => setActiveChestId(id)}
+          onChestClick={(id) => {
+            if (typeof document !== 'undefined') document.exitPointerLock?.()
+            setActiveChestId(id)
+          }}
           onCrosshairTargetChange={setCrosshairOnTarget}
           onSelectMineSlot={(i) => dispatch({ type: 'MINE_SET_TARGET_SLOT', index: i })}
           onMobStrikeHit={handleMobStrikeHit}
+          disablePointerLock={activeChestId != null}
         />
       </div>
 

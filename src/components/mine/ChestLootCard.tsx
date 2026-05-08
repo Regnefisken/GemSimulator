@@ -96,8 +96,13 @@ export default function ChestLootCard(props: Props) {
   return (
     <button type="button" disabled={props.disabled} onClick={props.onTake} className={common + ' items-center'}>
       {viz && (
-        <div className="w-[72px] h-[72px] mx-auto overflow-hidden rounded-lg bg-slate-950">
-          <VoxelScene data={viz.data} colorMap={viz.colorMap} className="!block !max-w-none scale-90" />
+        <div className="pointer-events-none w-[72px] h-[72px] mx-auto overflow-hidden rounded-lg bg-slate-950">
+          <VoxelScene
+            data={viz.data}
+            colorMap={viz.colorMap}
+            disableOrbitControls
+            className="pointer-events-none !block !max-w-none scale-90"
+          />
         </div>
       )}
       <span className="text-[11px] font-semibold text-slate-200 text-center leading-tight">{title}</span>

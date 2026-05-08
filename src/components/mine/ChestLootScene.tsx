@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { Dispatch } from 'react'
 import type { Area, GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
@@ -20,6 +20,26 @@ import { playEssenceFound, playRockBreak } from '../../lib/sounds'
 import { useToast } from '../ui/ToastContext'
 import ChestLootCard from './ChestLootCard'
 import type { WorldChestEntity } from './3d/WorldChest'
+
+/** Værste grid: guld-kort + max `items` (6 base + ingrediens + ekstra bp i liste + forbruger) + separat `blueprintId` — hold synk med `rollChestLoot` (gold tier). */
+export const CHEST_GRID_SLOT_CAP = 11
+/** Kolonner ved default (mobil); bruges til max rækker for scroll-højde. */
+export const CHEST_GRID_COLS_BASE = 2
+export const CHEST_GRID_COLS_SM = 3
+export const CHEST_GRID_MAX_ROWS = Math.ceil(CHEST_GRID_SLOT_CAP / CHEST_GRID_COLS_BASE)
+
+/** Matcher `ChestLootCard` min-h + `gap-3` i grid. */
+const CHEST_LOOT_CARD_MIN_HEIGHT_PX = 120
+const CHEST_GRID_GAP_PX = 12
+
+function chestGridScrollBodyMaxHeightPx(): number {
+  const rows = CHEST_GRID_MAX_ROWS
+  return rows * CHEST_LOOT_CARD_MIN_HEIGHT_PX + (rows - 1) * CHEST_GRID_GAP_PX
+}
+
+export function isChestLootEmpty(remaining: ChestLootResult): boolean {
+  return remaining.gold <= 0 && remaining.items.length === 0 && !remaining.blueprintId
+}
 
 type Props = {
   chest: WorldChestEntity
@@ -112,6 +132,32 @@ export default function ChestLootScene({
   const matCap = state.inventoryCapacity.materials
   const matCount = materialsCount(state)
   const firstOpenDone = useRef(false)
+  const lootRef = useRef(loot)
+  lootRef.current = loot
+
+  /** Stabile keys: `filter` bevarer MineDrop-objektreferencer, så WeakMap undgår remount pr. klik. */
+  const itemRowKeyMap = useRef(new WeakMap<MineDrop, string>())
+  const itemRowKeySerial = useRef(0)
+  const prevChestIdRef = useRef(chest.id)
+  if (prevChestIdRef.current !== chest.id) {
+    prevChestIdRef.current = chest.id
+    itemRowKeyMap.current = new WeakMap()
+    itemRowKeySerial.current = 0
+  }
+  const rowKeyForDrop = (drop: MineDrop) => {
+    const m = itemRowKeyMap.current
+    let k = m.get(drop)
+    if (!k) {
+      k = `${chest.id}-${itemRowKeySerial.current++}`
+      m.set(drop, k)
+    }
+    return k
+  }
+
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return
+    document.exitPointerLock?.()
+  }, [])
 
   useEffect(() => {
     if (chest.opened || firstOpenDone.current) return
@@ -125,13 +171,15 @@ export default function ChestLootScene({
       const ess = getEssenceDef(bonusEss)
       showToast(`✨ ${ess?.name ?? 'Essens'} fra kisten!`, 'success', 4500)
     }
-    onUpdateChest(chest.id, loot, true)
-  }, [area, chest.id, chest.opened, dispatch, loot, onUpdateChest, showToast, state.activeEffects, state.activeCharms])
+    onUpdateChest(chest.id, lootRef.current, true)
+  }, [area, chest.id, chest.opened, dispatch, onUpdateChest, showToast, state.activeEffects, state.activeCharms])
 
   const handleGold = () => {
     if (loot.gold <= 0) return
     dispatch({ type: 'EARN_GOLD', amount: loot.gold })
-    onUpdateChest(chest.id, { ...loot, gold: 0 }, true)
+    const next: ChestLootResult = { ...loot, gold: 0 }
+    onUpdateChest(chest.id, next, true)
+    if (isChestLootEmpty(next)) onClose()
   }
 
   const handleItem = (idx: number, drop: MineDrop) => {
@@ -155,7 +203,9 @@ export default function ChestLootScene({
       applyDrop(dispatch, drop)
     }
     const items = loot.items.filter((_, i) => i !== idx)
-    onUpdateChest(chest.id, { ...loot, items }, true)
+    const next: ChestLootResult = { ...loot, items }
+    onUpdateChest(chest.id, next, true)
+    if (isChestLootEmpty(next)) onClose()
   }
 
   const handleBlueprint = () => {
@@ -168,7 +218,9 @@ export default function ChestLootScene({
     } else {
       showToast(`${def?.name ?? id} — du har allerede denne blueprint.`, 'info', 4000)
     }
-    onUpdateChest(chest.id, { ...loot, blueprintId: null }, true)
+    const next: ChestLootResult = { ...loot, blueprintId: null }
+    onUpdateChest(chest.id, next, true)
+    if (isChestLootEmpty(next)) onClose()
   }
 
   const takeAll = () => {
@@ -219,72 +271,90 @@ export default function ChestLootScene({
       }
       bp = null
     }
-    onUpdateChest(chest.id, { ...remaining, items: nextItems, blueprintId: bp }, true)
+    const next: ChestLootResult = { ...remaining, items: nextItems, blueprintId: bp }
+    onUpdateChest(chest.id, next, true)
+    if (isChestLootEmpty(next)) onClose()
   }
 
-  const empty = loot.gold <= 0 && loot.items.length === 0 && !loot.blueprintId
+  const empty = isChestLootEmpty(loot)
+  const gridScrollMaxPx = chestGridScrollBodyMaxHeightPx()
+  const gridScrollStyle = {
+    maxHeight: `min(${gridScrollMaxPx}px, calc(90dvh - 12rem))`,
+  } as const
 
   const tierLabel =
     chest.tier === 'wood' ? 'Træ kiste' : chest.tier === 'silver' ? 'Sølv kiste' : 'Guld kiste'
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm px-3 py-6 pointer-events-auto"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm px-3 py-4 sm:py-6 pointer-events-auto min-h-0"
       role="dialog"
       aria-modal
     >
-      <div className="w-full max-w-lg rounded-2xl border border-slate-600 bg-slate-950/95 shadow-2xl p-4 space-y-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-start justify-between gap-2">
+      <div className="w-full max-w-lg max-h-[min(90dvh,90vh)] min-h-0 flex flex-col rounded-2xl border border-slate-600 bg-slate-950/95 shadow-2xl p-3 sm:p-4 gap-3 sm:gap-4 overflow-y-auto overflow-x-hidden">
+        <div className="flex shrink-0 items-start justify-between gap-2">
           <h2 className="text-lg font-bold text-amber-100 flex items-center gap-2">
             <span>✨</span> {tierLabel}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm"
+            className="min-h-[44px] min-w-[44px] shrink-0 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm"
           >
             ✕ Luk
           </button>
         </div>
 
         {empty ? (
-          <p className="text-slate-300 text-sm py-6 text-center">Kisten er tom.</p>
+          <p className="text-slate-300 text-sm py-6 text-center shrink-0">Kisten er tom.</p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {loot.gold > 0 && (
-              <ChestLootCard kind="gold" goldAmount={loot.gold} disabled={false} onTake={handleGold} />
-            )}
-            {loot.items.map((d, idx) => {
-              const extra = extraMaterialsFromDrop(d)
-              const isGear =
-                d.kind === 'loot_pickaxe' || d.kind === 'loot_sword' || d.kind === 'loot_armour'
-              const matFull =
-                !isGear &&
-                d.kind !== 'consumable' &&
-                d.kind !== 'blueprint' &&
-                matCount + extra > matCap
-              const bagFull = d.kind === 'consumable' && !canAddConsumableUnits(state, d.quantity)
-              const full = matFull || bagFull
-              const reason = bagFull ? 'Forbrugs-lager fuldt' : matFull ? 'Lager fuldt' : undefined
-              return (
+          <div
+            className="min-h-0 w-full overflow-y-auto overscroll-contain pr-0.5 -mr-0.5"
+            style={gridScrollStyle}
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 auto-rows-min pb-0.5">
+              {loot.gold > 0 && (
                 <ChestLootCard
-                  key={idx}
-                  kind="item"
-                  drop={d}
-                  disabled={full}
-                  disabledReason={reason}
-                  onTake={() => handleItem(idx, d)}
+                  key={`gold-${chest.id}`}
+                  kind="gold"
+                  goldAmount={loot.gold}
+                  disabled={false}
+                  onTake={handleGold}
                 />
-              )
-            })}
-            {loot.blueprintId && (
-              <ChestLootCard
-                kind="blueprint"
-                name={findBlueprint(loot.blueprintId)?.name ?? loot.blueprintId}
-                disabled={false}
-                onTake={handleBlueprint}
-              />
-            )}
+              )}
+              {loot.items.map((d, idx) => {
+                const extra = extraMaterialsFromDrop(d)
+                const isGear =
+                  d.kind === 'loot_pickaxe' || d.kind === 'loot_sword' || d.kind === 'loot_armour'
+                const matFull =
+                  !isGear &&
+                  d.kind !== 'consumable' &&
+                  d.kind !== 'blueprint' &&
+                  matCount + extra > matCap
+                const bagFull = d.kind === 'consumable' && !canAddConsumableUnits(state, d.quantity)
+                const full = matFull || bagFull
+                const reason = bagFull ? 'Forbrugs-lager fuldt' : matFull ? 'Lager fuldt' : undefined
+                return (
+                  <ChestLootCard
+                    key={rowKeyForDrop(d)}
+                    kind="item"
+                    drop={d}
+                    disabled={full}
+                    disabledReason={reason}
+                    onTake={() => handleItem(idx, d)}
+                  />
+                )
+              })}
+              {loot.blueprintId && (
+                <ChestLootCard
+                  key={`bp-${loot.blueprintId}`}
+                  kind="blueprint"
+                  name={findBlueprint(loot.blueprintId)?.name ?? loot.blueprintId}
+                  disabled={false}
+                  onTake={handleBlueprint}
+                />
+              )}
+            </div>
           </div>
         )}
 
@@ -292,7 +362,7 @@ export default function ChestLootScene({
           <button
             type="button"
             onClick={takeAll}
-            className="w-full min-h-[48px] rounded-xl bg-amber-800/80 hover:bg-amber-700/90 text-amber-50 font-semibold text-sm border border-amber-600/50"
+            className="w-full shrink-0 min-h-[48px] rounded-xl bg-amber-800/80 hover:bg-amber-700/90 text-amber-50 font-semibold text-sm border border-amber-600/50"
           >
             Tag alt muligt
           </button>
@@ -302,7 +372,7 @@ export default function ChestLootScene({
           <button
             type="button"
             onClick={onClose}
-            className="w-full min-h-[48px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold"
+            className="w-full shrink-0 min-h-[48px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold"
           >
             Luk
           </button>

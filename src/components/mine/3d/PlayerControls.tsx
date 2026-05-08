@@ -8,12 +8,14 @@ const EYE_Y = 1.55
 
 type Props = {
   bounds?: number
+  /** Ingen PointerLockControls — mus kan ikke låses til FPS-canvas (fx under kiste-UI). */
+  disablePointerLock?: boolean
 }
 
 /**
  * Førstepersons WASD + PointerLockControls (mus look). Bevægelse kun når pointer er låst.
  */
-export default function PlayerControls({ bounds = 9 }: Props) {
+export default function PlayerControls({ bounds = 9, disablePointerLock = false }: Props) {
   const { camera } = useThree()
   const keys = useRef({ w: false, a: false, s: false, d: false })
   const forward = useRef(new THREE.Vector3())
@@ -73,5 +75,5 @@ export default function PlayerControls({ bounds = 9 }: Props) {
     camera.position.z = THREE.MathUtils.clamp(camera.position.z, -bounds, bounds)
   })
 
-  return <PointerLockControls />
+  return disablePointerLock ? null : <PointerLockControls />
 }

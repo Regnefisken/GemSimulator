@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { Area, CaveConfig, PixelItem } from '../../../types'
 import { getCaveConfig } from '../../../types'
@@ -46,6 +46,8 @@ export type MiningCave3DProps = {
   onCrosshairTargetChange?: (active: boolean) => void
   /** Kun aktivt mål-mob: kaldes når slag-animationen rammer (synk skade). */
   onMobStrikeHit?: () => void
+  /** Når true: ingen PointerLockControls (fx kiste-modal åben — undgår genlåsning af mus). */
+  disablePointerLock?: boolean
   className?: string
   canvasClassName?: string
 }
@@ -114,6 +116,7 @@ function CaveContent({
   onCrosshairTargetChange,
   onMobStrikeHit,
   caveSeed,
+  disablePointerLock = false,
 }: CaveProps) {
   const { camera } = useThree()
   const cfg = useMemo(() => getCaveConfig(area), [area])
@@ -189,7 +192,7 @@ function CaveContent({
         burstOrigin={burstOrigin}
       />
 
-      <PlayerControls bounds={cfg.bounds} />
+      <PlayerControls bounds={cfg.bounds} disablePointerLock={disablePointerLock} />
 
       {oreSlots.map((pos, i) => {
         const slot = mineSlots[i]
@@ -249,6 +252,7 @@ export default function MiningCave3D({
   weaponPixelItem,
   swingTrigger,
   heldWeaponKind,
+  disablePointerLock = false,
   ...caveProps
 }: MiningCave3DProps) {
   const [pointerLocked, setPointerLocked] = useState(
@@ -264,6 +268,11 @@ export default function MiningCave3D({
   }, [])
 
   const weaponCaveCfg = useMemo(() => getCaveConfig(caveProps.area), [caveProps.area])
+
+  useLayoutEffect(() => {
+    if (!disablePointerLock) return
+    document.exitPointerLock?.()
+  }, [disablePointerLock])
 
   useEffect(() => {
     const onChange = () => {
@@ -302,7 +311,7 @@ export default function MiningCave3D({
           gl={{ antialias: true }}
         >
           <CameraMirrorInto mirror={weaponCameraMirror} />
-          <CaveContent {...caveProps} caveSeed={caveSeed} />
+          <CaveContent {...caveProps} caveSeed={caveSeed} disablePointerLock={disablePointerLock} />
         </Canvas>
         {weaponPixelItem && (
           <div
