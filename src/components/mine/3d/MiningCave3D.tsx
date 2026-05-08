@@ -145,7 +145,7 @@ function CaveContent({
         const isTarget = i === activeSlot && !slot.cleared
         return (
           <OreNode
-            key={`${i}-${slot.currentHp}-${slot.cleared}`}
+            key={`${i}-${slot.cleared}`}
             position={pos}
             hp={slot.currentHp}
             maxHp={slot.maxHp}
