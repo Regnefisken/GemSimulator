@@ -2,6 +2,19 @@ import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'rea
 import { useGLTF } from '@react-three/drei'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
+import {
+  MOB_ATTACK_COOLDOWN,
+  MOB_CHASE_SPEED,
+  MOB_COMBAT_OUTER,
+  MOB_RECOVERY_DUR,
+  MOB_RETREAT_SPEED,
+  MOB_STRIKE_DAMAGE_AT,
+  MOB_STRIKE_DUR,
+  MOB_STRIKE_FAR,
+  MOB_STRIKE_NEAR,
+  MOB_TOO_CLOSE,
+  MOB_WINDUP_DUR,
+} from './mobCombatConstants'
 import type { MobType } from '../../../../types'
 import { SEAM_SKULKER_SCALE_MUL } from './seamSkulkerScale'
 
@@ -11,17 +24,6 @@ export function crystalBeastHpLabelLocalY(bulk: number): number {
 }
 
 const MOB_MODEL_SCALE = SEAM_SKULKER_SCALE_MUL
-const CHASE_SPEED = 2.85
-const RETREAT_SPEED = 2.65
-const COMBAT_OUTER = 1.86
-const TOO_CLOSE = 1.24
-const ATTACK_COOLDOWN = 2.25
-const WINDUP_DUR = 0.55
-const STRIKE_DUR = 0.2
-const RECOVERY_DUR = 1.15
-const STRIKE_NEAR = 1.38
-const STRIKE_FAR = 2.02
-const STRIKE_DAMAGE_AT = 0.42
 
 type AttackPhase = 'IDLE' | 'WINDUP' | 'STRIKE' | 'RECOVERY'
 
@@ -135,8 +137,15 @@ export default function CrystalBeastSkulkerMob({
       const nx = dDist > 1e-4 ? ddx / dDist : 0
       const nz = dDist > 1e-4 ? ddz / dDist : 0
 
-      if (dDist < TOO_CLOSE && dDist > 1e-5) {
-        const step = Math.min(RETREAT_SPEED * delta, TOO_CLOSE - dDist + 0.12)
+      const canStartAttack =
+        cooldown.current <= 0 && dDist >= MOB_STRIKE_NEAR && dDist <= MOB_STRIKE_FAR
+
+      if (canStartAttack) {
+        attackPhase.current = 'WINDUP'
+        attackTimer.current = 0
+        strikeDamageSent.current = false
+      } else if (dDist < MOB_TOO_CLOSE && dDist > 1e-5) {
+        const step = Math.min(MOB_RETREAT_SPEED * delta, MOB_TOO_CLOSE - dDist + 0.12)
         let nwx = mobWx - nx * step
         let nwz = mobWz - nz * step
         nwx = THREE.MathUtils.clamp(nwx, -caveHalfX, caveHalfX)
@@ -144,8 +153,8 @@ export default function CrystalBeastSkulkerMob({
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
         isWalking = step > 0.002
-      } else if (dDist > COMBAT_OUTER) {
-        const step = Math.min(CHASE_SPEED * delta, dDist - COMBAT_OUTER)
+      } else if (dDist > MOB_COMBAT_OUTER) {
+        const step = Math.min(MOB_CHASE_SPEED * delta, dDist - MOB_COMBAT_OUTER)
         let nwx = mobWx + nx * step
         let nwz = mobWz + nz * step
         nwx = THREE.MathUtils.clamp(nwx, -caveHalfX, caveHalfX)
@@ -153,14 +162,6 @@ export default function CrystalBeastSkulkerMob({
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
         isWalking = step > 0.002
-      } else if (
-        cooldown.current <= 0 &&
-        dDist >= STRIKE_NEAR &&
-        dDist <= STRIKE_FAR
-      ) {
-        attackPhase.current = 'WINDUP'
-        attackTimer.current = 0
-        strikeDamageSent.current = false
       }
     }
 
@@ -171,15 +172,15 @@ export default function CrystalBeastSkulkerMob({
       const at = attackTimer.current
 
       if (phase === 'WINDUP') {
-        const p = Math.min(at / WINDUP_DUR, 1)
+        const p = Math.min(at / MOB_WINDUP_DUR, 1)
         if (p >= 1) {
           attackPhase.current = 'STRIKE'
           attackTimer.current = 0
         }
       } else if (phase === 'STRIKE') {
-        const p = Math.min(at / STRIKE_DUR, 1)
+        const p = Math.min(at / MOB_STRIKE_DUR, 1)
         if (
-          at >= STRIKE_DUR * STRIKE_DAMAGE_AT &&
+          at >= MOB_STRIKE_DUR * MOB_STRIKE_DAMAGE_AT &&
           !strikeDamageSent.current
         ) {
           strikeDamageSent.current = true
@@ -187,7 +188,7 @@ export default function CrystalBeastSkulkerMob({
             const mwx = slotWorldX + offsetX.current
             const mwz = slotWorldZ + offsetZ.current
             const dd = Math.hypot(px - mwx, pz - mwz)
-            if (dd <= STRIKE_FAR + 0.42 && dd >= STRIKE_NEAR - 0.32) {
+            if (dd <= MOB_STRIKE_FAR + 0.42 && dd >= MOB_STRIKE_NEAR - 0.32) {
               onStrikeHit()
             }
           }
@@ -197,10 +198,10 @@ export default function CrystalBeastSkulkerMob({
           attackTimer.current = 0
         }
       } else if (phase === 'RECOVERY') {
-        const p = Math.min(at / RECOVERY_DUR, 1)
+        const p = Math.min(at / MOB_RECOVERY_DUR, 1)
         if (p >= 1) {
           attackPhase.current = 'IDLE'
-          cooldown.current = ATTACK_COOLDOWN
+          cooldown.current = MOB_ATTACK_COOLDOWN
         }
       }
     }

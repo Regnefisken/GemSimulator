@@ -360,7 +360,7 @@ export default function OreNode({
             caveHalfX={caveHalfX}
             caveHalfZ={caveHalfZ}
             mobType={mobType}
-            onStrikeHit={interactive ? onMobStrikeHit : undefined}
+            onStrikeHit={onMobStrikeHit}
             {...(pickable ? meshHandlers : {})}
           >
             {hpBillboard}

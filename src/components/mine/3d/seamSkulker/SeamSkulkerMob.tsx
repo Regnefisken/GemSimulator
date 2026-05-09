@@ -3,6 +3,19 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { buildSeamSkulkerRig, type SeamSkulkerRigParts } from './buildSeamSkulkerRig'
 import CrystalBeastSkulkerMob from './CrystalBeastSkulkerMob'
+import {
+  MOB_ATTACK_COOLDOWN,
+  MOB_CHASE_SPEED,
+  MOB_COMBAT_OUTER,
+  MOB_RECOVERY_DUR,
+  MOB_RETREAT_SPEED,
+  MOB_STRIKE_DAMAGE_AT,
+  MOB_STRIKE_DUR,
+  MOB_STRIKE_FAR,
+  MOB_STRIKE_NEAR,
+  MOB_TOO_CLOSE,
+  MOB_WINDUP_DUR,
+} from './mobCombatConstants'
 import { SEAM_SKULKER_HP_LABEL_MODEL_Y, SEAM_SKULKER_SCALE_MUL } from './seamSkulkerScale'
 import type { MobType } from '../../../../types'
 
@@ -24,21 +37,6 @@ export function seamSkulkerHpLabelLocalY(bulk: number): number {
 }
 
 const MOB_MODEL_SCALE = SEAM_SKULKER_SCALE_MUL
-const CHASE_SPEED = 2.85
-const RETREAT_SPEED = 2.65
-/** Stop jagt her — holder afstand til spilleren. */
-const COMBAT_OUTER = 1.86
-/** Under dette: skub væk fra spilleren. */
-const TOO_CLOSE = 1.24
-const ATTACK_COOLDOWN = 2.25
-const WINDUP_DUR = 0.55
-const STRIKE_DUR = 0.2
-const RECOVERY_DUR = 1.15
-/** Slag rammer kun i dette bånd (xz-afstand til kamera). */
-const STRIKE_NEAR = 1.38
-const STRIKE_FAR = 2.02
-/** Moment i STRIKE-fasen hvor skade registreres (synk med slam). */
-const STRIKE_DAMAGE_AT = 0.42
 
 function mulberry32(seed: number) {
   return function () {
@@ -60,7 +58,7 @@ type Props = {
   mobType?: MobType
   onClick?: (e: ThreeEvent<MouseEvent>) => void
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
-  /** Aktivt mål: ét slag pr. angreb når animationen rammer. */
+  /** Kaldes ved slag-impact (spiller-skade); ikke bundet til valgt mine-mål. */
   onStrikeHit?: () => void
   /** HP-bar m.m. — under jagt-gruppe så UI følger monstret. */
   children?: ReactNode
@@ -165,8 +163,15 @@ function ProceduralSeamSkulkerMob({
       const nx = dDist > 1e-4 ? ddx / dDist : 0
       const nz = dDist > 1e-4 ? ddz / dDist : 0
 
-      if (dDist < TOO_CLOSE && dDist > 1e-5) {
-        const step = Math.min(RETREAT_SPEED * delta, TOO_CLOSE - dDist + 0.12)
+      const canStartAttack =
+        cooldown.current <= 0 && dDist >= MOB_STRIKE_NEAR && dDist <= MOB_STRIKE_FAR
+
+      if (canStartAttack) {
+        attackPhase.current = 'WINDUP'
+        attackTimer.current = 0
+        strikeDamageSent.current = false
+      } else if (dDist < MOB_TOO_CLOSE && dDist > 1e-5) {
+        const step = Math.min(MOB_RETREAT_SPEED * delta, MOB_TOO_CLOSE - dDist + 0.12)
         let nwx = mobWx - nx * step
         let nwz = mobWz - nz * step
         nwx = THREE.MathUtils.clamp(nwx, -caveHalfX, caveHalfX)
@@ -174,8 +179,8 @@ function ProceduralSeamSkulkerMob({
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
         isWalking = step > 0.002
-      } else if (dDist > COMBAT_OUTER) {
-        const step = Math.min(CHASE_SPEED * delta, dDist - COMBAT_OUTER)
+      } else if (dDist > MOB_COMBAT_OUTER) {
+        const step = Math.min(MOB_CHASE_SPEED * delta, dDist - MOB_COMBAT_OUTER)
         let nwx = mobWx + nx * step
         let nwz = mobWz + nz * step
         nwx = THREE.MathUtils.clamp(nwx, -caveHalfX, caveHalfX)
@@ -183,14 +188,6 @@ function ProceduralSeamSkulkerMob({
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
         isWalking = step > 0.002
-      } else if (
-        cooldown.current <= 0 &&
-        dDist >= STRIKE_NEAR &&
-        dDist <= STRIKE_FAR
-      ) {
-        attackPhase.current = 'WINDUP'
-        attackTimer.current = 0
-        strikeDamageSent.current = false
       }
 
       if (attackPhase.current === 'IDLE') {
@@ -260,7 +257,7 @@ function ProceduralSeamSkulkerMob({
       const at = attackTimer.current
 
       if (phase === 'WINDUP') {
-        const p = Math.min(at / WINDUP_DUR, 1)
+        const p = Math.min(at / MOB_WINDUP_DUR, 1)
         const ease = 1 - (1 - p) ** 3
         pelY = 2.5 + ease * 0.3
         pelRotX = 0.3 - ease * 0.4
@@ -273,7 +270,7 @@ function ProceduralSeamSkulkerMob({
           attackTimer.current = 0
         }
       } else if (phase === 'STRIKE') {
-        const p = Math.min(at / STRIKE_DUR, 1)
+        const p = Math.min(at / MOB_STRIKE_DUR, 1)
         const ease = p * p
         pelY = 2.8 - ease * 1.2
         pelRotX = -0.1 + ease * 0.8
@@ -281,7 +278,7 @@ function ProceduralSeamSkulkerMob({
         rShoulderRotX = -0.9 + ease * 2.5
         rShoulderRotZ = 0.8 - ease * 0.4
         if (
-          at >= STRIKE_DUR * STRIKE_DAMAGE_AT &&
+          at >= MOB_STRIKE_DUR * MOB_STRIKE_DAMAGE_AT &&
           !strikeDamageSent.current
         ) {
           strikeDamageSent.current = true
@@ -289,7 +286,7 @@ function ProceduralSeamSkulkerMob({
             const mwx = slotWorldX + offsetX.current
             const mwz = slotWorldZ + offsetZ.current
             const dd = Math.hypot(px - mwx, pz - mwz)
-            if (dd <= STRIKE_FAR + 0.42 && dd >= STRIKE_NEAR - 0.32) {
+            if (dd <= MOB_STRIKE_FAR + 0.42 && dd >= MOB_STRIKE_NEAR - 0.32) {
               onStrikeHit()
             }
           }
@@ -299,7 +296,7 @@ function ProceduralSeamSkulkerMob({
           attackTimer.current = 0
         }
       } else if (phase === 'RECOVERY') {
-        const p = Math.min(at / RECOVERY_DUR, 1)
+        const p = Math.min(at / MOB_RECOVERY_DUR, 1)
         const ease = 1 - (1 - p) ** 4
         pelY = 1.6 + ease * 0.9
         pelRotX = 0.7 - ease * 0.4
@@ -308,7 +305,7 @@ function ProceduralSeamSkulkerMob({
         rShoulderRotZ = 0.4 - ease * 0.1
         if (p >= 1) {
           attackPhase.current = 'IDLE'
-          cooldown.current = ATTACK_COOLDOWN
+          cooldown.current = MOB_ATTACK_COOLDOWN
         }
       }
     }
