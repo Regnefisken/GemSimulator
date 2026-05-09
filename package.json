@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:fixtures": "vitest run migrateGameState.fixtures",
-    "generate:fixtures": "tsx scripts/generateSaveFixtures.ts"
+    "generate:fixtures": "tsx scripts/generateSaveFixtures.ts",
+    "build:mob-glb": "tsx scripts/buildCrystalBeastGlb.ts"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

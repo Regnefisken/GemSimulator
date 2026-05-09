@@ -2,7 +2,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'rea
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { buildSeamSkulkerRig, type SeamSkulkerRigParts } from './buildSeamSkulkerRig'
+import CrystalBeastSkulkerMob from './CrystalBeastSkulkerMob'
+import { SEAM_SKULKER_HP_LABEL_MODEL_Y, SEAM_SKULKER_SCALE_MUL } from './seamSkulkerScale'
 import type { MobType } from '../../../../types'
+
+export { crystalBeastHpLabelLocalY } from './CrystalBeastSkulkerMob'
+export { SEAM_SKULKER_SCALE_MUL } from './seamSkulkerScale'
 
 const MOB_HUE: Record<MobType, number> = {
   seam_skulker: 0,
@@ -12,11 +17,6 @@ const MOB_HUE: Record<MobType, number> = {
 }
 
 type AttackPhase = 'IDLE' | 'WINDUP' | 'STRIKE' | 'RECOVERY'
-
-/** Verdens-skala × halveret figur — samme faktor som rig `scale`. */
-export const SEAM_SKULKER_SCALE_MUL = 0.34 * 0.5
-/** Model-enheder fra grobund (≈ top af hoved + lidt luft) — matcher skaleret rig. */
-const SEAM_SKULKER_HP_LABEL_MODEL_Y = 4.75
 
 /** HP-badge lod over uhyre — brug i stedet for klippe-`labelBillboardY`. */
 export function seamSkulkerHpLabelLocalY(bulk: number): number {
@@ -66,7 +66,7 @@ type Props = {
   children?: ReactNode
 }
 
-export default function SeamSkulkerMob({
+function ProceduralSeamSkulkerMob({
   bulk,
   visualSeed,
   slotWorldX,
@@ -376,4 +376,14 @@ export default function SeamSkulkerMob({
       {children}
     </group>
   )
+}
+
+/** Denne mob-type bruger GLB crystal beast i stedet for farvet procedural rig. */
+const MOB_TYPE_CRYSTAL_BEAST: MobType = 'dust_wraith'
+
+export default function SeamSkulkerMob(props: Props) {
+  if (props.mobType === MOB_TYPE_CRYSTAL_BEAST) {
+    return <CrystalBeastSkulkerMob {...props} />
+  }
+  return <ProceduralSeamSkulkerMob {...props} />
 }

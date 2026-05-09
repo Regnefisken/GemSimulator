@@ -11,7 +11,7 @@ import {
   createRichRockGeometry,
 } from '../../../gem/procedural/buildProceduralMineRock'
 import { useLabelHtmlDistanceFactor } from './useLabelHtmlDistanceFactor'
-import SeamSkulkerMob, { seamSkulkerHpLabelLocalY } from './seamSkulker/SeamSkulkerMob'
+import SeamSkulkerMob, { crystalBeastHpLabelLocalY, seamSkulkerHpLabelLocalY } from './seamSkulker/SeamSkulkerMob'
 
 /** Under denne afstand (verdensenheder) skaleres `distanceFactor` ned — undgår enorm CSS-scale tæt på. */
 const LABEL_HTML_MIN_WORLD_DISTANCE = 3.25
@@ -307,7 +307,11 @@ export default function OreNode({
 
   const showHpBar = interactive && !depleted
   const hpBarWorldY =
-    rockType === 'mob' ? seamSkulkerHpLabelLocalY(bulk) : labelBillboardY
+    rockType === 'mob'
+      ? mobType === 'dust_wraith'
+        ? crystalBeastHpLabelLocalY(bulk)
+        : seamSkulkerHpLabelLocalY(bulk)
+      : labelBillboardY
 
   const hpBillboard = showHpBar ? (
       <group>
