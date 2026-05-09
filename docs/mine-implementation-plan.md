@@ -1,8 +1,26 @@
 # GemSimulator – Mine System  
 **Arkitektur, Koncept og Fuldt Implementerings-Spec**
 
-**Version:** 2.0 (9. maj 2026)  
+**Version:** 2.1 (9. maj 2026)  
 **Formål:** Give minen mere variation i rum-udformning og størrelse fra run til run og dybde til dybde, samtidig med at vi bevarer perfekt balance, performance og læsbarhed.
+
+---
+
+## Vedtagne designvalg (klar til implementerings-guide)
+
+Beslutninger fra produkt / design — skal følges i kode og tests.
+
+| # | Valg | Kort betydning |
+|---|------|----------------|
+| **1** | **A** | Rum-layout (`CaveConfig`: `oreSlots`, `bounds`, …) afledes **kun** deterministisk af `runId`, `mineId`, `currentDepth` (+ evt. area-baseline). **Ingen** ekstra rum-metadata gemmes i save til at genskabe layout. |
+| **2** | **A** | Kosmetiske klipper: seed skal inkludere **grafik-preset** (og en lille `graphicsSchemaVersion` ved behov), så skift af preset giver **ny** kosmetik; interagerbare slots forbliver defineret af samme run/dybde som før. |
+| **3** | **A** | Nedstigning som i dag: **alle** felter med `kind === 'rock'` eller `kind === 'mob'` skal være ryddet; kister er valgfrie. |
+| **4** | **Fuld RNG + vægte + 4a** | Pr. felt trækkes type med RNG. **Kiste** og **mob** har **lavere** sandsynlighed end “øvrige” (sten-)felter. **Gode** klippertyper (fx rich / crystal — defineres i loot-tabeller) er **underrepræsenteret** ift. almindelige klipper. Ekstremt udfald *kun monstre* er muligt men sjældent. **4a — Bonusetage:** et lag kan være **kun kister** (ultra-sjældent); der er da **ingen** mandatory felter, så **nedstigning er mulig med det samme** (bevidst “gratis etage” / bonus — ikke en fejl). Senere kan UI eller copy signalere bonusetage tydeligere. |
+| **5** | **A + udvidelse** | `MobType` er **kun kosmetisk** i første omgang (fx samme rig, farvevariation). Strukturen skal dog tillade **senere** anderledes eller bedre loot pr. type (fx separat profil / `rollMobMineDrop(..., mobType)`), **uden** at ændre HP eller skade pr. tick før det besluttes. |
+| **6** | **A** | Smalle templates (fx `corridor`): **kun** geometri og bounds i v1 — samme kamera- og mob-adfærd som i dag. |
+| **7** | **A** (vej til **C**) | Én **global** generator for alle miner nu. Arkitekturen bør ikke låse muligheden for senere **to spor** (fx “story-miner” med fast katalog vs. “rogue” med fuld RNG) ude. |
+
+**Fremtidig balance-note (kister):** Sandsynlighed for kister **med** værdifuldt indhold kan øges senere via **tuning af vægte og loot-tabeller**; det ændrer ikke nødvendigvis seed-kontrakten, så længe felt-type-rækkefølgen stadig kommer fra samme deterministiske RNG-strøm (kun tallene i tabellerne ændres).
 
 ---
 
@@ -21,7 +39,7 @@ Vi beholder det nuværende **single-room** system som fundament, men løfter det
 **Overordnede designprincipper der styrer alt:**
 - Læsbarhed, spænding, rytme, fairness og skalerbar performance.
 - Ingen unfair blocking af loot, drops eller spiller-veje.
-- Alt er **deterministisk** via samme `runId + depth`-seed som i dag.
+- Alt er **deterministisk**: kerne-lag (slots + layout) via `runId + mineId + depth` som i dag; **kosmetik** følger desuden **grafik-preset** i seed (designvalg 2A).
 
 ### 2. Arkitektur-overblik (hvordan det hænger sammen)
 
@@ -71,7 +89,7 @@ export type CosmeticRock = {
 
 Generering i `mineLayer.ts` (efter interagerbare slots):
 
-- Brug deterministisk RNG (mulberry32(runId + depth + slotIndex)).
+- Brug deterministisk RNG; seed skal følge **designvalg 2A** (fx `runId`, `mineId`, `depth`, **grafik-preset**, evt. `slotIndex` / dedikeret under-seed — dokumentér én hash-strategi i implementerings-guiden).
 - Antal: 15–30 (Performance), 40–80 (Balanced), 60–120 (Rich) + bonus fra room size.
 - Non-blocking: afstand > 2.5 enheder til alle interagerbare slots.
 - Fordeling: ~65 % gulv, ~35 % vægge (med 90° rotation).
@@ -86,6 +104,7 @@ Generering i `mineLayer.ts` (efter interagerbare slots):
 
 - Fast regel: `minInteractive = 5`, `maxInteractive = 10`.
 - Opdater `generateLayerState()` til at respektere dette loft.
+- **Slot-type-RNG (designvalg 4):** Fuld RNG pr. felt med lavere vægt på kiste og mob end på sten; inden for sten lavere vægt på “gode” typer end almindelige. **Bonusetage (4a):** alle felter kan teoretisk blive kister — sjældent; mandatory-count kan være 0, så nedstigning er tilladt straks (se **Vedtagne designvalg**).
 
 #### 1.4 Nye monstertyper
 
@@ -147,7 +166,7 @@ Hver template returnerer færdige `oreSlots` + justeret `bounds`.
 
 - Interagerbare objekter påvirkes aldrig af grafik-preset.
 - Kosmetiske klipper er altid InstancedMesh → billige selv ved 120 stk.
-- Mandatory-clear-regel justeres til "ryd X af 10" ved højere antal slots.
+- **Nedstigning:** Uændret logik — **alle** mandatory slots (`rock` + `mob`) skal ryddes, uanset om der er 5 eller 10 felter (designvalg 3A). Ved **kun kister** (4a) er der ingen mandatory slots.
 
 ---
 
