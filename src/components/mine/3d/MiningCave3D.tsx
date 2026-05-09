@@ -19,6 +19,12 @@ import { generateCosmeticRocks } from '../../../gem/mineCosmetics'
 import { getPlayableHalfExtents } from '../../../lib/caveHalfExtents'
 import CosmeticRocksInstanced from './CosmeticRocksInstanced'
 
+/** Start lidt inde fra +Z-væg — skal være inde i `getPlayableHalfExtents` (dogleg har lille halfZ vs. gammel fast 9.2). */
+function initialMineCameraZ(cfg: CaveConfig): number {
+  const { halfZ } = getPlayableHalfExtents(cfg)
+  return Math.min(Math.max(halfZ * 0.82, 0.65), halfZ - 0.18)
+}
+
 function dominantMetal(area: Area) {
   const pool = area.metalPool
   if (!pool?.length) return undefined
@@ -319,11 +325,16 @@ export default function MiningCave3D({
     [caveProps.mineRunId, caveProps.runDepth],
   )
 
+  const startCamZ = useMemo(
+    () => initialMineCameraZ(caveProps.effectiveCaveConfig),
+    [caveProps.effectiveCaveConfig],
+  )
+
   const weaponCameraMirror = useMemo(() => {
     const c = new THREE.PerspectiveCamera(58, 1, 0.1, 2000)
-    c.position.set(0, 1.55, 9.2)
+    c.position.set(0, 1.55, startCamZ)
     return c
-  }, [])
+  }, [startCamZ])
 
   const weaponCaveCfg = caveProps.effectiveCaveConfig
 
@@ -364,7 +375,7 @@ export default function MiningCave3D({
       <div className={`relative ${canvasCn}`}>
         <Canvas
           key={`${caveProps.mineRunId}-${caveProps.runDepth}-${caveProps.graphicsPresetId}`}
-          camera={{ position: [0, 1.55, 9.2], fov: 58 }}
+          camera={{ position: [0, 1.55, startCamZ], fov: 58 }}
           dpr={caveProps.graphicsPreset.dpr}
           gl={{ antialias: true }}
         >
@@ -378,7 +389,7 @@ export default function MiningCave3D({
           >
             <Canvas
               className="h-full w-full"
-              camera={{ position: [0, 1.55, 9.2], fov: 58 }}
+              camera={{ position: [0, 1.55, startCamZ], fov: 58 }}
               dpr={caveProps.graphicsPreset.dpr}
               gl={{
                 alpha: true,

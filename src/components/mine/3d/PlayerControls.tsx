@@ -54,32 +54,34 @@ export default function PlayerControls({
   }, [])
 
   useFrame((_, delta) => {
-    if (document.pointerLockElement == null) return
-    const k = keys.current
-    if (!k.w && !k.s && !k.a && !k.d) return
-
-    forward.current.set(0, 0, -1).applyQuaternion(camera.quaternion)
-    forward.current.y = 0
-    if (forward.current.lengthSq() > 1e-6) forward.current.normalize()
-
-    right.current.set(1, 0, 0).applyQuaternion(camera.quaternion)
-    right.current.y = 0
-    if (right.current.lengthSq() > 1e-6) right.current.normalize()
-
-    moveDir.current.set(0, 0, 0)
-    if (k.w) moveDir.current.add(forward.current)
-    if (k.s) moveDir.current.sub(forward.current)
-    if (k.d) moveDir.current.add(right.current)
-    if (k.a) moveDir.current.sub(right.current)
-
-    if (moveDir.current.lengthSq() > 0) {
-      moveDir.current.normalize().multiplyScalar(MOVE_SPEED * delta)
-      camera.position.add(moveDir.current)
-    }
-
-    camera.position.y = EYE_Y
     const bx = boundsHalfX ?? bounds
     const bz = boundsHalfZ ?? bounds
+    camera.position.y = EYE_Y
+
+    if (document.pointerLockElement != null) {
+      const k = keys.current
+      if (k.w || k.s || k.a || k.d) {
+        forward.current.set(0, 0, -1).applyQuaternion(camera.quaternion)
+        forward.current.y = 0
+        if (forward.current.lengthSq() > 1e-6) forward.current.normalize()
+
+        right.current.set(1, 0, 0).applyQuaternion(camera.quaternion)
+        right.current.y = 0
+        if (right.current.lengthSq() > 1e-6) right.current.normalize()
+
+        moveDir.current.set(0, 0, 0)
+        if (k.w) moveDir.current.add(forward.current)
+        if (k.s) moveDir.current.sub(forward.current)
+        if (k.d) moveDir.current.add(right.current)
+        if (k.a) moveDir.current.sub(right.current)
+
+        if (moveDir.current.lengthSq() > 0) {
+          moveDir.current.normalize().multiplyScalar(MOVE_SPEED * delta)
+          camera.position.add(moveDir.current)
+        }
+      }
+    }
+
     camera.position.x = THREE.MathUtils.clamp(camera.position.x, -bx, bx)
     camera.position.z = THREE.MathUtils.clamp(camera.position.z, -bz, bz)
   })
