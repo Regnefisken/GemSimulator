@@ -167,8 +167,25 @@ export type LocationId =
   | 'alkymistvaerkstedet'
   | 'smykkevaerkstedet'
 
+/** Fase 2: rumskabelon — pt. kun `classic` i effektiv config. */
+export type RoomTemplate = 'classic' | 'corridor' | 'island' | 'dogleg'
+
+/** Fase 2: skala — reserveret til større/mindre rum. */
+export type RoomSize = 'compact' | 'normal' | 'expansive'
+
+/** Kosmetisk scenarie-sten (ingen gameplay; regenereres fra seed). */
+export type CosmeticRock = {
+  position: [number, number, number]
+  /** Asset-nøgle til senere GLB / variant. */
+  modelId: string
+  rotationY: number
+}
+
 export type CaveConfig = {
   oreSlots: [number, number, number][]
+  /** Fase 2: sat af `resolveEffectiveCaveConfig` når dynamisk layout bruges. */
+  template?: RoomTemplate
+  size?: RoomSize
   bounds: number
   fogColor: string
   fogNear: number
@@ -183,6 +200,10 @@ export type CaveConfig = {
   stalagmiteRange: [number, number]
   crystalClusterRange: [number, number]
   depthFogScale: boolean
+  /** Rektangulær arena: halv bredde X (fallback `bounds`). */
+  boundsHalfX?: number
+  /** Rektangulær arena: halv dybde Z (fallback `bounds`). */
+  boundsHalfZ?: number
 }
 
 /** Fallback for miner uden `caveConfig` — matcher legacy statisk grotte. */
@@ -364,6 +385,8 @@ export type SmeltingJob = {
 }
 
 export type ViewMode = 'map' | 'location'
+
+export type { MobType } from './lib/mineTypes'
 
 export type RockType = 'normal' | 'hard' | 'rich' | 'crystal' | 'chest' | 'mob'
 

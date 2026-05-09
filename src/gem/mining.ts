@@ -7,6 +7,7 @@ import {
   type LocationId,
   type MetalName,
   type MetalNugget,
+  type MobType,
   type Pickaxe,
   type PixelItem,
   type RawOre,
@@ -30,6 +31,9 @@ import {
 } from '../data/mineGearPlaceholders'
 
 export type { ChestTier, RockEvent } from '../types'
+
+/** Undertype til klippefelt efter felt-kind `rock` (ingen `chest`/`mob`). */
+export type RockSubtype = Extract<RockType, 'normal' | 'hard' | 'rich' | 'crystal'>
 
 export const SCROLL_PIXEL: PixelItem = {
   data: ['..YY..', '.YYYY.', '.YYYY.', '..YY..'],
@@ -119,13 +123,21 @@ const ROCK_HP_MULTIPLIERS: Record<RockType, number> = {
   chest: 0,
 }
 
+/** Vægte kun for klippeundertyper — `normal` dominerer; sjældne typer underrepræsenteret ift. legacy `rollRockEvent`. */
+const ROCK_SUBTYPE_WEIGHTS: Record<RockSubtype, number> = {
+  normal: 58,
+  hard: 16,
+  rich: 14,
+  crystal: 12,
+}
+
 const CHEST_TIER_GOLD_MULT: Record<ChestTier, number> = {
   wood: 1,
   silver: 1.55,
   gold: 2.35,
 }
 
-function rollChestTier(rng: () => number = Math.random): ChestTier {
+export function rollChestTier(rng: () => number = Math.random): ChestTier {
   const r = rng()
   if (r < 0.52) return 'wood'
   if (r < 0.87) return 'silver'
@@ -148,6 +160,71 @@ export function rollRockEvent(area: Area, rng: () => number = Math.random): Rock
     r -= weight
   }
   return { type: 'normal', hpMultiplier: 1.0 }
+}
+
+/** Klippeundertype efter felt-kind `rock` — ingen `chest`/`mob` i puljen. */
+export function rollRockSubtypeForSlot(area: Area, rng: () => number): RockEvent {
+  if (area.kind !== 'mine') return { type: 'normal', hpMultiplier: 1.0 }
+  const entries = Object.entries(ROCK_SUBTYPE_WEIGHTS) as [RockSubtype, number][]
+  const total = entries.reduce((s, [, w]) => s + w, 0)
+  let r = rng() * total
+  for (const [type, weight] of entries) {
+    if (r < weight) {
+      return { type, hpMultiplier: ROCK_HP_MULTIPLIERS[type] }
+    }
+    r -= weight
+  }
+  return { type: 'normal', hpMultiplier: 1.0 }
+}
+
+/** Basis-vægt for `rock` i felt-kind-trinnet (før klippeundertype). */
+export const FIELD_KIND_WEIGHT_ROCK = 100
+
+export function fieldKindWeightChest(): number {
+  return 6
+}
+
+/** Mob-vægt stiger med dybde — samme model som erstatter `mobSlotChanceForDepth` på felt-niveau. */
+export function fieldKindWeightMob(depth: number): number {
+  return Math.min(45, 8 + Math.floor(depth * 2.5))
+}
+
+export type MineFieldKind = 'rock' | 'chest' | 'mob'
+
+export function rollMineFieldKind(depth: number, rng: () => number): MineFieldKind {
+  const wC = fieldKindWeightChest()
+  const wM = fieldKindWeightMob(depth)
+  const t = FIELD_KIND_WEIGHT_ROCK + wC + wM
+  let x = rng() * t
+  if (x < wC) return 'chest'
+  x -= wC
+  if (x < wM) return 'mob'
+  return 'rock'
+}
+
+const MOB_TYPES_ORDERED: MobType[] = ['seam_skulker', 'cave_crawler', 'dust_wraith', 'rock_gnome']
+
+function mobTypeWeightsAtDepth(depth: number): Record<MobType, number> {
+  const bias = Math.min(20, depth * 1.25)
+  return {
+    seam_skulker: Math.max(10, 42 - bias),
+    cave_crawler: 26 + bias * 0.35,
+    dust_wraith: 22 + bias * 0.45,
+    rock_gnome: 10 + bias * 0.25,
+  }
+}
+
+/** Kosmetisk mob-art; loot-tabeller kan senere splitte på `mobType`. */
+export function rollMobType(depth: number, rng: () => number): MobType {
+  const wMap = mobTypeWeightsAtDepth(depth)
+  const entries = MOB_TYPES_ORDERED.map((id) => [id, wMap[id]] as const)
+  const total = entries.reduce((s, [, wt]) => s + wt, 0)
+  let r = rng() * total
+  for (const [id, wt] of entries) {
+    if (r < wt) return id
+    r -= wt
+  }
+  return 'seam_skulker'
 }
 
 export function rollChestReward(
@@ -242,7 +319,10 @@ export function mobHpForDepth(depth: number, area: Area): number {
   return Math.floor((14 + depth * 10 + depth * depth * 0.45) * area.depthMultiplier)
 }
 
-/** Sandsynlighed for at ét felt bliver mob i stedet for klippe (D14). */
+/**
+ * @deprecated Bruges ikke til felt-RNG længere — mob-andel styres via `fieldKindWeightMob` / `rollMineFieldKind`.
+ * Beholdes midlertidigt til balance-referencer.
+ */
 export function mobSlotChanceForDepth(depth: number): number {
   return Math.min(0.32, 0.1 + depth * 0.028)
 }
@@ -258,6 +338,7 @@ export function rollMobMineDrop(
   depth: number,
   activeCharms: string[] = [],
   rng: () => number = Math.random,
+  _mobType?: MobType,
 ): MineDrop {
   if (area.kind !== 'mine' || !area.metalPool?.length) {
     return { kind: 'nothing' }

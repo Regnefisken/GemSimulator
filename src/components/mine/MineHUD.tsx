@@ -1,6 +1,19 @@
 import type { ReactNode } from 'react'
-import type { ChestTier, RockType } from '../../types'
+import type { ChestTier, RockType, RoomSize, RoomTemplate } from '../../types'
 import { findConsumableDef } from '../../data/consumables'
+
+const ROOM_TEMPLATE_HINT_DA: Record<RoomTemplate, string> = {
+  classic: 'Klassisk ring-perimeter',
+  corridor: 'Lang smal gang',
+  island: 'Ø / ellipse af felter',
+  dogleg: 'L-form (to arme)',
+}
+
+const ROOM_SIZE_HINT_DA: Record<RoomSize, string> = {
+  compact: 'Lille rum',
+  normal: 'Normal størrelse',
+  expansive: 'Stort rum',
+}
 
 type TopProps = {
   className?: string
@@ -8,9 +21,20 @@ type TopProps = {
   depth: number
   essenceCount: number
   areaLabel: string
+  /** Samme værdier som i `CaveConfig` — til fejlrapportering. */
+  roomTemplate?: RoomTemplate
+  roomSize?: RoomSize
 }
 
-export function HUDTopBar({ className = '', onBack, depth, essenceCount, areaLabel }: TopProps) {
+export function HUDTopBar({
+  className = '',
+  onBack,
+  depth,
+  essenceCount,
+  areaLabel,
+  roomTemplate,
+  roomSize,
+}: TopProps) {
   return (
     <div
       className={`flex items-center justify-between gap-3 px-3 py-2.5 bg-slate-950/80 border-b border-slate-700/90 backdrop-blur-md ${className}`}
@@ -24,7 +48,28 @@ export function HUDTopBar({ className = '', onBack, depth, essenceCount, areaLab
       </button>
       <div className="flex flex-col items-center min-w-0">
         <span className="text-[11px] uppercase tracking-wider text-slate-500 truncate max-w-[60vw]">{areaLabel}</span>
-        <span className="text-sm font-mono font-semibold text-slate-100">Dybde {depth}</span>
+        <span className="text-sm font-mono font-semibold text-slate-100 flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5">
+          <span>Dybde {depth}</span>
+          {roomTemplate != null && (
+            <>
+              <span className="text-slate-600 font-normal">·</span>
+              <span
+                className="text-violet-300/95"
+                title={ROOM_TEMPLATE_HINT_DA[roomTemplate]}
+              >
+                {roomTemplate}
+              </span>
+            </>
+          )}
+          {roomSize != null && (
+            <>
+              <span className="text-slate-600 font-normal">·</span>
+              <span className="text-sky-300/90" title={ROOM_SIZE_HINT_DA[roomSize]}>
+                {roomSize}
+              </span>
+            </>
+          )}
+        </span>
       </div>
       <div className="text-right pointer-events-auto">
         <span className="text-[11px] text-slate-500 block">Essenser</span>

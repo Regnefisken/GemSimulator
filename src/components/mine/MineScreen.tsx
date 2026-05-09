@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch } from 'react'
 import type { Area, GameState, MetalName } from '../../types'
 import { getCaveConfig } from '../../types'
+import { resolveEffectiveCaveConfig } from '../../gem/mineCaveContext'
+import { GRAPHICS_PRESETS } from '../../gem/graphicsPresets'
 import type { Action } from '../../lib/gameState'
 import { materialsCount, canAddConsumableUnits, CONSUMABLE_BAG_MAX } from '../../lib/gameState'
 import { XP_REWARDS } from '../../lib/leveling'
@@ -24,6 +26,7 @@ import { findBlueprint } from '../../data/blueprints'
 import { METALS } from '../../data/metals'
 import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
 import { useToast } from '../ui/ToastContext'
+import { useGraphicsPreset } from '../../lib/useGraphicsPreset'
 import MiningCave3D from './3d/MiningCave3D'
 import { sinkOreSlotPosition } from './sinkOreSlotPosition'
 import { getRockLayoutParams } from '../../gem/procedural/rockLayout'
@@ -175,10 +178,24 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     () => (state.activeBrewId ? findBrew(state.activeBrewId) : undefined),
     [state.activeBrewId],
   )
-  const cfgSlots = getCaveConfig(area).oreSlots.length
   const domMetal = dominantMetal(area)
 
   const run = state.mineRun
+
+  const effectiveCaveConfig = useMemo(() => {
+    if (!run || run.mineId !== area.id) return getCaveConfig(area)
+    return resolveEffectiveCaveConfig({
+      area,
+      runId: run.runId,
+      mineId: run.mineId,
+      currentDepth: run.currentDepth,
+    })
+  }, [area, run])
+
+  const cfgSlots = effectiveCaveConfig.oreSlots.length
+
+  const [graphicsPresetId] = useGraphicsPreset()
+  const mineGraphicsPreset = GRAPHICS_PRESETS[graphicsPresetId]
 
   useEffect(() => {
     if (area.kind !== 'mine') return
@@ -201,7 +218,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
   const worldChests: WorldChestEntity[] = useMemo(() => {
     if (!run || run.mineId !== area.id) return []
-    const cave = getCaveConfig(area)
+    const cave = effectiveCaveConfig
     const out: WorldChestEntity[] = []
     for (let i = 0; i < run.slots.length; i++) {
       const s = run.slots[i]
@@ -220,7 +237,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       })
     }
     return out
-  }, [run, area])
+  }, [run, area, effectiveCaveConfig])
 
   const depletedSlots = useMemo(() => {
     if (!run) return new Set<number>()
@@ -493,7 +510,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         pushFloater({ value: dmg, isCrit })
 
         const nextHp = Math.max(0, struck.currentHp - dmg)
-        const cave = getCaveConfig(area)
+        const cave = effectiveCaveConfig
         const brokenSlot = slotIndex
 
         if (nextHp > 0) {
@@ -577,7 +594,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         pushFloater({ value: dmg, isCrit })
 
         const nextHp = Math.max(0, struck.currentHp - dmg)
-        const cave = getCaveConfig(area)
+        const cave = effectiveCaveConfig
         const brokenSlot = slotIndex
 
         if (nextHp > 0) {
@@ -585,7 +602,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           return
         }
 
-        const drop = rollMobMineDrop(area, runDepth, state.activeCharms)
+        const drop = rollMobMineDrop(area, runDepth, state.activeCharms, Math.random, struck.mobType)
         const { extraSinkY } = getRockLayoutParams(run.runId, runDepth, brokenSlot, 'mob')
         const origin = sinkOreSlotPosition(cave.oreSlots[brokenSlot] as [number, number, number], extraSinkY)
 
@@ -633,6 +650,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       sword,
       state.equippedWeapon,
       area,
+      effectiveCaveConfig,
       runDepth,
       state.activeCharms,
       state.activeEffects,
@@ -705,6 +723,9 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           className="h-full min-h-0 rounded-none border-0 bg-transparent"
           canvasClassName="w-full h-full min-h-[320px] touch-none cursor-crosshair"
           area={area}
+          effectiveCaveConfig={effectiveCaveConfig}
+          graphicsPresetId={graphicsPresetId}
+          graphicsPreset={mineGraphicsPreset}
           mineSlots={run.slots}
           mineRunId={run.runId}
           runDepth={runDepth}
@@ -742,6 +763,8 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
             depth={runDepth}
             essenceCount={essenceTotal}
             areaLabel={`${area.icon} ${area.name}`}
+            roomTemplate={effectiveCaveConfig.template}
+            roomSize={effectiveCaveConfig.size}
           />
         </div>
         <HUDPlayerSurvival

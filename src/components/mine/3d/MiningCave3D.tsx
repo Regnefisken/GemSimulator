@@ -2,7 +2,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { Area, CaveConfig, PixelItem } from '../../../types'
-import { getCaveConfig } from '../../../types'
+import type { GraphicsPreset, GraphicsPresetId } from '../../../gem/graphicsPresets'
 import type { MineRunSlotState } from '../../../lib/mineTypes'
 import type { WorldLootEntity } from '../../../lib/lootEntities'
 import { hashMineRockVisualSeed } from '../../../gem/procedural/mineRockSeed'
@@ -14,6 +14,9 @@ import ProceduralCave from './ProceduralCave'
 import WorldChest, { type WorldChestEntity } from './WorldChest'
 import WorldLootItem from './WorldLootItem'
 import { sinkOreSlotPosition } from '../sinkOreSlotPosition'
+import { hashStringToSeed } from '../../../gem/mineCaveContext'
+import { generateCosmeticRocks } from '../../../gem/mineCosmetics'
+import CosmeticRocksInstanced from './CosmeticRocksInstanced'
 
 function dominantMetal(area: Area) {
   const pool = area.metalPool
@@ -23,6 +26,10 @@ function dominantMetal(area: Area) {
 
 export type MiningCave3DProps = {
   area: Area
+  /** Samme layout som `generateLayerState` / `resolveEffectiveCaveConfig` for dette lag. */
+  effectiveCaveConfig: CaveConfig
+  graphicsPresetId: GraphicsPresetId
+  graphicsPreset: GraphicsPreset
   mineSlots: MineRunSlotState[]
   /** Bruges til deterministisk klippe‑mesh pr. felt. */
   mineRunId: string
@@ -100,6 +107,9 @@ function MineSceneLights({ cfg }: { cfg: CaveConfig }) {
 
 function CaveContent({
   area,
+  effectiveCaveConfig,
+  graphicsPresetId,
+  graphicsPreset,
   mineSlots,
   mineRunId,
   runDepth,
@@ -119,7 +129,7 @@ function CaveContent({
   disablePointerLock = false,
 }: CaveProps) {
   const { camera } = useThree()
-  const cfg = useMemo(() => getCaveConfig(area), [area])
+  const cfg = effectiveCaveConfig
   const oreSlots = cfg.oreSlots
   const activeSlotIndex =
     mineSlots.length === 0 || targetSlotIndex < 0
@@ -127,8 +137,14 @@ function CaveContent({
       : ((targetSlotIndex % mineSlots.length) + mineSlots.length) % mineSlots.length
   const accent = useMemo(() => dominantMetal(area), [area])
 
-  const fogNear = cfg.depthFogScale ? cfg.fogNear + runDepth * 0.06 : cfg.fogNear
-  const fogFar = cfg.depthFogScale ? cfg.fogFar + runDepth * 0.1 : cfg.fogFar
+  const navExtent = useMemo(
+    () => Math.max(cfg.boundsHalfX ?? cfg.bounds, cfg.boundsHalfZ ?? cfg.bounds),
+    [cfg.bounds, cfg.boundsHalfX, cfg.boundsHalfZ],
+  )
+
+  const fogNear = (cfg.depthFogScale ? cfg.fogNear + runDepth * 0.06 : cfg.fogNear)
+  const fogFarRaw = cfg.depthFogScale ? cfg.fogFar + runDepth * 0.1 : cfg.fogFar
+  const fogFar = fogFarRaw * (graphicsPreset.fogMultiplier ?? 1)
 
   const activeOreMeshRef = useRef<THREE.Object3D | null>(null)
   const chestHits = useRef(new Map<string, THREE.Mesh>())
@@ -178,6 +194,30 @@ function CaveContent({
     return sinkOreSlotPosition(pos, extraSinkY)
   }, [activeSlotIndex, oreSlots, mineSlots, mineRunId, runDepth])
 
+  const cosmeticRocks = useMemo(
+    () =>
+      generateCosmeticRocks({
+        runId: mineRunId,
+        mineId: area.id,
+        depth: runDepth,
+        presetId: graphicsPresetId,
+        oreSlots: oreSlots as [number, number, number][],
+        bounds: navExtent,
+        cosmeticRockCount: graphicsPreset.cosmeticRockCount,
+        cosmeticLodBias: graphicsPreset.cosmeticLodBias,
+      }),
+    [
+      mineRunId,
+      area.id,
+      runDepth,
+      graphicsPresetId,
+      oreSlots,
+      navExtent,
+      graphicsPreset.cosmeticRockCount,
+      graphicsPreset.cosmeticLodBias,
+    ],
+  )
+
   return (
     <>
       <color attach="background" args={['#18182a']} />
@@ -190,9 +230,17 @@ function CaveContent({
         seed={caveSeed}
         hitTrigger={hitPulse}
         burstOrigin={burstOrigin}
+        maxParticles={graphicsPreset.particleCap}
       />
 
-      <PlayerControls bounds={cfg.bounds} disablePointerLock={disablePointerLock} />
+      <CosmeticRocksInstanced rocks={cosmeticRocks} />
+
+      <PlayerControls
+        bounds={cfg.bounds}
+        boundsHalfX={cfg.boundsHalfX ?? cfg.bounds}
+        boundsHalfZ={cfg.boundsHalfZ ?? cfg.bounds}
+        disablePointerLock={disablePointerLock}
+      />
 
       {oreSlots.map((pos, i) => {
         const slot = mineSlots[i]
@@ -223,8 +271,10 @@ function CaveContent({
             }
             accentMetal={accent}
             hitTargetRef={isVisualTarget ? activeOreMeshRef : undefined}
-            caveBounds={cfg.bounds}
+            caveHalfX={cfg.boundsHalfX ?? cfg.bounds}
+            caveHalfZ={cfg.boundsHalfZ ?? cfg.bounds}
             onMobStrikeHit={onMobStrikeHit}
+            mobType={slot.kind === 'mob' ? slot.mobType : undefined}
           />
         )
       })}
@@ -259,7 +309,10 @@ export default function MiningCave3D({
     typeof document !== 'undefined' && document.pointerLockElement != null,
   )
 
-  const [caveSeed] = useState(() => Math.floor(Math.random() * 1e9))
+  const proceduralSeed = useMemo(
+    () => hashStringToSeed(`${caveProps.mineRunId}|${caveProps.runDepth}|proceduralCave`),
+    [caveProps.mineRunId, caveProps.runDepth],
+  )
 
   const weaponCameraMirror = useMemo(() => {
     const c = new THREE.PerspectiveCamera(58, 1, 0.1, 2000)
@@ -267,7 +320,7 @@ export default function MiningCave3D({
     return c
   }, [])
 
-  const weaponCaveCfg = useMemo(() => getCaveConfig(caveProps.area), [caveProps.area])
+  const weaponCaveCfg = caveProps.effectiveCaveConfig
 
   useLayoutEffect(() => {
     if (!disablePointerLock) return
@@ -305,13 +358,13 @@ export default function MiningCave3D({
       )}
       <div className={`relative ${canvasCn}`}>
         <Canvas
-          key={caveSeed}
+          key={`${caveProps.mineRunId}-${caveProps.runDepth}-${caveProps.graphicsPresetId}`}
           camera={{ position: [0, 1.55, 9.2], fov: 58 }}
-          dpr={[1, 2]}
+          dpr={caveProps.graphicsPreset.dpr}
           gl={{ antialias: true }}
         >
           <CameraMirrorInto mirror={weaponCameraMirror} />
-          <CaveContent {...caveProps} caveSeed={caveSeed} disablePointerLock={disablePointerLock} />
+          <CaveContent {...caveProps} caveSeed={proceduralSeed} disablePointerLock={disablePointerLock} />
         </Canvas>
         {weaponPixelItem && (
           <div
@@ -321,7 +374,7 @@ export default function MiningCave3D({
             <Canvas
               className="h-full w-full"
               camera={{ position: [0, 1.55, 9.2], fov: 58 }}
-              dpr={[1, 2]}
+              dpr={caveProps.graphicsPreset.dpr}
               gl={{
                 alpha: true,
                 antialias: true,

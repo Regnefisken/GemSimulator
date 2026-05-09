@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { rollBlueprintFromGoldChest, rollLootIngredientDrop } from './mining'
+import { hashStringToSeed, mulberry32 } from './mineCaveContext'
+import {
+  rollBlueprintFromGoldChest,
+  rollLootIngredientDrop,
+  rollMineFieldKind,
+  rollMobType,
+} from './mining'
 
 describe('rollLootIngredientDrop (Fase 4)', () => {
   it('returnerer null når chance fejler', () => {
@@ -52,5 +58,19 @@ describe('rollBlueprintFromGoldChest', () => {
     const rnd = vi.spyOn(Math, 'random').mockReturnValue(0.04)
     expect(rollBlueprintFromGoldChest('rune-dybet', 'gold')).toBeNull()
     rnd.mockRestore()
+  })
+})
+
+describe('felt-kind og mobType', () => {
+  it('rollMineFieldKind er deterministisk ved samme rng-frø', () => {
+    const rngA = mulberry32(hashStringToSeed('layer-test'))
+    const rngB = mulberry32(hashStringToSeed('layer-test'))
+    expect(rollMineFieldKind(12, rngA)).toBe(rollMineFieldKind(12, rngB))
+  })
+
+  it('rollMobType er deterministisk ved samme rng-frø', () => {
+    const rngA = mulberry32(hashStringToSeed('mob-frø'))
+    const rngB = mulberry32(hashStringToSeed('mob-frø'))
+    expect(rollMobType(4, rngA)).toBe(rollMobType(4, rngB))
   })
 })

@@ -1,7 +1,15 @@
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { buildSeamSkulkerRig, type SeamSkulkerRigParts } from './buildSeamSkulkerRig'
+import type { MobType } from '../../../../types'
+
+const MOB_HUE: Record<MobType, number> = {
+  seam_skulker: 0,
+  cave_crawler: 0.065,
+  dust_wraith: 0.52,
+  rock_gnome: 0.14,
+}
 
 type AttackPhase = 'IDLE' | 'WINDUP' | 'STRIKE' | 'RECOVERY'
 
@@ -46,7 +54,10 @@ type Props = {
   visualSeed: number
   slotWorldX: number
   slotWorldZ: number
-  caveBounds: number
+  caveHalfX: number
+  caveHalfZ: number
+  /** Kosmetisk variant — farvetoning på rig. */
+  mobType?: MobType
   onClick?: (e: ThreeEvent<MouseEvent>) => void
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
   /** Aktivt mål: ét slag pr. angreb når animationen rammer. */
@@ -60,7 +71,9 @@ export default function SeamSkulkerMob({
   visualSeed,
   slotWorldX,
   slotWorldZ,
-  caveBounds,
+  caveHalfX,
+  caveHalfZ,
+  mobType,
   onClick,
   onPointerDown,
   onStrikeHit,
@@ -89,6 +102,24 @@ export default function SeamSkulkerMob({
       dispose()
     }
   }, [dispose])
+
+  const baseColorsRef = useRef<Map<string, THREE.Color>>(new Map())
+
+  useLayoutEffect(() => {
+    const hue = MOB_HUE[mobType ?? 'seam_skulker']
+    rig.master.traverse((obj) => {
+      if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+        const m = obj.material
+        let base = baseColorsRef.current.get(obj.uuid)
+        if (!base) {
+          base = m.color.clone()
+          baseColorsRef.current.set(obj.uuid, base)
+        }
+        m.color.copy(base).offsetHSL(hue, 0.04, 0.06)
+        m.emissive.copy(base).multiplyScalar(0.12).offsetHSL(hue * 0.6, 0.08, 0)
+      }
+    })
+  }, [mobType, rig])
 
   const rigRef = useRef<SeamSkulkerRigParts>(rig)
   rigRef.current = rig
@@ -138,8 +169,8 @@ export default function SeamSkulkerMob({
         const step = Math.min(RETREAT_SPEED * delta, TOO_CLOSE - dDist + 0.12)
         let nwx = mobWx - nx * step
         let nwz = mobWz - nz * step
-        nwx = THREE.MathUtils.clamp(nwx, -caveBounds, caveBounds)
-        nwz = THREE.MathUtils.clamp(nwz, -caveBounds, caveBounds)
+        nwx = THREE.MathUtils.clamp(nwx, -caveHalfX, caveHalfX)
+        nwz = THREE.MathUtils.clamp(nwz, -caveHalfZ, caveHalfZ)
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
         isWalking = step > 0.002
@@ -147,8 +178,8 @@ export default function SeamSkulkerMob({
         const step = Math.min(CHASE_SPEED * delta, dDist - COMBAT_OUTER)
         let nwx = mobWx + nx * step
         let nwz = mobWz + nz * step
-        nwx = THREE.MathUtils.clamp(nwx, -caveBounds, caveBounds)
-        nwz = THREE.MathUtils.clamp(nwz, -caveBounds, caveBounds)
+        nwx = THREE.MathUtils.clamp(nwx, -caveHalfX, caveHalfX)
+        nwz = THREE.MathUtils.clamp(nwz, -caveHalfZ, caveHalfZ)
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
         isWalking = step > 0.002

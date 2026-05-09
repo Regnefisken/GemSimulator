@@ -1,5 +1,8 @@
 import type { ChestLootResult } from '../gem/mining'
 
+/** Kosmetisk mob-variant i minen (loot-split senere). */
+export type MobType = 'seam_skulker' | 'cave_crawler' | 'dust_wraith' | 'rock_gnome'
+
 /** Ét felt på det aktuelle mine-lag (D1: kun ét lag i hukommelse ad gangen). */
 export type MineRunSlotState = {
   slotIndex: number
@@ -12,6 +15,8 @@ export type MineRunSlotState = {
   cleared: boolean
   /** Fase 2: mob-tier (balance); kun når `kind === 'mob'`. */
   mobTier?: number
+  /** Kosmetisk variant (loot kan kobles på senere). */
+  mobType?: MobType
   /** Kiste har været åbnet mindst én gang (UI / XP). */
   chestOpened?: boolean
   /** Forudrullet ved lag-generering (D3). */

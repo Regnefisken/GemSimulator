@@ -3,7 +3,7 @@ import { Billboard, Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Group, Object3D } from 'three'
-import type { MetalName, RockType } from '../../../types'
+import type { MetalName, MobType, RockType } from '../../../types'
 import {
   createBaseRockGeometry,
   createCrystalRockCluster,
@@ -38,8 +38,11 @@ type Props = {
   meshScaleMultiplier?: number
   /** Fra `getRockLayoutParams`; bruges til HP‑højde vs nedsænkning (typisk ≤ 0). */
   extraSinkY?: number
-  /** Player/mob bevægelsesgrænse (matcher `CaveConfig.bounds`). */
-  caveBounds?: number
+  /** Kun mob-felt: kosmetisk variant. */
+  mobType?: MobType
+  /** Player/mob bevægelsesgrænse — halve udstrækninger i X/Z (matcher `CaveConfig.boundsHalf*` / `bounds`). */
+  caveHalfX?: number
+  caveHalfZ?: number
   /** Aktivt mål-mob: skade ved slag (animation). */
   onMobStrikeHit?: () => void
 }
@@ -151,8 +154,10 @@ export default function OreNode({
   depleted,
   meshScaleMultiplier = 1,
   extraSinkY = 0,
-  caveBounds = 9,
+  caveHalfX = 9,
+  caveHalfZ = 9,
   onMobStrikeHit,
+  mobType,
 }: Props) {
   const meshRef = useRef<Group>(null)
   const shake = useRef(0)
@@ -348,7 +353,9 @@ export default function OreNode({
             visualSeed={visualSeed}
             slotWorldX={position[0]}
             slotWorldZ={position[2]}
-            caveBounds={caveBounds}
+            caveHalfX={caveHalfX}
+            caveHalfZ={caveHalfZ}
+            mobType={mobType}
             onStrikeHit={interactive ? onMobStrikeHit : undefined}
             {...(pickable ? meshHandlers : {})}
           >

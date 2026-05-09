@@ -2,7 +2,9 @@ import { useState, type Dispatch } from 'react'
 import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
 import DevCheatPanel from '../../dev/DevCheatPanel'
+import GraphicsSettings from '../settings/GraphicsSettings'
 import { DISPLAY_RENDER_PRESETS } from '../../lib/displayRenderSettings'
+import { useGraphicsPreset } from '../../lib/useGraphicsPreset'
 import { useDisplayRender } from './DisplayRenderContext'
 
 type Props = {
@@ -14,6 +16,7 @@ type Props = {
 export default function SettingsMenu({ onClose, state, dispatch }: Props) {
   const [resetPending, setResetPending] = useState(false)
   const { preset, setPreset, gl } = useDisplayRender()
+  const [mineGraphicsPresetId, setMineGraphicsPresetId] = useGraphicsPreset()
 
   function handleResetClick() {
     setResetPending(true)
@@ -83,6 +86,10 @@ export default function SettingsMenu({ onClose, state, dispatch }: Props) {
             Aktiv: {gl.antialias ? 'MSAA til' : 'MSAA fra'} · {gl.dpr.toFixed(2)}× pixelratio
           </p>
         </section>
+
+        <hr className="border-slate-800" />
+
+        <GraphicsSettings presetId={mineGraphicsPresetId} onChange={setMineGraphicsPresetId} />
 
         <hr className="border-slate-800" />
 

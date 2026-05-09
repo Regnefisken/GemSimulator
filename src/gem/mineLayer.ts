@@ -1,26 +1,23 @@
-import type { Area } from '../types'
-import { getCaveConfig } from '../types'
+import type { Area, CaveConfig } from '../types'
 import type { MineRunSlotState, MineRunState } from '../lib/mineTypes'
-import { rockHpForDepth, rollChestLoot, rollRockEvent, mobHpForDepth, mobSlotChanceForDepth } from './mining'
-
-/** Deterministisk RNG til lag-generering (D3). */
-function hashStringToSeed(s: string): number {
-  let h = 1779033703
-  for (let i = 0; i < s.length; i++) {
-    h = Math.imul(h ^ s.charCodeAt(i), 3432918353)
-    h = (h << 13) | (h >>> 19)
-  }
-  return h >>> 0
-}
-
-function mulberry32(seed: number): () => number {
-  return function () {
-    let t = (seed += 0x6d2b79f5)
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
+import {
+  drawInteractiveSlotCount,
+  drawRoomSize,
+  drawRoomTemplate,
+  hashStringToSeed,
+  mineLayerSeedKey,
+  mulberry32,
+  resolveEffectiveCaveConfig,
+} from './mineCaveContext'
+import {
+  mobHpForDepth,
+  rockHpForDepth,
+  rollChestLoot,
+  rollChestTier,
+  rollMineFieldKind,
+  rollMobType,
+  rollRockSubtypeForSlot,
+} from './mining'
 
 export function generateLayerState(args: {
   area: Area
@@ -28,15 +25,33 @@ export function generateLayerState(args: {
   runId: string
   currentDepth: number
   activeCharms: string[]
+  /** Hvis udeladt: beregnes via `resolveEffectiveCaveConfig` (samme som UI skal bruge). */
+  caveConfig?: CaveConfig
 }): MineRunSlotState[] {
-  const cfg = getCaveConfig(args.area)
-  const rng = mulberry32(hashStringToSeed(`${args.runId}|${args.mineId}|${args.currentDepth}`))
+  const cfg =
+    args.caveConfig ??
+    resolveEffectiveCaveConfig({
+      area: args.area,
+      runId: args.runId,
+      mineId: args.mineId,
+      currentDepth: args.currentDepth,
+    })
+  const rng = mulberry32(hashStringToSeed(mineLayerSeedKey(args.runId, args.mineId, args.currentDepth)))
+  /** Synkroniser med `resolveEffectiveCaveConfig`: slotCount → skabelon → størrelse. */
+  drawInteractiveSlotCount(rng)
+  drawRoomTemplate(rng)
+  drawRoomSize(rng)
+
+  /**
+   * RNG efter slotCount: pr. felt `rollMineFieldKind` → kiste (`rollChestTier` + loot),
+   * mob (`rollMobType` + HP), eller klippe (`rollRockSubtypeForSlot`).
+   */
   const slots: MineRunSlotState[] = []
 
   for (let i = 0; i < cfg.oreSlots.length; i++) {
-    const event = rollRockEvent(args.area, rng)
-    if (event.type === 'chest') {
-      const tier = event.chestTier ?? 'wood'
+    const field = rollMineFieldKind(args.currentDepth, rng)
+    if (field === 'chest') {
+      const tier = rollChestTier(rng)
       const chestEntityId = `wc-${args.runId}-${args.currentDepth}-${i}`
       const loot = rollChestLoot(args.area, args.currentDepth, tier, args.activeCharms, rng)
       slots.push({
@@ -50,18 +65,21 @@ export function generateLayerState(args: {
         cleared: false,
         chestLoot: loot,
       })
-    } else if (rng() < mobSlotChanceForDepth(args.currentDepth)) {
+    } else if (field === 'mob') {
+      const mobType = rollMobType(args.currentDepth, rng)
       const maxHp = mobHpForDepth(args.currentDepth, args.area)
       slots.push({
         slotIndex: i,
         kind: 'mob',
         rockType: 'mob',
         mobTier: 1,
+        mobType,
         maxHp,
         currentHp: maxHp,
         cleared: false,
       })
     } else {
+      const event = rollRockSubtypeForSlot(args.area, rng)
       const maxHp = Math.floor(rockHpForDepth(args.currentDepth, args.area) * event.hpMultiplier)
       slots.push({
         slotIndex: i,
