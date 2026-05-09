@@ -3,6 +3,7 @@ import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { CaveConfig } from '../../../../types'
 import { METALS } from '../../../../data/metals'
+import { getCaveHalfExtents, getCaveWallEdge } from '../../../../lib/caveHalfExtents'
 import { createSeededRandom, pickRange } from '../../../../lib/caveSeed'
 
 type Props = {
@@ -68,10 +69,13 @@ export default function CrystalClusters({ caveConfig, seed }: Props) {
     const rng = createSeededRandom(seed ^ 0xb100d)
     const count = pickRange(rng, caveConfig.crystalClusterRange)
 
+    const { halfX, halfZ } = getCaveHalfExtents(caveConfig)
+    const { wallEdgeX, wallEdgeZ } = getCaveWallEdge(halfX, halfZ)
+
     const wallChoices: Array<{ pos: [number, number, number]; face: 'north' | 'west' | 'east' }> = [
-      { pos: [0, 2.2, -10.85], face: 'north' },
-      { pos: [-10.85, 2.2, 0], face: 'west' },
-      { pos: [10.85, 2.2, 0], face: 'east' },
+      { pos: [0, 2.2, -wallEdgeZ], face: 'north' },
+      { pos: [-wallEdgeX, 2.2, 0], face: 'west' },
+      { pos: [wallEdgeX, 2.2, 0], face: 'east' },
     ]
 
     const out: {
@@ -83,11 +87,12 @@ export default function CrystalClusters({ caveConfig, seed }: Props) {
     for (let c = 0; c < count; c++) {
       const wall = wallChoices[Math.floor(rng() * wallChoices.length)]!
       const jitterY = (rng() - 0.5) * 2.2
-      const jitterAlong = (rng() - 0.5) * 8
+      const jitterNorth = (rng() - 0.5) * Math.min(8, halfX * 1.55)
+      const jitterSide = (rng() - 0.5) * Math.min(8, halfZ * 1.55)
       const groupPos: [number, number, number] = [...wall.pos] as [number, number, number]
       groupPos[1] += jitterY
-      if (wall.face === 'north') groupPos[0] += jitterAlong
-      else groupPos[2] += jitterAlong
+      if (wall.face === 'north') groupPos[0] += jitterNorth
+      else groupPos[2] += jitterSide
 
       const nCrystals = 3 + Math.floor(rng() * 3)
       const crystals: { ox: number; oy: number; oz: number; sx: number; sy: number; sz: number; hue: number }[] = []
@@ -106,7 +111,14 @@ export default function CrystalClusters({ caveConfig, seed }: Props) {
     }
 
     return { list: out, baseColor }
-  }, [caveConfig.crystalClusterRange, metal, seed])
+  }, [
+    caveConfig.bounds,
+    caveConfig.boundsHalfX,
+    caveConfig.boundsHalfZ,
+    caveConfig.crystalClusterRange,
+    metal,
+    seed,
+  ])
 
   if (!clusters || clusters.list.length === 0) return null
 

@@ -24,7 +24,13 @@ export default function ProceduralCave({
       <CaveWalls caveConfig={caveConfig} seed={seed} />
       <Stalactites caveConfig={caveConfig} seed={seed} />
       <CrystalClusters caveConfig={caveConfig} seed={seed} />
-      <DustParticles seed={seed} hitTrigger={hitTrigger} burstOrigin={burstOrigin} maxParticles={maxParticles} />
+      <DustParticles
+        caveConfig={caveConfig}
+        seed={seed}
+        hitTrigger={hitTrigger}
+        burstOrigin={burstOrigin}
+        maxParticles={maxParticles}
+      />
     </>
   )
 }

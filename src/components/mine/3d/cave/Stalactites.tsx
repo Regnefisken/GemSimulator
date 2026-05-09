@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { CaveConfig } from '../../../../types'
+import { getCaveHalfExtents } from '../../../../lib/caveHalfExtents'
 import { createSeededRandom, pickRange } from '../../../../lib/caveSeed'
 
 type Props = {
@@ -31,13 +32,14 @@ export default function Stalactites({ caveConfig, seed }: Props) {
     }[] = []
     const rngLocal = createSeededRandom(seed ^ 0x71a1)
     const triesMax = 120
+    const { halfX, halfZ } = getCaveHalfExtents(caveConfig)
 
     const pushOne = (fromCeiling: boolean) => {
       let tries = 0
       while (tries < triesMax) {
         tries++
-        const x = (rngLocal() * 2 - 1) * (caveConfig.bounds - 1.2)
-        const z = (rngLocal() * 2 - 1) * (caveConfig.bounds - 1.2)
+        const x = (rngLocal() * 2 - 1) * Math.max(0.25, halfX - 1.2)
+        const z = (rngLocal() * 2 - 1) * Math.max(0.25, halfZ - 1.2)
         const ok = slots2d.every((s) => distSq([x, z], s) >= minD * minD)
         if (!ok) continue
         const h = 0.45 + rngLocal() * 1.1
@@ -59,7 +61,15 @@ export default function Stalactites({ caveConfig, seed }: Props) {
     for (let i = 0; i < migN; i++) pushOne(false)
 
     return list
-  }, [caveConfig.bounds, caveConfig.oreSlots, caveConfig.stalactiteRange, caveConfig.stalagmiteRange, seed])
+  }, [
+    caveConfig.bounds,
+    caveConfig.boundsHalfX,
+    caveConfig.boundsHalfZ,
+    caveConfig.oreSlots,
+    caveConfig.stalactiteRange,
+    caveConfig.stalagmiteRange,
+    seed,
+  ])
 
   return (
     <group>

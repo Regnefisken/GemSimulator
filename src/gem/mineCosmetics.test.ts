@@ -78,4 +78,24 @@ describe('generateCosmeticRocks', () => {
       }
     }
   })
+
+  it('rektangulært rum: kosmetiske klipper inden for hvert halv-akse (korridor)', () => {
+    const rocks = generateCosmeticRocks({
+      runId: 'r',
+      mineId: 'm',
+      depth: 1,
+      presetId: 'balanced',
+      oreSlots: [],
+      bounds: 9,
+      boundsHalfX: 4,
+      boundsHalfZ: 18,
+      cosmeticRockCount: { min: 24, max: 24 },
+      cosmeticLodBias: 1,
+    })
+    const eps = 0.05
+    for (const r of rocks) {
+      expect(Math.abs(r.position[0])).toBeLessThanOrEqual(4 * 0.98 + eps)
+      expect(Math.abs(r.position[2])).toBeLessThanOrEqual(18 * 0.98 + eps)
+    }
+  })
 })

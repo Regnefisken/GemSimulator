@@ -16,6 +16,7 @@ import WorldLootItem from './WorldLootItem'
 import { sinkOreSlotPosition } from '../sinkOreSlotPosition'
 import { hashStringToSeed } from '../../../gem/mineCaveContext'
 import { generateCosmeticRocks } from '../../../gem/mineCosmetics'
+import { getPlayableHalfExtents } from '../../../lib/caveHalfExtents'
 import CosmeticRocksInstanced from './CosmeticRocksInstanced'
 
 function dominantMetal(area: Area) {
@@ -137,8 +138,8 @@ function CaveContent({
       : ((targetSlotIndex % mineSlots.length) + mineSlots.length) % mineSlots.length
   const accent = useMemo(() => dominantMetal(area), [area])
 
-  const navExtent = useMemo(
-    () => Math.max(cfg.boundsHalfX ?? cfg.bounds, cfg.boundsHalfZ ?? cfg.bounds),
+  const playableHalf = useMemo(
+    () => getPlayableHalfExtents(cfg),
     [cfg.bounds, cfg.boundsHalfX, cfg.boundsHalfZ],
   )
 
@@ -202,7 +203,9 @@ function CaveContent({
         depth: runDepth,
         presetId: graphicsPresetId,
         oreSlots: oreSlots as [number, number, number][],
-        bounds: navExtent,
+        bounds: cfg.bounds,
+        boundsHalfX: cfg.boundsHalfX ?? cfg.bounds,
+        boundsHalfZ: cfg.boundsHalfZ ?? cfg.bounds,
         cosmeticRockCount: graphicsPreset.cosmeticRockCount,
         cosmeticLodBias: graphicsPreset.cosmeticLodBias,
       }),
@@ -212,7 +215,9 @@ function CaveContent({
       runDepth,
       graphicsPresetId,
       oreSlots,
-      navExtent,
+      cfg.bounds,
+      cfg.boundsHalfX,
+      cfg.boundsHalfZ,
       graphicsPreset.cosmeticRockCount,
       graphicsPreset.cosmeticLodBias,
     ],
@@ -237,8 +242,8 @@ function CaveContent({
 
       <PlayerControls
         bounds={cfg.bounds}
-        boundsHalfX={cfg.boundsHalfX ?? cfg.bounds}
-        boundsHalfZ={cfg.boundsHalfZ ?? cfg.bounds}
+        boundsHalfX={playableHalf.halfX}
+        boundsHalfZ={playableHalf.halfZ}
         disablePointerLock={disablePointerLock}
       />
 
@@ -271,8 +276,8 @@ function CaveContent({
             }
             accentMetal={accent}
             hitTargetRef={isVisualTarget ? activeOreMeshRef : undefined}
-            caveHalfX={cfg.boundsHalfX ?? cfg.bounds}
-            caveHalfZ={cfg.boundsHalfZ ?? cfg.bounds}
+            caveHalfX={playableHalf.halfX}
+            caveHalfZ={playableHalf.halfZ}
             onMobStrikeHit={onMobStrikeHit}
             mobType={slot.kind === 'mob' ? slot.mobType : undefined}
           />

@@ -15,7 +15,11 @@ export type GenerateCosmeticRocksArgs = {
   /** Brug `GRAPHICS_SCHEMA_VERSION` fra `graphicsPresets.ts`. */
   graphicsSchemaVersion?: number
   oreSlots: readonly [number, number, number][]
+  /** Fallback når `boundsHalfX`/`boundsHalfZ` ikke er sat (kvadratisk rum). */
   bounds: number
+  /** Halve udstrækning X/Z — rektangulært rum (korridor); fallback er `bounds`. */
+  boundsHalfX?: number
+  boundsHalfZ?: number
   cosmeticRockCount: { min: number; max: number }
   cosmeticLodBias?: number
 }
@@ -48,7 +52,8 @@ export function generateCosmeticRocks(args: GenerateCosmeticRocksArgs): Cosmetic
   }
 
   const out: CosmeticRock[] = []
-  const b = args.bounds
+  const hx = args.boundsHalfX ?? args.bounds
+  const hz = args.boundsHalfZ ?? args.bounds
 
   for (let i = 0; i < target; i++) {
     let placed: CosmeticRock | null = null
@@ -60,25 +65,27 @@ export function generateCosmeticRocks(args: GenerateCosmeticRocksArgs): Cosmetic
 
       if (wall) {
         const side = Math.floor(rng() * 4)
-        const u = (rng() * 2 - 1) * b * 0.88
-        const edge = b * (0.94 + rng() * 0.04)
+        const alongX = (rng() * 2 - 1) * hx * 0.88
+        const alongZ = (rng() * 2 - 1) * hz * 0.88
+        const edgeX = hx * (0.94 + rng() * 0.04)
+        const edgeZ = hz * (0.94 + rng() * 0.04)
         if (side === 0) {
-          x = edge
-          z = u
+          x = edgeX
+          z = alongZ
         } else if (side === 1) {
-          x = -edge
-          z = u
+          x = -edgeX
+          z = alongZ
         } else if (side === 2) {
-          x = u
-          z = edge
+          x = alongX
+          z = edgeZ
         } else {
-          x = u
-          z = -edge
+          x = alongX
+          z = -edgeZ
         }
         y = 0.35 + rng() * 2.2
       } else {
-        x = (rng() * 2 - 1) * b * 0.9
-        z = (rng() * 2 - 1) * b * 0.9
+        x = (rng() * 2 - 1) * hx * 0.9
+        z = (rng() * 2 - 1) * hz * 0.9
         y = 0.18 + rng() * 0.42
       }
 
