@@ -326,20 +326,28 @@ export default function MiningCave3D({
     [caveProps.mineRunId, caveProps.runDepth],
   )
 
+  /**
+   * Spawn må kun vælges ud fra feltets tilstand ved lag-indgang — ikke genberegnes hver gang
+   * en klippe ryddes. Ellers skifter `pickMineSpawn` ofte «bedste væg», og R3F's
+   * `camera={{ position }}` / lookAt-props flytter spilleren når `mineSlots` opdateres.
+   */
+  const spawnLayerKey = `${caveProps.mineRunId}|${caveProps.runDepth}`
+  const mineSlotsForSpawnRef = useRef(caveProps.mineSlots)
+  const prevSpawnLayerKeyRef = useRef<string | null>(null)
+  if (prevSpawnLayerKeyRef.current !== spawnLayerKey) {
+    prevSpawnLayerKeyRef.current = spawnLayerKey
+    mineSlotsForSpawnRef.current = caveProps.mineSlots
+  }
+
   const spawnPick = useMemo(
     () =>
       pickMineSpawn({
         caveConfig: caveProps.effectiveCaveConfig,
         mineRunId: caveProps.mineRunId,
         runDepth: caveProps.runDepth,
-        mineSlots: caveProps.mineSlots,
+        mineSlots: mineSlotsForSpawnRef.current,
       }),
-    [
-      caveProps.effectiveCaveConfig,
-      caveProps.mineRunId,
-      caveProps.runDepth,
-      caveProps.mineSlots,
-    ],
+    [caveProps.effectiveCaveConfig, caveProps.mineRunId, caveProps.runDepth, spawnLayerKey],
   )
 
   const weaponCameraMirror = useMemo(() => {
