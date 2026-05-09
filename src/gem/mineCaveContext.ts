@@ -158,16 +158,22 @@ export function computeRoomLayout(args: {
       const n1 = Math.ceil(n / 2)
       const arm = B * 0.55
       const elbowZ = arm * 0.95
+      /* To rette rækker (N-S + øst-arm) er bevidst enkle for bounds/RNG; små forskydninger
+       * bryder «perfekt L på gitter» så det ligner mere naturlige udspring langs gangene. */
       for (let i = 0; i < n1; i++) {
         const u = n1 === 1 ? 0.5 : i / (n1 - 1)
         const z = -elbowZ * 0.35 + u * elbowZ * 1.35
-        oreSlots.push([0, fy, z])
+        const xArm =
+          ((i % 3) - 1) * arm * 0.072 + Math.sin(i * 0.91 + 0.2) * arm * 0.045
+        oreSlots.push([xArm, fy, z])
       }
       const n2 = n - n1
       for (let j = 0; j < n2; j++) {
         const u = n2 === 1 ? 0.5 : j / Math.max(1, n2 - 1)
         const x = u * arm * 1.18
-        oreSlots.push([x, fy, elbowZ])
+        const zArm =
+          elbowZ + Math.sin(j * 1.13 + 0.4) * arm * 0.065 + ((j % 2) - 0.5) * arm * 0.048
+        oreSlots.push([x, fy, zArm])
       }
       hx = Math.max(arm * 1.28, elbowZ * 0.35)
       hz = Math.max(elbowZ * 1.12, arm * 0.55)

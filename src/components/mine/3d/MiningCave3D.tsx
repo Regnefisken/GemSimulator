@@ -17,13 +17,8 @@ import { sinkOreSlotPosition } from '../sinkOreSlotPosition'
 import { hashStringToSeed } from '../../../gem/mineCaveContext'
 import { generateCosmeticRocks } from '../../../gem/mineCosmetics'
 import { getPlayableHalfExtents } from '../../../lib/caveHalfExtents'
+import { pickMineSpawn } from '../pickMineSpawn'
 import CosmeticRocksInstanced from './CosmeticRocksInstanced'
-
-/** Start lidt inde fra +Z-væg — skal være inde i `getPlayableHalfExtents` (dogleg har lille halfZ vs. gammel fast 9.2). */
-function initialMineCameraZ(cfg: CaveConfig): number {
-  const { halfZ } = getPlayableHalfExtents(cfg)
-  return Math.min(Math.max(halfZ * 0.82, 0.65), halfZ - 0.18)
-}
 
 function dominantMetal(area: Area) {
   const pool = area.metalPool
@@ -71,6 +66,8 @@ type CaveProps = Omit<
   'className' | 'canvasClassName' | 'weaponPixelItem' | 'swingTrigger' | 'heldWeaponKind'
 > & {
   caveSeed: number
+  spawnLookAtX: number
+  spawnLookAtZ: number
 }
 
 /** Kopierer hovedkamera til delt ref — overlay‑canvas tegner våben ovenpå (Html‑labels under). */
@@ -134,6 +131,8 @@ function CaveContent({
   onMobStrikeHit,
   caveSeed,
   disablePointerLock = false,
+  spawnLookAtX,
+  spawnLookAtZ,
 }: CaveProps) {
   const { camera } = useThree()
   const cfg = effectiveCaveConfig
@@ -251,6 +250,8 @@ function CaveContent({
         boundsHalfX={playableHalf.halfX}
         boundsHalfZ={playableHalf.halfZ}
         disablePointerLock={disablePointerLock}
+        spawnLookAtX={spawnLookAtX}
+        spawnLookAtZ={spawnLookAtZ}
       />
 
       {oreSlots.map((pos, i) => {
@@ -325,16 +326,27 @@ export default function MiningCave3D({
     [caveProps.mineRunId, caveProps.runDepth],
   )
 
-  const startCamZ = useMemo(
-    () => initialMineCameraZ(caveProps.effectiveCaveConfig),
-    [caveProps.effectiveCaveConfig],
+  const spawnPick = useMemo(
+    () =>
+      pickMineSpawn({
+        caveConfig: caveProps.effectiveCaveConfig,
+        mineRunId: caveProps.mineRunId,
+        runDepth: caveProps.runDepth,
+        mineSlots: caveProps.mineSlots,
+      }),
+    [
+      caveProps.effectiveCaveConfig,
+      caveProps.mineRunId,
+      caveProps.runDepth,
+      caveProps.mineSlots,
+    ],
   )
 
   const weaponCameraMirror = useMemo(() => {
     const c = new THREE.PerspectiveCamera(58, 1, 0.1, 2000)
-    c.position.set(0, 1.55, startCamZ)
+    c.position.set(spawnPick.x, 1.55, spawnPick.z)
     return c
-  }, [startCamZ])
+  }, [spawnPick.x, spawnPick.z])
 
   const weaponCaveCfg = caveProps.effectiveCaveConfig
 
@@ -375,12 +387,18 @@ export default function MiningCave3D({
       <div className={`relative ${canvasCn}`}>
         <Canvas
           key={`${caveProps.mineRunId}-${caveProps.runDepth}-${caveProps.graphicsPresetId}`}
-          camera={{ position: [0, 1.55, startCamZ], fov: 58 }}
+          camera={{ position: [spawnPick.x, 1.55, spawnPick.z], fov: 58 }}
           dpr={caveProps.graphicsPreset.dpr}
           gl={{ antialias: true }}
         >
           <CameraMirrorInto mirror={weaponCameraMirror} />
-          <CaveContent {...caveProps} caveSeed={proceduralSeed} disablePointerLock={disablePointerLock} />
+          <CaveContent
+            {...caveProps}
+            caveSeed={proceduralSeed}
+            disablePointerLock={disablePointerLock}
+            spawnLookAtX={spawnPick.lookAtX}
+            spawnLookAtZ={spawnPick.lookAtZ}
+          />
         </Canvas>
         {weaponPixelItem && (
           <div
@@ -389,7 +407,7 @@ export default function MiningCave3D({
           >
             <Canvas
               className="h-full w-full"
-              camera={{ position: [0, 1.55, startCamZ], fov: 58 }}
+              camera={{ position: [spawnPick.x, 1.55, spawnPick.z], fov: 58 }}
               dpr={caveProps.graphicsPreset.dpr}
               gl={{
                 alpha: true,

@@ -1,6 +1,6 @@
 import { PointerLockControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 const MOVE_SPEED = 4.5
@@ -10,6 +10,9 @@ type Props = {
   bounds?: number
   boundsHalfX?: number
   boundsHalfZ?: number
+  /** Horisontalt lookAt ved spawn (verdens-X/Z); default mod grottens midte. */
+  spawnLookAtX?: number
+  spawnLookAtZ?: number
   /** Ingen PointerLockControls — mus kan ikke låses til FPS-canvas (fx under kiste-UI). */
   disablePointerLock?: boolean
 }
@@ -21,6 +24,8 @@ export default function PlayerControls({
   bounds = 9,
   boundsHalfX,
   boundsHalfZ,
+  spawnLookAtX = 0,
+  spawnLookAtZ = 0,
   disablePointerLock = false,
 }: Props) {
   const { camera } = useThree()
@@ -28,6 +33,20 @@ export default function PlayerControls({
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const moveDir = useRef(new THREE.Vector3())
+  const wasPointerLocked = useRef(false)
+
+  /** Horisontalt udsyn mod spawn-mål (typisk ind i rummet fra væg) — undgår utilsigtet pitch. */
+  useLayoutEffect(() => {
+    camera.rotation.order = 'YXZ'
+    const p = camera.position
+    const dx = spawnLookAtX - p.x
+    const dz = spawnLookAtZ - p.z
+    if (dx * dx + dz * dz < 1e-5) {
+      camera.rotation.set(0, 0, 0, 'YXZ')
+      return
+    }
+    camera.lookAt(spawnLookAtX, EYE_Y, spawnLookAtZ)
+  }, [camera, spawnLookAtX, spawnLookAtZ])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -52,6 +71,27 @@ export default function PlayerControls({
       window.removeEventListener('keyup', onKeyUp)
     }
   }, [])
+
+  useEffect(() => {
+    if (disablePointerLock) return
+    const onPl = () => {
+      const locked = document.pointerLockElement != null
+      if (locked && !wasPointerLocked.current) {
+        camera.rotation.order = 'YXZ'
+        const p = camera.position
+        const dx = spawnLookAtX - p.x
+        const dz = spawnLookAtZ - p.z
+        if (dx * dx + dz * dz >= 1e-5) {
+          camera.lookAt(spawnLookAtX, EYE_Y, spawnLookAtZ)
+        } else {
+          camera.rotation.set(0, 0, 0, 'YXZ')
+        }
+      }
+      wasPointerLocked.current = locked
+    }
+    document.addEventListener('pointerlockchange', onPl)
+    return () => document.removeEventListener('pointerlockchange', onPl)
+  }, [camera, disablePointerLock, spawnLookAtX, spawnLookAtZ])
 
   useFrame((_, delta) => {
     const bx = boundsHalfX ?? bounds
