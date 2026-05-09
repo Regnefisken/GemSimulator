@@ -1,4 +1,6 @@
 import type { CosmeticRock } from '../types'
+import { COSMETIC_ROCK_BOX_HALF_Y } from '../lib/cosmeticRockBox'
+import { sampleCaveFloorMeshY } from '../lib/caveFloorSurface'
 import type { GraphicsPresetId } from './graphicsPresets'
 import { GRAPHICS_SCHEMA_VERSION } from './graphicsPresets'
 import { hashStringToSeed, mulberry32 } from './mineCaveContext'
@@ -6,6 +8,9 @@ import { hashStringToSeed, mulberry32 } from './mineCaveContext'
 const MIN_DIST_FROM_SLOT_XZ = 2.5
 const MAX_PLACE_ATTEMPTS = 40
 const MODEL_IDS = ['rock_a', 'rock_b', 'rock_c'] as const
+/** Bund lidt under det renderte gulv (meter). */
+const FLOOR_ROCK_SINK_MIN = 0.055
+const FLOOR_ROCK_SINK_SPREAD = 0.065
 
 export type GenerateCosmeticRocksArgs = {
   runId: string
@@ -22,6 +27,8 @@ export type GenerateCosmeticRocksArgs = {
   boundsHalfZ?: number
   cosmeticRockCount: { min: number; max: number }
   cosmeticLodBias?: number
+  /** Samme som `ProceduralCave`/`CaveWalls` — behøves for gulvjusteret Y på gulvklipper. */
+  caveSeed: number
 }
 
 function farEnoughFromSlots(
@@ -82,11 +89,16 @@ export function generateCosmeticRocks(args: GenerateCosmeticRocksArgs): Cosmetic
           x = alongX
           z = -edgeZ
         }
-        y = 0.35 + rng() * 2.2
+        const surfaceY = sampleCaveFloorMeshY(args.caveSeed, hx, hz, x, z)
+        const sink = FLOOR_ROCK_SINK_MIN + rng() * FLOOR_ROCK_SINK_SPREAD
+        const lift = rng() * 2.2
+        y = surfaceY + COSMETIC_ROCK_BOX_HALF_Y - sink + lift
       } else {
         x = (rng() * 2 - 1) * hx * 0.9
         z = (rng() * 2 - 1) * hz * 0.9
-        y = 0.18 + rng() * 0.42
+        const surfaceY = sampleCaveFloorMeshY(args.caveSeed, hx, hz, x, z)
+        const sink = FLOOR_ROCK_SINK_MIN + rng() * FLOOR_ROCK_SINK_SPREAD
+        y = surfaceY + COSMETIC_ROCK_BOX_HALF_Y - sink
       }
 
       if (!farEnoughFromSlots(x, z, args.oreSlots)) continue

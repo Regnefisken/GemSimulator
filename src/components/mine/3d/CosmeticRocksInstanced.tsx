@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { CosmeticRock } from '../../../types'
+import { COSMETIC_ROCK_BOX_HALF_Y } from '../../../lib/cosmeticRockBox'
 
 type Props = {
   rocks: CosmeticRock[]
@@ -9,7 +10,10 @@ type Props = {
 /** Dekorative instanser — ingen raycast mod mus ( gameplay-targets forbliver foretrukne ). */
 export default function CosmeticRocksInstanced({ rocks }: Props) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
-  const geom = useMemo(() => new THREE.BoxGeometry(0.38, 0.44, 0.32), [])
+  const geom = useMemo(
+    () => new THREE.BoxGeometry(0.38, COSMETIC_ROCK_BOX_HALF_Y * 2, 0.32),
+    [],
+  )
   const mat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({

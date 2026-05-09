@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import type { CaveConfig } from '../../../../types'
 import { getCaveHalfExtents, getCaveWallEdge, CAVE_WALL_DISPLACEMENT_MAX } from '../../../../lib/caveHalfExtents'
+import { rawCaveFloorY } from '../../../../lib/caveFloorSurface'
 import { createCaveNoise } from '../../../../lib/caveSeed'
 
 type Props = {
@@ -115,8 +116,12 @@ function makeHorizontalPlane(
   for (let i = 0; i < arr.length; i += 3) {
     const x = arr[i]
     const z = arr[i + 2]
-    const n = noise(x * 0.35 + salt * 0.001, z * 0.35 + salt * 0.002)
-    arr[i + 1] += bump * (n * 0.35 + off)
+    if (kind === 'floor') {
+      arr[i + 1] += rawCaveFloorY(noise, salt, x, z)
+    } else {
+      const n = noise(x * 0.35 + salt * 0.001, z * 0.35 + salt * 0.002)
+      arr[i + 1] += bump * (n * 0.35 + off)
+    }
   }
   pos.needsUpdate = true
   geom.computeVertexNormals()

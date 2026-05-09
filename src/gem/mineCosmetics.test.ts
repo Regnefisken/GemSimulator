@@ -21,6 +21,7 @@ describe('generateCosmeticRocks', () => {
       oreSlots,
       bounds: 9,
       cosmeticRockCount: { min: 5, max: 5 },
+      caveSeed: 42,
     })
     const b = generateCosmeticRocks({
       runId: 'r',
@@ -31,6 +32,7 @@ describe('generateCosmeticRocks', () => {
       oreSlots,
       bounds: 9,
       cosmeticRockCount: { min: 5, max: 5 },
+      caveSeed: 42,
     })
     expect(a).toEqual(b)
   })
@@ -45,6 +47,7 @@ describe('generateCosmeticRocks', () => {
       bounds: 9,
       cosmeticRockCount: { min: 8, max: 8 },
       cosmeticLodBias: 1,
+      caveSeed: 7,
     })
     const rich = generateCosmeticRocks({
       runId: 'r',
@@ -55,6 +58,7 @@ describe('generateCosmeticRocks', () => {
       bounds: 9,
       cosmeticRockCount: { min: 8, max: 8 },
       cosmeticLodBias: 1,
+      caveSeed: 7,
     })
     const perfSig = perf.map((x) => x.position.join(',')).join('|')
     const richSig = rich.map((x) => x.position.join(',')).join('|')
@@ -71,6 +75,7 @@ describe('generateCosmeticRocks', () => {
       bounds: 9,
       cosmeticRockCount: { min: 12, max: 12 },
       cosmeticLodBias: 1,
+      caveSeed: 1,
     })
     for (const r of rocks) {
       for (const p of oreSlots) {
@@ -91,6 +96,7 @@ describe('generateCosmeticRocks', () => {
       boundsHalfZ: 18,
       cosmeticRockCount: { min: 24, max: 24 },
       cosmeticLodBias: 1,
+      caveSeed: 99,
     })
     const eps = 0.05
     for (const r of rocks) {

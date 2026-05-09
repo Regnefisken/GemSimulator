@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch } from 'react'
 import type { Area, GameState, MetalName } from '../../types'
 import { getCaveConfig } from '../../types'
-import { resolveEffectiveCaveConfig } from '../../gem/mineCaveContext'
+import { resolveEffectiveCaveConfig, getProceduralMineCaveSeed } from '../../gem/mineCaveContext'
 import { GRAPHICS_PRESETS } from '../../gem/graphicsPresets'
 import type { Action } from '../../lib/gameState'
 import { materialsCount, canAddConsumableUnits, CONSUMABLE_BAG_MAX } from '../../lib/gameState'
@@ -28,7 +28,7 @@ import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../.
 import { useToast } from '../ui/ToastContext'
 import { useGraphicsPreset } from '../../lib/useGraphicsPreset'
 import MiningCave3D from './3d/MiningCave3D'
-import { sinkOreSlotPosition } from './sinkOreSlotPosition'
+import { sinkOreSlotWorldPosition } from './sinkOreSlotPosition'
 import { getRockLayoutParams } from '../../gem/procedural/rockLayout'
 import DamageNumbers, { type DamageFloater } from './DamageNumbers'
 import { HUDBottomBar, HUDPlayerSurvival, HUDTopBar, HUDWeaponToggle, HUDConsumableQuickBar } from './MineHUD'
@@ -227,9 +227,11 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       out.push({
         id: s.chestEntityId,
         slotIndex: i,
-        position: sinkOreSlotPosition(
+        position: sinkOreSlotWorldPosition(
           cave.oreSlots[i] as [number, number, number],
           getRockLayoutParams(run.runId, run.currentDepth, i, 'chest').extraSinkY,
+          getProceduralMineCaveSeed(run.runId, run.currentDepth),
+          cave,
         ),
         tier: s.chestTier ?? 'wood',
         remainingLoot: s.chestLoot,
@@ -520,8 +522,14 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
         const drop = rollMineDrop(area, runDepth, state.activeCharms, struck.rockType)
         const coalDrop = rollCoalDrop(runDepth)
-        const { extraSinkY } = getRockLayoutParams(run.runId, runDepth, brokenSlot, struck.rockType)
-        const origin = sinkOreSlotPosition(cave.oreSlots[brokenSlot] as [number, number, number], extraSinkY)
+        const layoutRock = getRockLayoutParams(run.runId, runDepth, brokenSlot, struck.rockType)
+        const origin = sinkOreSlotWorldPosition(
+          cave.oreSlots[brokenSlot] as [number, number, number],
+          layoutRock.extraSinkY,
+          getProceduralMineCaveSeed(run.runId, runDepth),
+          cave,
+          { rockType: struck.rockType, meshScaleMultiplier: layoutRock.meshScaleMultiplier },
+        )
 
         if (drop.kind !== 'nothing') {
           const entities = explodeDropToEntities(drop, origin)
@@ -603,8 +611,14 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         }
 
         const drop = rollMobMineDrop(area, runDepth, state.activeCharms, Math.random, struck.mobType)
-        const { extraSinkY } = getRockLayoutParams(run.runId, runDepth, brokenSlot, 'mob')
-        const origin = sinkOreSlotPosition(cave.oreSlots[brokenSlot] as [number, number, number], extraSinkY)
+        const layoutMob = getRockLayoutParams(run.runId, runDepth, brokenSlot, 'mob')
+        const origin = sinkOreSlotWorldPosition(
+          cave.oreSlots[brokenSlot] as [number, number, number],
+          layoutMob.extraSinkY,
+          getProceduralMineCaveSeed(run.runId, runDepth),
+          cave,
+          { rockType: 'mob', meshScaleMultiplier: layoutMob.meshScaleMultiplier },
+        )
 
         if (drop.kind !== 'nothing') {
           const entities = explodeDropToEntities(drop, origin)

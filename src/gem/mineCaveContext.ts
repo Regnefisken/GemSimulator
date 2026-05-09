@@ -37,6 +37,11 @@ export function hashStringToSeed(s: string): number {
   return h >>> 0
 }
 
+/** Samme som `MiningCave3D` proceduralSeed — bruges til gulv/malm‑lodret justering. */
+export function getProceduralMineCaveSeed(mineRunId: string, runDepth: number): number {
+  return hashStringToSeed(`${mineRunId}|${runDepth}|proceduralCave`)
+}
+
 export function mulberry32(seed: number): () => number {
   return function () {
     let t = (seed += 0x6d2b79f5)

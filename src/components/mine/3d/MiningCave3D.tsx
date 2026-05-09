@@ -13,8 +13,8 @@ import PlayerControls from './PlayerControls'
 import ProceduralCave from './ProceduralCave'
 import WorldChest, { type WorldChestEntity } from './WorldChest'
 import WorldLootItem from './WorldLootItem'
-import { sinkOreSlotPosition } from '../sinkOreSlotPosition'
-import { hashStringToSeed } from '../../../gem/mineCaveContext'
+import { sinkOreSlotWorldPosition } from '../sinkOreSlotPosition'
+import { getProceduralMineCaveSeed } from '../../../gem/mineCaveContext'
 import { generateCosmeticRocks } from '../../../gem/mineCosmetics'
 import { getPlayableHalfExtents } from '../../../lib/caveHalfExtents'
 import { pickMineSpawn } from '../pickMineSpawn'
@@ -192,13 +192,16 @@ function CaveContent({
 
   const burstOrigin = useMemo(() => {
     const fallback = [0, 0.55, 0] as [number, number, number]
-    if (activeSlotIndex < 0) return sinkOreSlotPosition(fallback, 0)
+    if (activeSlotIndex < 0) return sinkOreSlotWorldPosition(fallback, 0, caveSeed, cfg)
     const pos = (oreSlots[activeSlotIndex] ?? fallback) as [number, number, number]
     const slot = mineSlots[activeSlotIndex]
-    if (!slot || slot.kind === 'chest') return sinkOreSlotPosition(pos, 0)
-    const { extraSinkY } = getRockLayoutParams(mineRunId, runDepth, activeSlotIndex, slot.rockType)
-    return sinkOreSlotPosition(pos, extraSinkY)
-  }, [activeSlotIndex, oreSlots, mineSlots, mineRunId, runDepth])
+    if (!slot || slot.kind === 'chest') return sinkOreSlotWorldPosition(pos, 0, caveSeed, cfg)
+    const layout = getRockLayoutParams(mineRunId, runDepth, activeSlotIndex, slot.rockType)
+    return sinkOreSlotWorldPosition(pos, layout.extraSinkY, caveSeed, cfg, {
+      rockType: slot.rockType,
+      meshScaleMultiplier: layout.meshScaleMultiplier,
+    })
+  }, [activeSlotIndex, oreSlots, mineSlots, mineRunId, runDepth, caveSeed, cfg])
 
   const cosmeticRocks = useMemo(
     () =>
@@ -213,6 +216,7 @@ function CaveContent({
         boundsHalfZ: cfg.boundsHalfZ ?? cfg.bounds,
         cosmeticRockCount: graphicsPreset.cosmeticRockCount,
         cosmeticLodBias: graphicsPreset.cosmeticLodBias,
+        caveSeed,
       }),
     [
       mineRunId,
@@ -225,6 +229,7 @@ function CaveContent({
       cfg.boundsHalfZ,
       graphicsPreset.cosmeticRockCount,
       graphicsPreset.cosmeticLodBias,
+      caveSeed,
     ],
   )
 
@@ -264,7 +269,10 @@ function CaveContent({
         return (
           <OreNode
             key={`${i}-${slot.cleared}`}
-            position={sinkOreSlotPosition(pos, layout.extraSinkY)}
+            position={sinkOreSlotWorldPosition(pos, layout.extraSinkY, caveSeed, cfg, {
+              rockType: slot.rockType,
+              meshScaleMultiplier: layout.meshScaleMultiplier,
+            })}
             meshScaleMultiplier={layout.meshScaleMultiplier}
             extraSinkY={layout.extraSinkY}
             hp={slot.currentHp}
@@ -322,7 +330,7 @@ export default function MiningCave3D({
   )
 
   const proceduralSeed = useMemo(
-    () => hashStringToSeed(`${caveProps.mineRunId}|${caveProps.runDepth}|proceduralCave`),
+    () => getProceduralMineCaveSeed(caveProps.mineRunId, caveProps.runDepth),
     [caveProps.mineRunId, caveProps.runDepth],
   )
 
