@@ -8,11 +8,41 @@ export const MINE_SPAWN_EYE_Y = 1.55
 
 /** Afstand fra playable-kant (inderside af væg-plan) — “ryg mod væg”. */
 const WALL_BACK_PAD = 0.28
-/** Horisontal margin fra hjørner langs vægstribe. */
-const CORNER_STRIP = 0.82
 const INNER_PAD = 0.32
-/** Antal prøvepunkter langs hver vægstribe. */
-const WALL_SAMPLES = 8
+/**
+ * Langs væggen: kun midterste 1/3 af væggens længde (undgår hjørner).
+ * Offset-faktor t ∈ [−⅓, ⅓] ganges med halv væglængde fra rum-midt.
+ */
+const WALL_MIDDLE_THIRD = 1 / 3
+/** Prøvepunkter i midterfeltet — let variation, ikke altid præcis midte. */
+const WALL_SAMPLES = 5
+
+/** Halv længde af væg (0 → hjørne), efter indre margin — bruges til midterste 1/3. */
+function wallHalfSpanFromCenter(half: number): number {
+  return Math.max(half - INNER_PAD, 0.12)
+}
+
+/** Jævnt fordelt i [−WALL_MIDDLE_THIRD, +WALL_MIDDLE_THIRD] langs væggen. */
+function offsetFractionsMiddleThird(sampleCount: number): number[] {
+  const n = Math.max(2, sampleCount)
+  const out: number[] = []
+  for (let i = 0; i < n; i++) {
+    const k = n === 1 ? 0.5 : i / (n - 1)
+    const t = (k - 0.5) * 2 * WALL_MIDDLE_THIRD
+    out.push(t)
+  }
+  return out
+}
+
+function spawnFracIndex(mineRunId: string, runDepth: number, fracLen: number): number {
+  let h = 2166136261
+  for (let i = 0; i < mineRunId.length; i++) {
+    h ^= mineRunId.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  h ^= runDepth * 0x9e3779b9
+  return Math.abs(h) % fracLen
+}
 
 /** Lidt højere score for syd-væg (+Z): typisk bedst udsyn ind i rum. */
 const WALL_VIEW_BONUS: Record<'S' | 'N' | 'E' | 'W', number> = {
@@ -63,23 +93,19 @@ function wallBackedCandidates(halfX: number, halfZ: number): WallCandidate[] {
   const zb = Math.max(halfZ - WALL_BACK_PAD, INNER_PAD)
   const xb = Math.max(halfX - WALL_BACK_PAD, INNER_PAD)
   const out: WallCandidate[] = []
-  const n = Math.max(2, WALL_SAMPLES)
+  const spanX = wallHalfSpanFromCenter(halfX)
+  const spanZ = wallHalfSpanFromCenter(halfZ)
+  const frac = offsetFractionsMiddleThird(WALL_SAMPLES)
 
-  for (let i = 0; i < n; i++) {
-    const t = n === 1 ? 0 : (i / (n - 1)) * 2 - 1
-    const x = t * halfX * CORNER_STRIP
-    if (Math.abs(x) <= halfX - INNER_PAD) {
-      out.push({ px: x, pz: zb, fx: 0, fz: -1, wall: 'S' })
-      out.push({ px: x, pz: -zb, fx: 0, fz: 1, wall: 'N' })
-    }
+  for (const t of frac) {
+    const x = t * spanX
+    out.push({ px: x, pz: zb, fx: 0, fz: -1, wall: 'S' })
+    out.push({ px: x, pz: -zb, fx: 0, fz: 1, wall: 'N' })
   }
-  for (let j = 0; j < n; j++) {
-    const t = n === 1 ? 0 : (j / (n - 1)) * 2 - 1
-    const z = t * halfZ * CORNER_STRIP
-    if (Math.abs(z) <= halfZ - INNER_PAD) {
-      out.push({ px: xb, pz: z, fx: -1, fz: 0, wall: 'E' })
-      out.push({ px: -xb, pz: z, fx: 1, fz: 0, wall: 'W' })
-    }
+  for (const t of frac) {
+    const z = t * spanZ
+    out.push({ px: xb, pz: z, fx: -1, fz: 0, wall: 'E' })
+    out.push({ px: -xb, pz: z, fx: 1, fz: 0, wall: 'W' })
   }
 
   return out
@@ -167,7 +193,15 @@ export function pickMineSpawn(args: {
   }
 
   if (obstacles.length === 0) {
-    const best = candidates.find((c) => c.wall === 'S') ?? candidates[0]!
+    const frac = offsetFractionsMiddleThird(WALL_SAMPLES)
+    const spanX = wallHalfSpanFromCenter(halfX)
+    const zi = spawnFracIndex(args.mineRunId, args.runDepth, frac.length)
+    const tPick = frac[zi]!
+    const xPrefer = tPick * spanX
+    const best =
+      candidates.find((c) => c.wall === 'S' && Math.abs(c.px - xPrefer) < 1e-3) ??
+      candidates.find((c) => c.wall === 'S') ??
+      candidates[0]!
     return {
       x: best.px,
       z: best.pz,
