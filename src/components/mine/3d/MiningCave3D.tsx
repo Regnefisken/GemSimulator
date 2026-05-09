@@ -356,6 +356,16 @@ export default function MiningCave3D({
     return c
   }, [spawnPick.x, spawnPick.z])
 
+  /** Stabil reference — undgår at R3F/configure får nyt `camera`-objekt ved hver DOM-re-render (fx ESC-overlay). */
+  const canvasCamera = useMemo(
+    () =>
+      ({
+        fov: 58,
+        position: [spawnPick.x, 1.55, spawnPick.z] as [number, number, number],
+      }) as const,
+    [spawnPick.x, spawnPick.z],
+  )
+
   const weaponCaveCfg = caveProps.effectiveCaveConfig
 
   useLayoutEffect(() => {
@@ -395,7 +405,7 @@ export default function MiningCave3D({
       <div className={`relative ${canvasCn}`}>
         <Canvas
           key={`${caveProps.mineRunId}-${caveProps.runDepth}-${caveProps.graphicsPresetId}`}
-          camera={{ position: [spawnPick.x, 1.55, spawnPick.z], fov: 58 }}
+          camera={canvasCamera}
           dpr={caveProps.graphicsPreset.dpr}
           gl={{ antialias: true }}
         >
@@ -415,7 +425,7 @@ export default function MiningCave3D({
           >
             <Canvas
               className="h-full w-full"
-              camera={{ position: [spawnPick.x, 1.55, spawnPick.z], fov: 58 }}
+              camera={canvasCamera}
               dpr={caveProps.graphicsPreset.dpr}
               gl={{
                 alpha: true,

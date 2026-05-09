@@ -33,7 +33,6 @@ export default function PlayerControls({
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const moveDir = useRef(new THREE.Vector3())
-  const wasPointerLocked = useRef(false)
 
   /** Horisontalt udsyn mod spawn-mål (typisk ind i rummet fra væg) — undgår utilsigtet pitch. */
   useLayoutEffect(() => {
@@ -71,27 +70,6 @@ export default function PlayerControls({
       window.removeEventListener('keyup', onKeyUp)
     }
   }, [])
-
-  useEffect(() => {
-    if (disablePointerLock) return
-    const onPl = () => {
-      const locked = document.pointerLockElement != null
-      if (locked && !wasPointerLocked.current) {
-        camera.rotation.order = 'YXZ'
-        const p = camera.position
-        const dx = spawnLookAtX - p.x
-        const dz = spawnLookAtZ - p.z
-        if (dx * dx + dz * dz >= 1e-5) {
-          camera.lookAt(spawnLookAtX, EYE_Y, spawnLookAtZ)
-        } else {
-          camera.rotation.set(0, 0, 0, 'YXZ')
-        }
-      }
-      wasPointerLocked.current = locked
-    }
-    document.addEventListener('pointerlockchange', onPl)
-    return () => document.removeEventListener('pointerlockchange', onPl)
-  }, [camera, disablePointerLock, spawnLookAtX, spawnLookAtZ])
 
   useFrame((_, delta) => {
     const bx = boundsHalfX ?? bounds
