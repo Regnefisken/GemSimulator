@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { AREAS } from '../data/areas'
+import { DEFAULT_CAVE_CONFIG } from '../types'
 import {
+  computeRoomLayout,
   MAX_INTERACTIVE_SLOTS,
   MIN_INTERACTIVE_SLOTS,
   resolveEffectiveCaveConfig,
@@ -30,6 +32,30 @@ describe('resolveEffectiveCaveConfig', () => {
     expect(['compact', 'normal', 'expansive']).toContain(a.size)
     expect(a.boundsHalfX ?? a.bounds).toBeGreaterThan(0)
     expect(a.boundsHalfZ ?? a.bounds).toBeGreaterThan(0)
+  })
+})
+
+describe('computeRoomLayout (dogleg)', () => {
+  it('halvakser giver plads til malm-mesh ud over pivot (alle størrelser og slot-antal)', () => {
+    const minClear = 0.85
+    for (const size of ['compact', 'normal', 'expansive'] as const) {
+      for (let n = MIN_INTERACTIVE_SLOTS; n <= MAX_INTERACTIVE_SLOTS; n++) {
+        const { oreSlots, boundsHalfX, boundsHalfZ } = computeRoomLayout({
+          base: { ...DEFAULT_CAVE_CONFIG, bounds: 9 },
+          template: 'dogleg',
+          size,
+          slotCount: n,
+        })
+        let maxAx = 0
+        let maxAz = 0
+        for (const [ox, , oz] of oreSlots) {
+          maxAx = Math.max(maxAx, Math.abs(ox))
+          maxAz = Math.max(maxAz, Math.abs(oz))
+        }
+        expect(boundsHalfX).toBeGreaterThanOrEqual(maxAx + minClear)
+        expect(boundsHalfZ).toBeGreaterThanOrEqual(maxAz + minClear)
+      }
+    }
   })
 })
 

@@ -24,6 +24,9 @@ const ROOM_SIZE_WORLD_MUL: Record<RoomSize, number> = {
   expansive: 1.14,
 }
 
+/** Dogleg: væg-halvakser var tæt på malm-pivot; skaleret klippe-mesh rager ~0.6–1.2 m ud. */
+const DOGLEG_ORE_MESH_PAD = 0.9
+
 /** Deler hash/RNG med `mineLayer` — skal være identisk for reproducerbare lag. */
 export function hashStringToSeed(s: string): number {
   let h = 1779033703
@@ -177,6 +180,14 @@ export function computeRoomLayout(args: {
       }
       hx = Math.max(arm * 1.28, elbowZ * 0.35)
       hz = Math.max(elbowZ * 1.12, arm * 0.55)
+      let maxOreAx = 0
+      let maxOreAz = 0
+      for (const [ox, , oz] of oreSlots) {
+        maxOreAx = Math.max(maxOreAx, Math.abs(ox))
+        maxOreAz = Math.max(maxOreAz, Math.abs(oz))
+      }
+      hx = Math.max(hx, maxOreAx + DOGLEG_ORE_MESH_PAD)
+      hz = Math.max(hz, maxOreAz + DOGLEG_ORE_MESH_PAD)
       break
     }
   }
