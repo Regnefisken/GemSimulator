@@ -9,7 +9,7 @@ export type SinkOreSlotWorldOpts = {
   meshScaleMultiplier?: number
 }
 
-/** Rig åre: flad facet mod gulv → små vertikale fejl læses tydeligt; skaler klipper forstærker det. */
+/** Rig åre: flad facet mod gulv → små vertikale fejl læses tydeligt. */
 const RICH_FLAT_SOLE_VISUAL_SINK = 0.032
 const LARGE_ROCK_SCALE_SINK_PER_UNIT = 0.026
 

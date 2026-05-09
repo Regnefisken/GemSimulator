@@ -69,6 +69,31 @@ function deformVertices(geometry: THREE.BufferGeometry, seed: number, mode: 'nor
 }
 
 /**
+ * Lodret forskydning så bunden matcher et **lav percentil** af vertex‑Y (sorteret).
+ * Ved frac=0 svarer det til `anchorFootToMinY`. Højere frac ignorerer sjældne «spidser» under den brede fod —
+ * vigtigt for **hård** klippe med kraftig normal‑displacement, hvor een ekstrem vertex ellers løfter hele massen.
+ */
+function anchorFootToLowPercentile(geometry: THREE.BufferGeometry, frac: number): void {
+  const pos = geometry.getAttribute('position') as THREE.BufferAttribute | undefined
+  if (!pos || pos.count === 0) return
+  const ys: number[] = []
+  for (let i = 0; i < pos.count; i++) ys.push(pos.getY(i))
+  ys.sort((a, b) => a - b)
+  const f = Math.min(1, Math.max(0, frac))
+  const idx = Math.min(ys.length - 1, Math.floor(f * (ys.length - 1)))
+  const anchorY = ys[idx]!
+  if (!Number.isFinite(anchorY) || Math.abs(anchorY) < 1e-8) return
+  for (let i = 0; i < pos.count; i++) {
+    pos.setY(i, pos.getY(i) - anchorY)
+  }
+  pos.needsUpdate = true
+  geometry.computeVertexNormals()
+}
+
+/** Percentil for hård sten: balance mellem at ignorere enkelt‑spidser og ikke løfte «rigtige» bunde. */
+const HARD_ROCK_FOOT_PERCENTILE = 0.072
+
+/**
  * Flytter hele mesh vertikalt så det **reelle** laveste vertex ligger ved y = 0.
  * `FLAT_THRESHOLD` giver kun et groft bundplan; denne pass fjerner rest-uensartethed og små «vipper».
  */
@@ -98,12 +123,12 @@ export function createBaseRockGeometry(seed: number): THREE.BufferGeometry {
   return nonIndexed
 }
 
-/** Hård: finere mesh + ekstra højfrekvent displacement. */
+/** Hård: finere mesh + ekstra højfrekvent displacement — fod ankreres ved lav percentil (ikke absolut min). */
 export function createHardRockGeometry(seed: number): THREE.BufferGeometry {
   const geo = new THREE.IcosahedronGeometry(0.55, 3).toNonIndexed()
   deformVertices(geo, seed, 'hard')
   geo.translate(0, 0.475, 0)
-  anchorFootToMinY(geo)
+  anchorFootToLowPercentile(geo, HARD_ROCK_FOOT_PERCENTILE)
   return geo
 }
 

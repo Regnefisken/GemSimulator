@@ -32,6 +32,7 @@ describe('alignOreSlotYToCaveFloor', () => {
   it('oreFootVisualSinkBias: rig åre + stor skala graver ekstra ned', () => {
     expect(oreFootVisualSinkBias()).toBe(0)
     expect(oreFootVisualSinkBias({ rockType: 'rich', meshScaleMultiplier: 1 })).toBeCloseTo(0.032, 6)
+    expect(oreFootVisualSinkBias({ rockType: 'hard', meshScaleMultiplier: 1 })).toBe(0)
     expect(oreFootVisualSinkBias({ rockType: 'normal', meshScaleMultiplier: 2 })).toBeCloseTo(0.026, 6)
     const richLarge = oreFootVisualSinkBias({ rockType: 'rich', meshScaleMultiplier: 2 })
     expect(richLarge).toBeCloseTo(0.032 + 0.026, 6)

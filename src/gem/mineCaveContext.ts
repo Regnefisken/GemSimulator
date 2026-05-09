@@ -24,8 +24,16 @@ const ROOM_SIZE_WORLD_MUL: Record<RoomSize, number> = {
   expansive: 1.14,
 }
 
-/** Dogleg: væg-halvakser var tæt på malm-pivot; skaleret klippe-mesh rager ~0.6–1.2 m ud. */
-const DOGLEG_ORE_MESH_PAD = 0.9
+/** Ekstra halvakse-margin omkring malm-pivot (skaleret mesh rager ud over pivot). */
+const INTERACTIVE_ORE_MESH_PAD = 0.9
+
+const PHI = 0.6180339887498949
+
+/** Deterministisk [-1, 1]-lignende offset (ingen ekstra RNG — samme mønster som lag-kerne). */
+function oreSlotLayoutUnit(k: number, salt: number): number {
+  const t = Math.sin((k + 1) * 2.618 + salt * 1.713) * Math.cos((k + 1) * 1.337 + salt * 2.091)
+  return Math.max(-1, Math.min(1, t))
+}
 
 /** Deler hash/RNG med `mineLayer` — skal være identisk for reproducerbare lag. */
 export function hashStringToSeed(s: string): number {
@@ -128,22 +136,39 @@ export function computeRoomLayout(args: {
 
   switch (args.template) {
     case 'classic': {
+      const jMul = args.size === 'compact' ? 1.05 : args.size === 'expansive' ? 1.12 : 1.08
+      const j = B * 0.068 * jMul
       oreSlots = scaleClassicOreSlots(args.base.oreSlots, args.slotCount).map(
-        ([x, _y, z]) => [x * sm, fy, z * sm] as [number, number, number],
+        ([x, _y, z], i) =>
+          [x * sm + oreSlotLayoutUnit(i, 50) * j, fy, z * sm + oreSlotLayoutUnit(i, 51) * j] as [
+            number,
+            number,
+            number,
+          ],
       )
       hx = B
       hz = B
+      let maxClassicAx = 0
+      let maxClassicAz = 0
+      for (const [ox, , oz] of oreSlots) {
+        maxClassicAx = Math.max(maxClassicAx, Math.abs(ox))
+        maxClassicAz = Math.max(maxClassicAz, Math.abs(oz))
+      }
+      hx = Math.max(hx, maxClassicAx + INTERACTIVE_ORE_MESH_PAD)
+      hz = Math.max(hz, maxClassicAz + INTERACTIVE_ORE_MESH_PAD)
       break
     }
     case 'corridor': {
       oreSlots = []
       hx = B * 0.58
       hz = B * 1.32
+      const wobble = B * (args.size === 'compact' ? 0.12 : args.size === 'expansive' ? 0.11 : 0.1)
       for (let i = 0; i < args.slotCount; i++) {
-        const u = args.slotCount === 1 ? 0.5 : i / (args.slotCount - 1)
-        const z = (u - 0.5) * 2 * hz * 0.9
-        const x = (i % 2 === 0 ? 1 : -1) * hx * 0.38
-        oreSlots.push([x, fy, z])
+        const frac = args.slotCount === 1 ? 0.5 : ((i + 1) * PHI) % 1
+        const z = (frac - 0.5) * 2 * hz * 0.78
+        const x = oreSlotLayoutUnit(i, 1) * hx * 0.7 + oreSlotLayoutUnit(i, 2) * wobble
+        const z2 = z + oreSlotLayoutUnit(i, 3) * hz * 0.1
+        oreSlots.push([x, fy, z2])
       }
       break
     }
@@ -152,36 +177,77 @@ export function computeRoomLayout(args: {
       const rx = B * 0.82
       const rz = B * 0.86
       const n = args.slotCount
+      const angJ = args.size === 'compact' ? 0.42 : args.size === 'expansive' ? 0.38 : 0.36
+      const radJ = args.size === 'compact' ? 0.13 : args.size === 'expansive' ? 0.12 : 0.11
       for (let i = 0; i < n; i++) {
-        const a = (i / Math.max(1, n)) * Math.PI * 2 + 0.13
-        oreSlots.push([Math.cos(a) * rx * 0.92, fy, Math.sin(a) * rz * 0.92])
+        const frac = n === 1 ? 0.5 : ((i + 1) * PHI) % 1
+        const a = frac * Math.PI * 2 + 0.13 + oreSlotLayoutUnit(i, 7) * angJ
+        const radScale = 0.92 * (1 + oreSlotLayoutUnit(i, 8) * radJ)
+        oreSlots.push([
+          Math.cos(a) * rx * radScale + oreSlotLayoutUnit(i, 9) * rx * 0.09,
+          fy,
+          Math.sin(a) * rz * radScale + oreSlotLayoutUnit(i, 10) * rz * 0.09,
+        ])
       }
-      hx = rx * 1.08
-      hz = rz * 1.08
+      let maxIslandAx = 0
+      let maxIslandAz = 0
+      for (const [ox, , oz] of oreSlots) {
+        maxIslandAx = Math.max(maxIslandAx, Math.abs(ox))
+        maxIslandAz = Math.max(maxIslandAz, Math.abs(oz))
+      }
+      hx = Math.max(rx * 1.08, maxIslandAx + INTERACTIVE_ORE_MESH_PAD)
+      hz = Math.max(rz * 1.08, maxIslandAz + INTERACTIVE_ORE_MESH_PAD)
       break
     }
     case 'dogleg': {
       oreSlots = []
       const n = args.slotCount
-      const n1 = Math.ceil(n / 2)
       const arm = B * 0.55
       const elbowZ = arm * 0.95
-      /* To rette rækker (N-S + øst-arm) er bevidst enkle for bounds/RNG; små forskydninger
-       * bryder «perfekt L på gitter» så det ligner mere naturlige udspring langs gangene. */
-      for (let i = 0; i < n1; i++) {
-        const u = n1 === 1 ? 0.5 : i / (n1 - 1)
-        const z = -elbowZ * 0.35 + u * elbowZ * 1.35
-        const xArm =
-          ((i % 3) - 1) * arm * 0.072 + Math.sin(i * 0.91 + 0.2) * arm * 0.045
-        oreSlots.push([xArm, fy, z])
-      }
-      const n2 = n - n1
-      for (let j = 0; j < n2; j++) {
-        const u = n2 === 1 ? 0.5 : j / Math.max(1, n2 - 1)
-        const x = u * arm * 1.18
-        const zArm =
-          elbowZ + Math.sin(j * 1.13 + 0.4) * arm * 0.065 + ((j % 2) - 0.5) * arm * 0.048
-        oreSlots.push([x, fy, zArm])
+      /* Gangsti med afrundet hjørne + stærk 2D-spred (uafhængig af kurven), så malm/kister ikke
+       * læser som ét sammenhængende L eller en enkelt række — gælder alle rumstørrelser. */
+      const z0 = -elbowZ * 0.35
+      const xEnd = arm * 1.18
+      const straight1 = elbowZ - z0
+      const rMax = Math.min(arm * 0.24, straight1 * 0.28, xEnd * 0.38)
+      const r = Math.max(arm * 0.06, rMax)
+      const cx = r
+      const cz = elbowZ - r
+      const arcLen = (Math.PI / 2) * r
+      const len1 = Math.max(0, straight1 - r)
+      const len2 = Math.max(0, xEnd - r)
+      const Ltot = len1 + arcLen + len2
+      const sizeMul =
+        args.size === 'compact' ? 1.34 : args.size === 'expansive' ? 1.32 : 1.14
+      const jPerp = arm * 0.16 * sizeMul
+      const jAlong = arm * 0.1 * sizeMul
+      const fillAmp =
+        arm *
+        (args.size === 'compact' ? 0.4 : args.size === 'expansive' ? 0.37 : 0.33)
+
+      for (let k = 0; k < n; k++) {
+        const frac = ((k + 1) * PHI) % 1
+        let dist = frac * Ltot
+        let x = 0
+        let z = 0
+        if (dist < len1) {
+          const u = len1 < 1e-9 ? 0.5 : dist / len1
+          x = oreSlotLayoutUnit(k, 1) * jPerp
+          z = z0 + u * len1 + oreSlotLayoutUnit(k, 2) * jAlong
+        } else if (dist < len1 + arcLen) {
+          const u = arcLen < 1e-9 ? 0.5 : (dist - len1) / arcLen
+          const theta = Math.PI - u * (Math.PI / 2)
+          x = cx + r * Math.cos(theta) + oreSlotLayoutUnit(k, 5) * jPerp * 0.85
+          z = cz + r * Math.sin(theta) + oreSlotLayoutUnit(k, 6) * jAlong * 0.85
+        } else {
+          dist -= len1 + arcLen
+          const u = len2 < 1e-9 ? 0.5 : dist / len2
+          x = r + u * len2 + oreSlotLayoutUnit(k, 3) * jAlong
+          z = elbowZ + oreSlotLayoutUnit(k, 4) * jPerp
+        }
+        x += oreSlotLayoutUnit(k, 40) * fillAmp
+        z += oreSlotLayoutUnit(k, 41) * fillAmp
+        oreSlots.push([x, fy, z])
       }
       hx = Math.max(arm * 1.28, elbowZ * 0.35)
       hz = Math.max(elbowZ * 1.12, arm * 0.55)
@@ -191,8 +257,8 @@ export function computeRoomLayout(args: {
         maxOreAx = Math.max(maxOreAx, Math.abs(ox))
         maxOreAz = Math.max(maxOreAz, Math.abs(oz))
       }
-      hx = Math.max(hx, maxOreAx + DOGLEG_ORE_MESH_PAD)
-      hz = Math.max(hz, maxOreAz + DOGLEG_ORE_MESH_PAD)
+      hx = Math.max(hx, maxOreAx + INTERACTIVE_ORE_MESH_PAD)
+      hz = Math.max(hz, maxOreAz + INTERACTIVE_ORE_MESH_PAD)
       break
     }
   }
