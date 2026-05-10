@@ -1,21 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { getCaveFloorNoise2D, rawCaveFloorY, sampleCaveFloorMeshY } from './caveFloorSurface'
+import { FLAT_CAVE_FLOOR_Y, getCaveFloorNoise2D, rawCaveFloorY, sampleCaveFloorMeshY } from './caveFloorSurface'
 
 describe('sampleCaveFloorMeshY', () => {
-  it('matcher diskrete hjørnehøjder (gitter‑hjørner)', () => {
+  it('er konstant over XZ (fladt underlag)', () => {
     const caveSeed = 12345
-    const salt = caveSeed ^ 0xabc01
     const halfX = 8
     const halfZ = 7
     const noise = getCaveFloorNoise2D(caveSeed)
+    const salt = caveSeed ^ 0xabc01
 
-    for (let ix = 0; ix <= 8; ix += 2) {
-      for (let iy = 0; iy <= 8; iy += 2) {
-        const wx = -halfX + (ix / 8) * (2 * halfX)
-        const wz = -halfZ + (iy / 8) * (2 * halfZ)
-        const expected = rawCaveFloorY(noise, salt, wx, wz)
-        const sampled = sampleCaveFloorMeshY(caveSeed, halfX, halfZ, wx, wz)
-        expect(sampled).toBeCloseTo(expected, 5)
+    expect(rawCaveFloorY(noise, salt, -3, 4)).toBe(FLAT_CAVE_FLOOR_Y)
+
+    for (const wx of [-7, 0, 3.3, 8]) {
+      for (const wz of [-6, 2, 7]) {
+        expect(sampleCaveFloorMeshY(caveSeed, halfX, halfZ, wx, wz)).toBeCloseTo(FLAT_CAVE_FLOOR_Y, 7)
       }
     }
   })

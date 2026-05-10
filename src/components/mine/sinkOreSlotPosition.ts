@@ -7,6 +7,11 @@ export type SinkOreSlotWorldOpts = {
   rockType?: RockType
   /** Fra `getRockLayoutParams` — stor skala gør små luftgab mere synlige under klippen. */
   meshScaleMultiplier?: number
+  /**
+   * `chestBase`: `WorldChest` har bundplan ved lokal y=0 — undgå klippens dybe nedgravning (`MINE_SLOT_Y_SINK`).
+   * Ekstra `extraSinkY` fra malm‑layout bruges ikke for kiste.
+   */
+  anchor?: 'rockFoot' | 'chestBase'
 }
 
 /** Rig åre: flad facet mod gulv → små vertikale fejl læses tydeligt. */
@@ -14,39 +19,35 @@ const RICH_FLAT_SOLE_VISUAL_SINK = 0.032
 const LARGE_ROCK_SCALE_SINK_PER_UNIT = 0.026
 
 /**
- * Cave `oreSlots` peger på pivot omkring klippens midte; negativ Y graver klippen let ned i grotten,
- * så den ikke står/væver på underlaget.
+ * Nedgravning relativt til **rendret gulv** (`sampleCaveFloorMeshY`). Negativ værdi graver klippens fod ned under overfladen.
  */
 export const MINE_SLOT_Y_SINK = -0.175
 
-/** Rumcentrum — lodret offset følger lokalt ujævnt gulv vs midten af samme mesh. */
-const ORE_FLOOR_ALIGN_REF_XZ = [0, 0] as const
+/** Kiste: kun let fordybning — samme akse som `WorldChest` bund (lokal y=0). */
+export const MINE_CHEST_Y_SINK = -0.035
+
+/**
+ * Gulvet er fladt (`FLAT_CAVE_FLOOR_Y`); ingen relativ justering mellem felt og rumcentrum.
+ * Bevar funktionen til API‑stabilitet — ved genindsættelse af kuperet gulv: sample `sampleCaveFloorMeshY` her.
+ */
+export function alignOreSlotYToCaveFloor(
+  sunk: readonly [number, number, number],
+  _caveSeed: number,
+  _cave: CaveConfig,
+): [number, number, number] {
+  return [sunk[0], sunk[1], sunk[2]]
+}
 
 /**
  * @param extraSinkY ekstra fra `getRockLayoutParams` (typisk negativ); 0 = kun basis-sink («top» af nedgravning).
+ * @param baseSinkY typisk `MINE_SLOT_Y_SINK`; kister bruger `MINE_CHEST_Y_SINK` via `sinkOreSlotWorldPosition`.
  */
 export function sinkOreSlotPosition(
   pos: readonly [number, number, number],
   extraSinkY = 0,
+  baseSinkY: number = MINE_SLOT_Y_SINK,
 ): [number, number, number] {
-  return [pos[0], pos[1] + MINE_SLOT_Y_SINK + extraSinkY, pos[2]]
-}
-
-/**
- * Justerer malmens midte‑Y efter procedurelt gulv ved feltets (x,z), relativt gulvhøjden i rumcentrum.
- * Bruger samme sampling som `CaveWalls` (`sampleCaveFloorMeshY`).
- */
-export function alignOreSlotYToCaveFloor(
-  sunk: readonly [number, number, number],
-  caveSeed: number,
-  cave: CaveConfig,
-): [number, number, number] {
-  const { halfX, halfZ } = getCaveHalfExtents(cave)
-  const [x, y, z] = sunk
-  const [rx, rz] = ORE_FLOOR_ALIGN_REF_XZ
-  const yRef = sampleCaveFloorMeshY(caveSeed, halfX, halfZ, rx, rz)
-  const yHere = sampleCaveFloorMeshY(caveSeed, halfX, halfZ, x, z)
-  return [x, y + (yHere - yRef), z]
+  return [pos[0], pos[1] + baseSinkY + extraSinkY, pos[2]]
 }
 
 export function oreFootVisualSinkBias(opts?: SinkOreSlotWorldOpts): number {
@@ -58,7 +59,10 @@ export function oreFootVisualSinkBias(opts?: SinkOreSlotWorldOpts): number {
   return bias
 }
 
-/** Basis‑sink + lodret gulvjustering til 3D‑verdens placering (mal/kiste/partikel‑origin). */
+/**
+ * 3D‑verdens placering (mal/kiste/partikel‑origin). Lodret: **`pos[1]` fra cave‑data ignoreres** — Y ankres til
+ * procedurelt gulv ved `(pos[0], pos[2])`, derefter felt‑specifik nedgravning (klippe vs kiste).
+ */
 export function sinkOreSlotWorldPosition(
   pos: readonly [number, number, number],
   extraSinkY: number,
@@ -66,7 +70,13 @@ export function sinkOreSlotWorldPosition(
   cave: CaveConfig,
   opts?: SinkOreSlotWorldOpts,
 ): [number, number, number] {
-  const [x, y, z] = alignOreSlotYToCaveFloor(sinkOreSlotPosition(pos, extraSinkY), caveSeed, cave)
-  const footBias = oreFootVisualSinkBias(opts)
+  const chest = opts?.anchor === 'chestBase'
+  const { halfX, halfZ } = getCaveHalfExtents(cave)
+  const floorY = sampleCaveFloorMeshY(caveSeed, halfX, halfZ, pos[0], pos[2])
+  const anchored: [number, number, number] = [pos[0], floorY, pos[2]]
+  const baseSink = chest ? MINE_CHEST_Y_SINK : MINE_SLOT_Y_SINK
+  const extra = chest ? 0 : extraSinkY
+  const [x, y, z] = alignOreSlotYToCaveFloor(sinkOreSlotPosition(anchored, extra, baseSink), caveSeed, cave)
+  const footBias = chest ? 0 : oreFootVisualSinkBias(opts)
   return [x, y - footBias, z]
 }

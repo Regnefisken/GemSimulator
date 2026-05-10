@@ -195,7 +195,8 @@ function CaveContent({
     if (activeSlotIndex < 0) return sinkOreSlotWorldPosition(fallback, 0, caveSeed, cfg)
     const pos = (oreSlots[activeSlotIndex] ?? fallback) as [number, number, number]
     const slot = mineSlots[activeSlotIndex]
-    if (!slot || slot.kind === 'chest') return sinkOreSlotWorldPosition(pos, 0, caveSeed, cfg)
+    if (!slot || slot.kind === 'chest')
+      return sinkOreSlotWorldPosition(pos, 0, caveSeed, cfg, { anchor: 'chestBase' })
     const layout = getRockLayoutParams(mineRunId, runDepth, activeSlotIndex, slot.rockType)
     return sinkOreSlotWorldPosition(pos, layout.extraSinkY, caveSeed, cfg, {
       rockType: slot.rockType,

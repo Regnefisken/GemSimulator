@@ -1,7 +1,9 @@
 # GemSimulator — Mine-system: implementeringsguide
 
-**Version:** 1.0 (9. maj 2026)  
+**Version:** 1.1 (10. maj 2026)  
 **Formål:** Trinvis, kode-nær guide til at implementere spec i `mine-implementation-plan.md` (v2.1+). Brug dette dokument som **primær kontekst** i en ny chat sammen med evt. `docs/mine-implementation-plan.md`.
+
+**Ny i v1.1:** §18 — konkret implementeringsplan for **fladt underlag + vilkårlig felt­placering** (fortrækker denne frem for §16 punkt 6 når I migrerer layout).
 
 **Forudsætning:** Læs først **«Vedtagne designvalg»** i plan-filen (1A–7). Denne guide operationaliserer dem.
 
@@ -339,8 +341,143 @@ Når du starter ny chat, vedhæft:
 1. `docs/mine-implementation-plan.md` (v2.1+)
 2. **Denne fil:** `docs/mine-system-implementation-guide.md`
 
-Skriv kort: «Implementér ifølge guide, start med trin 1 i §16» eller angiv PR-afsnit.
+Skriv kort: «Implementér ifølge guide, start med trin 1 i §16» eller angiv PR-afsnit. Ved layout-/gulv-reset: **start med §18 Fase 1**.
 
 ---
 
-*Slut på implementeringsguide v1.0.*
+## 18. Implementeringsplan: fladt underlag + vilkårlig felt­placering
+
+**Mål:** Reducere lodret hack-stak (ujævnt gulv vs pivot vs mesh-fod), fjerne synlige geometriske malm­mønstre (ring, L, perler på snor), og bevare **fuld determinisme** samt invarianten `slots.length === oreSlots.length`.
+
+**Ikke-mål i første omgang:** Nye rum­skabeloner som gameplay-feature; grafisk «kuperet» gulv kan genindføres senere som ren **visuel** displacement shader/mesh uden gameplay-sampling.
+
+---
+
+### 18.1 Invariant og RNG-kontrakt (læs før kode)
+
+| Krav | Handling |
+|------|----------|
+| Samme `runId` + `mineId` + `depth` → samme `CaveConfig` og samme `MineRunSlotState[]` | Ingen nye `Math.random`-kald i layout uden seed; ingen ændring af rækkefølgen af eksisterende `rng()`-træk i `generateLayerState` uden at duplikere dem (som i dag for de første tre træk). |
+| Kerne-lag uændret af grafik-preset | Kun layout/gulv/kosmetik berøres som beskrevet. |
+
+**Under-layout RNG:** Brug et **dedikeret under-frø** til felt-positioner, fx  
+`mulberry32(hashStringToSeed(\`${mineLayerSeedKey(runId, mineId, depth)}|oreXZ|v1\`))`  
+— så felt-placering **ikke** forbruger den samme `mulberry32`-strøm som `rollMineFieldKind` / kiste-loot. Dokumentér suffix (`oreXZ|v1`) så fremtidige ændringer kan versioneres.
+
+---
+
+### 18.2 Fase 1 — Fladt underlag (PR 1)
+
+**Formål:** Gulvhøjde konstant i hele spillefladen; `sampleCaveFloorMeshY` og rendret gulvmesh matcher.
+
+| Trin | Fil(er) | Handling |
+|------|---------|----------|
+| 1.1 | `src/lib/caveFloorSurface.ts` | Gør `rawCaveFloorY` konstant (fx kun fast offset `0.02` eller `0`), eller sæt noise-amplitude til `0`. Bevar evt. signatur med `noise`-parameter til kompatibilitet, men resultatet skal være **uafhængigt af (x,z)**. |
+| 1.2 | Gulv-mesh | Bekræft at `makeHorizontalPlane` / tilsvarende i cave-byggeren bruger samme hjørne­højder som `rawCaveFloorY` (grep efter `rawCaveFloorY`, `makeHorizontalPlane`). Ved afvigelse: én sandhedskilde — typisk `rawCaveFloorY`. |
+| 1.3 | `src/components/mine/sinkOreSlotPosition.ts` | **`alignOreSlotYToCaveFloor`:** når gulv er fladt, er `yHere - yRef` altid `0` — implementér som **no-op** (tidlig `return`) eller fjern kald til alignment fra `sinkOreSlotWorldPosition` og dokumentér invariant: «malmpivot-Y er kun basis + sinks». |
+| 1.4 | `src/gem/mineCosmetics.ts` | Efter fladt gulv er `surfaceY` konstant; ingen logik­ændring nødvendig udover evt. forenkling af kommentarer. |
+| 1.5 | Tests | Tilføj/evt.: ét test-case at `sampleCaveFloorMeshY(..., x, z)` er **uafhængig af x,z** (eller konstant inden for epsilon). Kør `mineCaveContext.test.ts`, `mineCosmetics.test.ts`. |
+
+**Exit-kriterium:** Ingen synlig «bølge» på gulvmesh; ingen lodret justering fra floor-sampling ændrer malmens Y meningsfuldt.
+
+---
+
+### 18.3 Fase 2 — Forenkling af lodret malm-stack (PR 2, kan merges med PR 1 hvis lille)
+
+**Formål:** Færre lag efter fladt gulv.
+
+| Trin | Fil(er) | Handling |
+|------|---------|----------|
+| 2.1 | `sinkOreSlotPosition.ts` | Efter no-op alignment: gennemgå `oreFootVisualSinkBias` — behold kun hvad der stadig retter **mesh-form** (rich/large scale); fjern død kode. |
+| 2.2 | `src/gem/procedural/buildProceduralMineRock.ts` | **Valgfrit:** Bevar bund-fladning (`FLAT_THRESHOLD`) og foot-ankring indtil QA; kun fjern/oprens hvis ingame-tests viser redundant lodret korrection. |
+| 2.3 | Manuel QA | Gennemse én malm pr. type (normal/hard/rich/crystal) + kiste/mob — ingen svæv, acceptable fødder. |
+
+---
+
+### 18.4 Fase 3 — Ny felt­placering (Poisson-lignende, PR 3)
+
+**Formål:** Erstat `computeRoomLayout`-skiftet (classic / corridor / island / dogleg) med **stokastisk placering** inde i spillepolygon/rektangel, med **min-afstand** mellem felter og **eksklusionszone** om spawn.
+
+#### 18.4.1 Geometrisk container
+
+- Bevar **rumskala** (`RoomSize` → `ROOM_SIZE_WORLD_MUL`) og et forenklet **basis-bounds** `B` fra `base.bounds` som i dag.
+- Definér **inderside** af spillefladen: rektangel eller polygon med **væg-padding** (samme orden som `INNER_PAD` / playable half extents — genbrug `getPlayableHalfExtents` eller tilsvarende konstanter fra `pickMineSpawn.ts` / `caveHalfExtents`).
+- Enten:
+  - **(Anbefalet)** Ét «neutralt» rum: `boundsHalfX` / `boundsHalfZ` afledes fra **maksimal udstrækning af felter + `INTERACTIVE_ORE_MESH_PAD`** (som classic-grenen i dag), eller
+  - Behold forhold **korridor-lignende** (`hx < hz`) som **valgfri** vægtning fra `RoomTemplate` — kun hvis I stadig vil variere rumform; ellers start med **kvadratisk** container for mindst kompleksitet.
+
+#### 18.4.2 Spawn-eksklusion uden cirkulær afhængighed
+
+`pickMineSpawn` bruger klippehindringer; felterne må ikke ligge under spillerens start.
+
+**Anbefalet procedure:**
+
+1. Udled **foreløbig** `halfX`, `halfZ` fra `B` og rumstørrelse (samme som nu før felter lægges, eller fast kvotient).
+2. Beregn **deterministisk spawn XZ** der matcher den **ingen-hindring**-gren i `pickMineSpawn` (obstacles tom): udtræk ren funktion `pickMineSpawnXZEmptyRoom({ halfX, halfZ, mineRunId, runDepth })` fra eksisterende logik i `pickMineSpawn.ts` (samme hash som `spawnFracIndex` og samme kandidatliste).
+3. Dart throwing / Poisson: for hvert felt `i = 0 .. slotCount-1`, gentag med `layoutRng`: foreslå `(x,z)` uniformt i indre rektangel; **afvis** hvis afstand til eksisterende felter `< MIN_SLOT_DIST`, eller til spawn `< SPAWN_CLEAR_RADIUS`, eller uden for bounds.
+4. **Y på felter:** Konstant `fy` fra `floorYFromBase(base)` (som nu); ingen floor-sample nødvendig efter Fase 1.
+5. Udregn **endelig** `bounds`, `boundsHalfX/Y`, `fogNear`/`fogFar` fra felternes ekstremværdier + pad (som classic/island-grene).
+
+Konstanter (tuned i én fil, fx øverst i `mineCaveContext.ts`):
+
+- `MIN_SLOT_DIST` — start ~2.8–3.5 (XZ, meter); skal være ≥ mesh-pad + lidt gameplay-luft.
+- `SPAWN_CLEAR_RADIUS` — start ~2.5–4.0; verificér mod faktisk spawn og klippe-radius.
+
+**Max forsøg** pr. felt (fx 80–120); hvis felt ikke kan placeres: **fallback** (deterministisk): spiral fra midten, eller seneste gyldige punkt med minimal overlap-advarsel i dev — eller reducer `MIN_SLOT_DIST` trinvist i kun fallback-gren (documentér).
+
+#### 18.4.3 Skæbnen for `RoomTemplate`
+
+**Minimal migration:** Behold `drawRoomTemplate(rng)` og `drawRoomSize(rng)` i `resolveEffectiveCaveConfig` / `generateLayerState` **uden at bruge dem til XZ** (kun til fog/tuning eller fremtidig brug). Det undgår ændring af RNG-forbruget i kerne-laget.
+
+**Alternativ (renere):** Fjern template fra layout og kompenser RNG med samme antal dummy-træk — kun hvis tests og grep viser ingen afhængighed af `cfg.template` i gameplay.
+
+#### 18.4.4 Filer der typisk ændres
+
+| Fil | Ændring |
+|-----|---------|
+| `src/gem/mineCaveContext.ts` | Ny `placeOreSlotsStochastic(...)` (eller omskrivning af `computeRoomLayout`); behold eksport af `computeRoomLayout` eller erstat med ét kald; versionér layout-seed. |
+| `src/components/mine/pickMineSpawn.ts` | Eksporter/refaktor `pickMineSpawnXZ` for **tom hindringsliste** til genbrug i layout-fasen. |
+| `src/gem/mineCaveContext.test.ts` | Opdater forventninger: bounds/slots stadig deterministiske; evt. snapshot af ét seed. |
+| `src/data/areas.caveConfig.test.ts` | Tilpas hvis `oreSlots`-koordinater ændrer sig strukturelt. |
+
+#### 18.4.5 Kosmetiske klipper
+
+`generateCosmeticRocks` bruger allerede afstand til `oreSlots` og floor-sample. Efter Fase 1 + 3:
+
+- Floor-Y konstant → kosmetik-Y forenkles implicit.
+- Behold **`farEnoughFromSlots`**; evt. tilføj **min-afstand mellem kosmetiske instanser** (sekundær dart-pass) hvis clustering stadig ses.
+
+---
+
+### 18.5 Fase 4 — Dokumentation og oprydning (PR 4 eller samme som PR 3)
+
+- Opdatér **§2** kort reference-tabel i denne fil (hvor layout genereres).
+- Afklar i kommentar i `mineCaveContext.ts`: «layout seed v1» og Poisson-konstanter.
+- Hvis `RoomTemplate` ikke længere styrer geometri: marker i `types.ts` som **kun metadata / fremtid** eller fjern efter grep.
+
+---
+
+### 18.6 Test- og QA-matrix
+
+| Område | Automatiseret | Manuel |
+|--------|----------------|--------|
+| Flat gulv | `sampleCaveFloorMeshY` konstant | Visuel: ingen bølge |
+| Determinisme | Samme seed → samme `resolveEffectiveCaveConfig().oreSlots` | — |
+| Slot-antal | `mineLayer.test.ts` | — |
+| Spawn | — | Start ikke inde i malm / ikke klemt mod væg |
+| Kosmetik | `mineCosmetics.test.ts` afstand til slots | Rich preset, mange instanser |
+| Nedstigning / save | Eksisterende flow-tests | Load midt i run |
+
+---
+
+### 18.7 Rækkefølge og PR-strategi
+
+1. **PR A:** §18.2 + §18.3 (gulv + lodret forenkling). Lav pause til QA.
+2. **PR B:** §18.4 (felt-placering + spawn-eksklusion + tests).
+3. **PR C:** §18.5 (docs + død kode / template-oprydning).
+
+Rollback: Fase 1 er isoleret i `caveFloorSurface.ts` + `sinkOreSlotPosition.ts`; Fase 3 er isoleret i `mineCaveContext.ts` (+ lille refaktor `pickMineSpawn`).
+
+---
+
+*Slut på implementeringsguide v1.1.*

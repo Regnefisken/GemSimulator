@@ -229,9 +229,10 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         slotIndex: i,
         position: sinkOreSlotWorldPosition(
           cave.oreSlots[i] as [number, number, number],
-          getRockLayoutParams(run.runId, run.currentDepth, i, 'chest').extraSinkY,
+          0,
           getProceduralMineCaveSeed(run.runId, run.currentDepth),
           cave,
+          { anchor: 'chestBase' },
         ),
         tier: s.chestTier ?? 'wood',
         remainingLoot: s.chestLoot,
