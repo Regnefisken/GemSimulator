@@ -1,4 +1,6 @@
+import { useMemo } from 'react'
 import type { Gem } from '../types'
+import { buildGemVoxel3d } from '../gem/drawGem3d'
 import VoxelScene from './VoxelScene'
 
 type Props = {
@@ -103,6 +105,7 @@ function glowStateForGem(gem: Gem) {
 }
 
 export default function GemViewer({ gem, onGenerate, compact }: Props) {
+  const voxel3d = useMemo(() => (gem ? buildGemVoxel3d(gem) : null), [gem])
   const gs = gem ? glowStateForGem(gem) : null
   const glowColor = gs?.color ?? '#eab308'
   const glowOpacity = gs?.opacity ?? 0.25
@@ -124,7 +127,9 @@ export default function GemViewer({ gem, onGenerate, compact }: Props) {
         <div className="relative z-10 flex flex-col items-center">
           <div className="bg-slate-950 p-5 rounded-2xl shadow-inner border border-slate-600 mb-6 relative">
             <div className="w-[320px] h-[320px] overflow-hidden rounded-sm">
-              {gem ? <VoxelScene data={gem.data} colorMap={gem.colorMap} /> : null}
+              {gem && voxel3d ? (
+                <VoxelScene mode="3d" voxel3d={voxel3d} className="!max-w-none" cameraTilt={0.35} />
+              ) : null}
             </div>
           </div>
           {gem && (
