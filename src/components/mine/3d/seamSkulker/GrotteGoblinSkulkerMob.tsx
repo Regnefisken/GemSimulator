@@ -88,7 +88,9 @@ export default function GrotteGoblinSkulkerMob({
 
   const { idleAction, walkAction, attackAction } = useMemo(() => {
     const idleClip = animations.find((c) => c.name === 'idle')
-    const walkClip = animations.find((c) => c.name === 'walk')
+    const walkClip =
+      animations.find((c) => c.name === 'walk') ??
+      animations.find((c) => /walk/i.test(c.name ?? ''))
     const attackClip = animations.find((c) => c.name === 'attack')
     return {
       idleAction: idleClip ? mixer.clipAction(idleClip) : null,
@@ -107,6 +109,7 @@ export default function GrotteGoblinSkulkerMob({
     idleAction?.setEffectiveWeight(1)
     walkAction?.play()
     walkAction?.setEffectiveWeight(0)
+    if (walkAction) walkAction.paused = true
     attackAction?.play()
     attackAction?.setEffectiveWeight(0)
 
@@ -128,8 +131,6 @@ export default function GrotteGoblinSkulkerMob({
   const strikeDamageSent = useRef(false)
 
   const combatAnimOn = useRef(false)
-  const locoRef = useRef<'idle' | 'walk'>('idle')
-  const prevInCombatRef = useRef(false)
 
   const hitRadius = Math.max(0.55, 1.05 * bulk * MOB_MODEL_SCALE)
 
@@ -230,44 +231,33 @@ export default function GrotteGoblinSkulkerMob({
       if (!combatAnimOn.current) {
         combatAnimOn.current = true
         attackAction?.reset()
-        attackAction?.setEffectiveWeight(1)
         attackAction?.fadeIn(0.14).play()
-        idleAction?.fadeOut(0.12)
-        walkAction?.fadeOut(0.12)
+        idleAction?.setEffectiveWeight(0)
+        walkAction?.setEffectiveWeight(0)
+        if (idleAction) idleAction.paused = true
+        if (walkAction) walkAction.paused = true
       }
     } else {
-      if (prevInCombatRef.current) {
+      if (combatAnimOn.current) {
         combatAnimOn.current = false
         attackAction?.fadeOut(0.22)
-        if (isWalking) {
-          idleAction?.fadeOut(0.2)
-          walkAction?.reset().fadeIn(0.2).play()
-          locoRef.current = 'walk'
-        } else {
-          walkAction?.fadeOut(0.2)
-          idleAction?.fadeIn(0.2).play()
-          locoRef.current = 'idle'
-        }
-      } else {
-        const wantLoco = isWalking ? 'walk' : 'idle'
-        if (wantLoco !== locoRef.current) {
-          locoRef.current = wantLoco
-          if (wantLoco === 'walk') {
-            idleAction?.fadeOut(0.2)
-            walkAction?.reset().fadeIn(0.2).play()
-          } else {
-            walkAction?.fadeOut(0.2)
-            idleAction?.fadeIn(0.2).play()
-          }
-        }
       }
-
-      if (walkAction && locoRef.current === 'walk') {
-        walkAction.timeScale = 1.05
+      if (idleAction && walkAction) {
+        if (isWalking) {
+          idleAction.setEffectiveWeight(0)
+          idleAction.paused = true
+          walkAction.setEffectiveWeight(1)
+          walkAction.paused = false
+          walkAction.timeScale = 1.22
+        } else {
+          walkAction.paused = true
+          walkAction.time = 0
+          walkAction.setEffectiveWeight(0)
+          idleAction.paused = false
+          idleAction.setEffectiveWeight(1)
+        }
       }
     }
-
-    prevInCombatRef.current = inCombat
 
     if (attackAction) {
       if (inCombat) {

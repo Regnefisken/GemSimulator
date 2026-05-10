@@ -210,7 +210,8 @@ function mobTypeWeightsAtDepth(depth: number): Record<MobType, number> {
     seam_skulker: Math.max(10, 42 - bias),
     cave_crawler: 26 + bias * 0.35,
     dust_wraith: 22 + bias * 0.45,
-    rock_gnome: 10 + bias * 0.25,
+    /** Grottegoblin — tidligere for lav vs. øvrige; skalerer som stalker. */
+    rock_gnome: 20 + bias * 0.35,
   }
 }
 
