@@ -3,6 +3,7 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { buildSeamSkulkerRig, type SeamSkulkerRigParts } from './buildSeamSkulkerRig'
 import CrystalBeastSkulkerMob from './CrystalBeastSkulkerMob'
+import GrotteGoblinSkulkerMob from './GrotteGoblinSkulkerMob'
 import {
   MOB_ATTACK_COOLDOWN,
   MOB_CHASE_SPEED,
@@ -20,6 +21,7 @@ import { SEAM_SKULKER_HP_LABEL_MODEL_Y, SEAM_SKULKER_SCALE_MUL } from './seamSku
 import type { MobType } from '../../../../types'
 
 export { crystalBeastHpLabelLocalY } from './CrystalBeastSkulkerMob'
+export { grotteGoblinHpLabelLocalY } from './GrotteGoblinSkulkerMob'
 export { SEAM_SKULKER_SCALE_MUL } from './seamSkulkerScale'
 
 const MOB_HUE: Record<MobType, number> = {
@@ -375,12 +377,17 @@ function ProceduralSeamSkulkerMob({
   )
 }
 
-/** Denne mob-type bruger GLB crystal beast i stedet for farvet procedural rig. */
+/** GLB crystal beast i stedet for procedural skulker. */
 const MOB_TYPE_CRYSTAL_BEAST: MobType = 'dust_wraith'
+/** GLB grotte-goblin i stedet for procedural skulker (`seam_skulker` + `cave_crawler` forbliver procedurelle). */
+const MOB_TYPE_GROTTE_GOBLIN: MobType = 'rock_gnome'
 
 export default function SeamSkulkerMob(props: Props) {
   if (props.mobType === MOB_TYPE_CRYSTAL_BEAST) {
     return <CrystalBeastSkulkerMob {...props} />
+  }
+  if (props.mobType === MOB_TYPE_GROTTE_GOBLIN) {
+    return <GrotteGoblinSkulkerMob {...props} />
   }
   return <ProceduralSeamSkulkerMob {...props} />
 }

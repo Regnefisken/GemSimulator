@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:fixtures": "vitest run migrateGameState.fixtures",
     "generate:fixtures": "tsx scripts/generateSaveFixtures.ts",
-    "build:mob-glb": "tsx scripts/buildCrystalBeastGlb.ts"
+    "build:mob-glb": "tsx scripts/buildCrystalBeastGlb.ts",
+    "build:grotte-goblin-glb": "tsx scripts/buildGrotteGoblinGlb.ts"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
