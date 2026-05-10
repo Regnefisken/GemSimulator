@@ -11,6 +11,14 @@ export const MOB_LABEL_DA: Record<MobType, string> = {
   rock_gnome: 'Grottegoblin',
 }
 
+/** Vist navn over klippefelt (HP-badge) — samme stil som mob-linje. */
+export const ROCK_LABEL_DA = {
+  normal: 'Almindelig malm',
+  hard: 'Hård malm',
+  rich: 'Rig malm',
+  crystal: 'Krystal',
+} as const
+
 /** Ét felt på det aktuelle mine-lag (D1: kun ét lag i hukommelse ad gangen). */
 export type MineRunSlotState = {
   slotIndex: number

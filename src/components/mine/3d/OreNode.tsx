@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Group, Object3D } from 'three'
 import type { MetalName, MobType, RockType } from '../../../types'
-import { MOB_LABEL_DA } from '../../../lib/mineTypes'
+import { MOB_LABEL_DA, ROCK_LABEL_DA } from '../../../lib/mineTypes'
 import {
   createBaseRockGeometry,
   createCrystalRockCluster,
@@ -291,7 +291,9 @@ export default function OreNode({
       ? mobType
         ? MOB_LABEL_DA[mobType]
         : 'Uhyre'
-      : 'Klippe'
+      : rockType in ROCK_LABEL_DA
+        ? ROCK_LABEL_DA[rockType as keyof typeof ROCK_LABEL_DA]
+        : 'Klippe'
   const barGradient =
     rockType === 'mob'
       ? 'bg-gradient-to-r from-fuchsia-950 to-fuchsia-400'
