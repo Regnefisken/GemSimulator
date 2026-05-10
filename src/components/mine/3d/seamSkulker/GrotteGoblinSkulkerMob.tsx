@@ -6,6 +6,7 @@ import {
   MOB_ATTACK_COOLDOWN,
   MOB_CHASE_SPEED,
   MOB_COMBAT_OUTER,
+  MOB_COMBAT_PHASE_DUR,
   MOB_RECOVERY_DUR,
   MOB_RETREAT_SPEED,
   MOB_STRIKE_DAMAGE_AT,
@@ -267,6 +268,18 @@ export default function GrotteGoblinSkulkerMob({
     }
 
     prevInCombatRef.current = inCombat
+
+    if (attackAction) {
+      if (inCombat) {
+        const cdur = attackAction.clip.duration
+        if (cdur > 1e-6) {
+          attackAction.timeScale = cdur / MOB_COMBAT_PHASE_DUR
+        }
+        attackAction.paused = false
+      } else {
+        attackAction.timeScale = 1
+      }
+    }
 
     mixer.update(delta)
 

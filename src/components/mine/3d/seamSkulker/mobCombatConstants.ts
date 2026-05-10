@@ -16,8 +16,14 @@ export const MOB_ATTACK_COOLDOWN = 2.25
 export const MOB_WINDUP_DUR = 0.55
 export const MOB_STRIKE_DUR = 0.2
 export const MOB_RECOVERY_DUR = 1.15
-/** Nærmeste afstand hvor uhyret må starte angreb (nærkamp). */
-export const MOB_STRIKE_NEAR = 0.48
+/** Samlet logisk kampvarighed — GLB angrebsklip skaleres hertil via `AnimationAction.timeScale`. */
+export const MOB_COMBAT_PHASE_DUR =
+  MOB_WINDUP_DUR + MOB_STRIKE_DUR + MOB_RECOVERY_DUR
+/**
+ * Mindste afstand for at måtte starte angreb. Under `MOB_TOO_CLOSE` men over denne grænse:
+ * angreb tjekkes før retreat (ingen “død zone” mellem 0.38 og gammel 0.48).
+ */
+export const MOB_STRIKE_NEAR = 0.36
 export const MOB_STRIKE_FAR = 2.08
 /** Moment i STRIKE-fasen hvor skade registreres (synk med slam). */
 export const MOB_STRIKE_DAMAGE_AT = 0.42

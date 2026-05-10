@@ -49,13 +49,27 @@ function AppContent() {
     })
   }, [state.gems])
 
+  /** Debounced persist — undlad synkron `saveState` i cleanup (blokerede main thread ved hver dispatch, fx mob-skade). */
   useEffect(() => {
     const t = window.setTimeout(() => saveState(stateRef.current), 750)
-    return () => {
-      window.clearTimeout(t)
-      saveState(stateRef.current)
-    }
+    return () => window.clearTimeout(t)
   }, [state])
+
+  useEffect(() => {
+    const flush = () => saveState(stateRef.current)
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', flush)
+    window.addEventListener('beforeunload', flush)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      window.removeEventListener('beforeunload', flush)
+      document.removeEventListener('visibilitychange', onVisibility)
+      flush()
+    }
+  }, [])
 
   useEffect(() => {
     const id = window.setInterval(() => {

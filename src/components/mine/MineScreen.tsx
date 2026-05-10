@@ -304,7 +304,10 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
   const handleMobStrikeHit = useCallback(() => {
     if (!run) return
-    dispatch({ type: 'PLAYER_TAKE_DAMAGE', amount: mobDamagePerTick(run.currentDepth), source: 'mob' })
+    const amount = mobDamagePerTick(run.currentDepth)
+    queueMicrotask(() => {
+      dispatch({ type: 'PLAYER_TAKE_DAMAGE', amount, source: 'mob' })
+    })
   }, [dispatch, run])
 
   useEffect(() => {
