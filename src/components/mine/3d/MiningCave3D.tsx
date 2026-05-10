@@ -53,6 +53,8 @@ export type MiningCave3DProps = {
   onCrosshairTargetChange?: (active: boolean) => void
   /** Kun aktivt mål-mob: kaldes når slag-animationen rammer (synk skade). */
   onMobStrikeHit?: () => void
+  /** Rapporter planær offset (jagt) så loot ved drab kan placeres korrekt. */
+  onMobPlanarOffset?: (slotIndex: number, dx: number, dz: number) => void
   /** Når true: ingen PointerLockControls (fx kiste-modal åben — undgår genlåsning af mus). */
   disablePointerLock?: boolean
   className?: string
@@ -126,6 +128,7 @@ function CaveContent({
   onChestClick,
   onCrosshairTargetChange,
   onMobStrikeHit,
+  onMobPlanarOffset,
   caveSeed,
   disablePointerLock = false,
   spawnLookAtX,
@@ -287,6 +290,11 @@ function CaveContent({
             caveHalfX={playableHalf.halfX}
             caveHalfZ={playableHalf.halfZ}
             onMobStrikeHit={onMobStrikeHit}
+            onMobPlanarOffset={
+              slot.kind === 'mob' && onMobPlanarOffset
+                ? (dx, dz) => onMobPlanarOffset(i, dx, dz)
+                : undefined
+            }
             mobType={slot.kind === 'mob' ? slot.mobType : undefined}
           />
         )

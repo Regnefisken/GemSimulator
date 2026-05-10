@@ -3,6 +3,14 @@ import type { ChestLootResult } from '../gem/mining'
 /** Kosmetisk mob-variant i minen (loot-split senere). */
 export type MobType = 'seam_skulker' | 'cave_crawler' | 'dust_wraith' | 'rock_gnome'
 
+/** Vist navn over uhyre (HP-badge) — brug i feedback / justeringer. */
+export const MOB_LABEL_DA: Record<MobType, string> = {
+  seam_skulker: 'Sømskygger',
+  cave_crawler: 'Grottestalker',
+  dust_wraith: 'Krystalbæst',
+  rock_gnome: 'Grottegoblin',
+}
+
 /** Ét felt på det aktuelle mine-lag (D1: kun ét lag i hukommelse ad gangen). */
 export type MineRunSlotState = {
   slotIndex: number

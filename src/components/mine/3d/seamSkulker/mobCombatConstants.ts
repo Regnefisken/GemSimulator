@@ -1,4 +1,11 @@
 /** Fælles jagt/angreb for procedural skulker og crystal beast — hold synkroniseret. */
+/**
+ * Mindre end dette = ingen reel translation denne frame.
+ * Tidligere brugtes 0.002 som grænse for gang-animation; ved jagt lige inden for `MOB_COMBAT_OUTER`
+ * er `step` ofte mindre end det, så modellen flyttede sig stadig (svæv/glide) uden walk.
+ */
+export const MOB_STEP_MOVED_EPS = 1e-8
+
 export const MOB_CHASE_SPEED = 2.85
 export const MOB_RETREAT_SPEED = 2.65
 /** Stop jagt her — holder afstand til spilleren. */

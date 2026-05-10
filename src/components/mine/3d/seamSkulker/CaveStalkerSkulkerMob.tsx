@@ -13,6 +13,7 @@ import {
   MOB_STRIKE_FAR,
   MOB_STRIKE_NEAR,
   MOB_TOO_CLOSE,
+  MOB_STEP_MOVED_EPS,
   MOB_WINDUP_DUR,
 } from './mobCombatConstants'
 import { SEAM_SKULKER_SCALE_MUL } from './seamSkulkerScale'
@@ -37,6 +38,7 @@ type Props = {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
   onStrikeHit?: () => void
   children?: ReactNode
+  onPlanarOffset?: (dx: number, dz: number) => void
 }
 
 const GLB_URL = '/assets/mobs/cave_stalker.glb'
@@ -51,6 +53,7 @@ export default function CaveStalkerSkulkerMob({
   onClick,
   onPointerDown,
   onStrikeHit,
+  onPlanarOffset,
   children,
 }: Props) {
   const { camera } = useThree()
@@ -161,7 +164,7 @@ export default function CaveStalkerSkulkerMob({
         nwz = THREE.MathUtils.clamp(nwz, -caveHalfZ, caveHalfZ)
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
-        isWalking = step > 0.002
+        isWalking = step > MOB_STEP_MOVED_EPS
       } else if (dDist > MOB_COMBAT_OUTER) {
         const step = Math.min(MOB_CHASE_SPEED * delta, dDist - MOB_COMBAT_OUTER)
         let nwx = mobWx + nx * step
@@ -170,7 +173,7 @@ export default function CaveStalkerSkulkerMob({
         nwz = THREE.MathUtils.clamp(nwz, -caveHalfZ, caveHalfZ)
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
-        isWalking = step > 0.002
+        isWalking = step > MOB_STEP_MOVED_EPS
       }
     }
 
@@ -272,6 +275,8 @@ export default function CaveStalkerSkulkerMob({
       const rdz = pz - mobWz
       groupRotRef.current.rotation.y = Math.atan2(rdx, rdz)
     }
+
+    onPlanarOffset?.(offsetX.current, offsetZ.current)
   })
 
   return (

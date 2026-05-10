@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Group, Object3D } from 'three'
 import type { MetalName, MobType, RockType } from '../../../types'
+import { MOB_LABEL_DA } from '../../../lib/mineTypes'
 import {
   createBaseRockGeometry,
   createCrystalRockCluster,
@@ -50,6 +51,8 @@ type Props = {
   caveHalfZ?: number
   /** Aktivt mål-mob: skade ved slag (animation). */
   onMobStrikeHit?: () => void
+  /** Mob: nuværende XZ-jagt-offset (for loot-spawn ved drab). */
+  onMobPlanarOffset?: (dx: number, dz: number) => void
 }
 
 const ROCK_TYPE_COLOR: Record<RockType, [number, number]> = {
@@ -163,6 +166,7 @@ export default function OreNode({
   caveHalfZ = 9,
   onMobStrikeHit,
   mobType,
+  onMobPlanarOffset,
 }: Props) {
   const meshRef = useRef<Group>(null)
   const shake = useRef(0)
@@ -282,7 +286,12 @@ export default function OreNode({
   const pickable = interactive || Boolean(onSelectTarget) || Boolean(onMineHit)
 
   const hpPct = maxHp > 0 ? Math.max(0, (hp / maxHp) * 100) : 0
-  const nameLabel = rockType === 'mob' ? 'Uhyre' : 'Klippe'
+  const nameLabel =
+    rockType === 'mob'
+      ? mobType
+        ? MOB_LABEL_DA[mobType]
+        : 'Uhyre'
+      : 'Klippe'
   const barGradient =
     rockType === 'mob'
       ? 'bg-gradient-to-r from-fuchsia-950 to-fuchsia-400'
@@ -330,7 +339,7 @@ export default function OreNode({
               <div className="flex flex-col items-center gap-0.5 select-none">
                 <span
                   className={
-                    'text-[9px] font-bold uppercase tracking-wider drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ' +
+                    'max-w-[200px] whitespace-nowrap text-[8px] font-bold uppercase tracking-wide drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ' +
                     (rockType === 'mob' ? 'text-fuchsia-100' : 'text-amber-100')
                   }
                 >
@@ -365,6 +374,7 @@ export default function OreNode({
             caveHalfZ={caveHalfZ}
             mobType={mobType}
             onStrikeHit={onMobStrikeHit}
+            onPlanarOffset={onMobPlanarOffset}
             {...(pickable ? meshHandlers : {})}
           >
             {hpBillboard}

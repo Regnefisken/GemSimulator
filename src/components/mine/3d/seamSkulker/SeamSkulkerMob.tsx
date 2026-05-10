@@ -16,6 +16,7 @@ import {
   MOB_STRIKE_FAR,
   MOB_STRIKE_NEAR,
   MOB_TOO_CLOSE,
+  MOB_STEP_MOVED_EPS,
   MOB_WINDUP_DUR,
 } from './mobCombatConstants'
 import { SEAM_SKULKER_HP_LABEL_MODEL_Y, SEAM_SKULKER_SCALE_MUL } from './seamSkulkerScale'
@@ -64,6 +65,8 @@ type Props = {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
   /** Kaldes ved slag-impact (spiller-skade); ikke bundet til valgt mine-mål. */
   onStrikeHit?: () => void
+  /** Planær offset fra spawn-slot (XZ) — til loot-spawn når mobben dør. */
+  onPlanarOffset?: (dx: number, dz: number) => void
   /** HP-bar m.m. — under jagt-gruppe så UI følger monstret. */
   children?: ReactNode
 }
@@ -79,6 +82,7 @@ function ProceduralSeamSkulkerMob({
   onClick,
   onPointerDown,
   onStrikeHit,
+  onPlanarOffset,
   children,
 }: Props) {
   const { camera } = useThree()
@@ -182,7 +186,7 @@ function ProceduralSeamSkulkerMob({
         nwz = THREE.MathUtils.clamp(nwz, -caveHalfZ, caveHalfZ)
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
-        isWalking = step > 0.002
+        isWalking = step > MOB_STEP_MOVED_EPS
       } else if (dDist > MOB_COMBAT_OUTER) {
         const step = Math.min(MOB_CHASE_SPEED * delta, dDist - MOB_COMBAT_OUTER)
         let nwx = mobWx + nx * step
@@ -191,7 +195,7 @@ function ProceduralSeamSkulkerMob({
         nwz = THREE.MathUtils.clamp(nwz, -caveHalfZ, caveHalfZ)
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
-        isWalking = step > 0.002
+        isWalking = step > MOB_STEP_MOVED_EPS
       }
 
       if (attackPhase.current === 'IDLE') {
@@ -357,6 +361,8 @@ function ProceduralSeamSkulkerMob({
       const rdz = pz - mobWz
       groupRotRef.current.rotation.y = Math.atan2(rdx, rdz)
     }
+
+    onPlanarOffset?.(offsetX.current, offsetZ.current)
   })
 
   const scale = bulk * MOB_MODEL_SCALE

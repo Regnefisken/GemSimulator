@@ -14,6 +14,7 @@ import {
   rollMobMineDrop,
   type MineDrop,
 } from '../../gem/mining'
+import { getRockLayoutParams } from '../../gem/procedural/rockLayout'
 import { canDescendFromLayer } from '../../gem/mineLayer'
 import { pickChestRotationY } from '../../gem/chestOrientation'
 import { ESSENCE_IDS, getEssenceDef, MOON_TEAR_EFFECT_ID } from '../../data/essences'
@@ -156,6 +157,12 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const [crosshairMining, setCrosshairMining] = useState(false)
   const [crosshairOnTarget, setCrosshairOnTarget] = useState(false)
   const [mobCombatHint, setMobCombatHint] = useState(false)
+
+  /** Planær jagt-offset pr. slot (XZ) — synkron fra R3F mob; loot ved drab skal lande ved liget. */
+  const mobPlanarOffsetRef = useRef<Record<number, [number, number]>>({})
+  const reportMobPlanarOffset = useCallback((slotIndex: number, dx: number, dz: number) => {
+    mobPlanarOffsetRef.current[slotIndex] = [dx, dz]
+  }, [])
 
   const noticeId = useRef(0)
   const hitId = useRef(0)
@@ -639,8 +646,18 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
         const drop = rollMobMineDrop(area, runDepth, state.activeCharms, Math.random, struck.mobType)
         const caveSeed = getProceduralMineCaveSeed(run.runId, runDepth)
+        const mobSlotBase = cave.oreSlots[brokenSlot] as [number, number, number]
+        const mobLayout = getRockLayoutParams(run.runId, runDepth, brokenSlot, 'mob')
+        const mobAnchor = sinkOreSlotWorldPosition(
+          mobSlotBase,
+          mobLayout.extraSinkY,
+          caveSeed,
+          cave,
+          { rockType: 'mob', meshScaleMultiplier: mobLayout.meshScaleMultiplier },
+        )
+        const [mx, mz] = mobPlanarOffsetRef.current[brokenSlot] ?? [0, 0]
         const origin = lootScatterOriginWorldPosition(
-          cave.oreSlots[brokenSlot] as [number, number, number],
+          [mobAnchor[0] + mx, mobAnchor[1], mobAnchor[2] + mz],
           caveSeed,
           cave,
         )
@@ -704,6 +721,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       dispatch,
       pushFloater,
       showToast,
+      reportMobPlanarOffset,
     ],
   )
 
@@ -792,6 +810,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           }}
           onCrosshairTargetChange={setCrosshairOnTarget}
           onMobStrikeHit={handleMobStrikeHit}
+          onMobPlanarOffset={reportMobPlanarOffset}
           disablePointerLock={activeChestId != null}
         />
       </div>
