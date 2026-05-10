@@ -27,6 +27,25 @@ export const MINE_SLOT_Y_SINK = -0.175
 export const MINE_CHEST_Y_SINK = -0.035
 
 /**
+ * Lodret basis for verdens‑loot (`spawnPositionsAround` lægger lidt ekstra oven i).
+ * `VoxelMesh` + root‑scale **0,085** kan rage **~0,38–0,42** under pivot; denne værdi giver synlig **luft mellem sprite‑bund og underlag**.
+ */
+export const MINE_LOOT_SCATTER_BASE_Y = 0.52
+
+/**
+ * Horisontalt fra malmens slot; lodret: **gulv ved (x,z) + løft** — ikke klippens nedgravning.
+ */
+export function lootScatterOriginWorldPosition(
+  pos: readonly [number, number, number],
+  caveSeed: number,
+  cave: CaveConfig,
+): [number, number, number] {
+  const { halfX, halfZ } = getCaveHalfExtents(cave)
+  const floorY = sampleCaveFloorMeshY(caveSeed, halfX, halfZ, pos[0], pos[2])
+  return [pos[0], floorY + MINE_LOOT_SCATTER_BASE_Y, pos[2]]
+}
+
+/**
  * Gulvet er fladt (`FLAT_CAVE_FLOOR_Y`); ingen relativ justering mellem felt og rumcentrum.
  * Bevar funktionen til API‑stabilitet — ved genindsættelse af kuperet gulv: sample `sampleCaveFloorMeshY` her.
  */

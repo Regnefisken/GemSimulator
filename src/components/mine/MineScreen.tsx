@@ -24,12 +24,15 @@ import {
 } from '../../lib/survival'
 import { findBlueprint } from '../../data/blueprints'
 import { METALS } from '../../data/metals'
+import { getPlayableHalfExtents } from '../../lib/caveHalfExtents'
 import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../../lib/sounds'
 import { useToast } from '../ui/ToastContext'
 import { useGraphicsPreset } from '../../lib/useGraphicsPreset'
 import MiningCave3D from './3d/MiningCave3D'
-import { sinkOreSlotWorldPosition } from './sinkOreSlotPosition'
-import { getRockLayoutParams } from '../../gem/procedural/rockLayout'
+import {
+  lootScatterOriginWorldPosition,
+  sinkOreSlotWorldPosition,
+} from './sinkOreSlotPosition'
 import DamageNumbers, { type DamageFloater } from './DamageNumbers'
 import { HUDBottomBar, HUDPlayerSurvival, HUDTopBar, HUDWeaponToggle, HUDConsumableQuickBar } from './MineHUD'
 import MinimapHUD from './MinimapHUD'
@@ -523,17 +526,22 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
         const drop = rollMineDrop(area, runDepth, state.activeCharms, struck.rockType)
         const coalDrop = rollCoalDrop(runDepth)
-        const layoutRock = getRockLayoutParams(run.runId, runDepth, brokenSlot, struck.rockType)
-        const origin = sinkOreSlotWorldPosition(
+        const caveSeed = getProceduralMineCaveSeed(run.runId, runDepth)
+        const origin = lootScatterOriginWorldPosition(
           cave.oreSlots[brokenSlot] as [number, number, number],
-          layoutRock.extraSinkY,
-          getProceduralMineCaveSeed(run.runId, runDepth),
+          caveSeed,
           cave,
-          { rockType: struck.rockType, meshScaleMultiplier: layoutRock.meshScaleMultiplier },
         )
+        const playable = getPlayableHalfExtents(cave)
+        const lootSpawnOpts = {
+          spawnClamp: {
+            playableHalfX: playable.halfX,
+            playableHalfZ: playable.halfZ,
+          },
+        }
 
         if (drop.kind !== 'nothing') {
-          const entities = explodeDropToEntities(drop, origin)
+          const entities = explodeDropToEntities(drop, origin, lootSpawnOpts)
           if (entities.length > 0) {
             setLootEntities((prev) => {
               const overflow = Math.max(0, prev.length + entities.length - MAX_WORLD_LOOT)
@@ -551,7 +559,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         }
 
         if (coalDrop) {
-          const coalEnts = explodeDropToEntities(coalDrop, origin)
+          const coalEnts = explodeDropToEntities(coalDrop, origin, lootSpawnOpts)
           setLootEntities((prev) => {
             let next = [...prev, ...coalEnts]
             while (next.length > MAX_WORLD_LOOT) next.shift()
@@ -612,17 +620,22 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         }
 
         const drop = rollMobMineDrop(area, runDepth, state.activeCharms, Math.random, struck.mobType)
-        const layoutMob = getRockLayoutParams(run.runId, runDepth, brokenSlot, 'mob')
-        const origin = sinkOreSlotWorldPosition(
+        const caveSeed = getProceduralMineCaveSeed(run.runId, runDepth)
+        const origin = lootScatterOriginWorldPosition(
           cave.oreSlots[brokenSlot] as [number, number, number],
-          layoutMob.extraSinkY,
-          getProceduralMineCaveSeed(run.runId, runDepth),
+          caveSeed,
           cave,
-          { rockType: 'mob', meshScaleMultiplier: layoutMob.meshScaleMultiplier },
         )
+        const playable = getPlayableHalfExtents(cave)
+        const lootSpawnOpts = {
+          spawnClamp: {
+            playableHalfX: playable.halfX,
+            playableHalfZ: playable.halfZ,
+          },
+        }
 
         if (drop.kind !== 'nothing') {
-          const entities = explodeDropToEntities(drop, origin)
+          const entities = explodeDropToEntities(drop, origin, lootSpawnOpts)
           if (entities.length > 0) {
             setLootEntities((prev) => {
               const overflow = Math.max(0, prev.length + entities.length - MAX_WORLD_LOOT)

@@ -5,6 +5,8 @@ import { getCaveHalfExtents } from '../../lib/caveHalfExtents'
 import { sampleCaveFloorMeshY } from '../../lib/caveFloorSurface'
 import {
   alignOreSlotYToCaveFloor,
+  lootScatterOriginWorldPosition,
+  MINE_LOOT_SCATTER_BASE_Y,
   oreFootVisualSinkBias,
   sinkOreSlotPosition,
   sinkOreSlotWorldPosition,
@@ -75,3 +77,16 @@ describe('alignOreSlotYToCaveFloor', () => {
     const chest = sinkOreSlotWorldPosition(pos, -0.06, seed, cave, { anchor: 'chestBase' })
     expect(chest[1]).toBeGreaterThan(rock[1])
   })
+
+  it('lootScatterOriginWorldPosition: Y er gulv + basis (ikke klippesænkning)', () => {
+    const cave = DEFAULT_CAVE_CONFIG
+    const seed = getProceduralMineCaveSeed('loot', 1)
+    const pos = [4, 0.48, -3] as const
+    const { halfX, halfZ } = getCaveHalfExtents(cave)
+    const fy = sampleCaveFloorMeshY(seed, halfX, halfZ, pos[0], pos[2])
+    const o = lootScatterOriginWorldPosition(pos, seed, cave)
+    expect(o[1]).toBeCloseTo(fy + MINE_LOOT_SCATTER_BASE_Y, 6)
+    const rock = sinkOreSlotWorldPosition(pos, -0.06, seed, cave)
+    expect(o[1]).toBeGreaterThan(rock[1])
+  })
+})
