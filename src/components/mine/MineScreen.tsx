@@ -15,6 +15,7 @@ import {
   type MineDrop,
 } from '../../gem/mining'
 import { canDescendFromLayer } from '../../gem/mineLayer'
+import { pickChestRotationY } from '../../gem/chestOrientation'
 import { ESSENCE_IDS, getEssenceDef, MOON_TEAR_EFFECT_ID } from '../../data/essences'
 import { findConsumableDef } from '../../data/consumables'
 import { findBrew } from '../../data/brews'
@@ -223,20 +224,37 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     if (!run || run.mineId !== area.id) return []
     const cave = effectiveCaveConfig
     const out: WorldChestEntity[] = []
+    const proceduralSeed = getProceduralMineCaveSeed(run.runId, run.currentDepth)
     for (let i = 0; i < run.slots.length; i++) {
       const s = run.slots[i]
       /** Tomme kister forbliver i scenen (`cleared` sættes ved tom loot — vi despawner ikke). */
       if (s.kind !== 'chest' || !s.chestEntityId || !s.chestLoot) continue
+      const obstacleSlotIndices: number[] = []
+      for (let j = 0; j < run.slots.length; j++) {
+        if (j === i) continue
+        const o = run.slots[j]
+        if ((o.kind === 'rock' || o.kind === 'mob') && !o.cleared) obstacleSlotIndices.push(j)
+      }
+      const position = sinkOreSlotWorldPosition(
+        cave.oreSlots[i] as [number, number, number],
+        0,
+        proceduralSeed,
+        cave,
+        { anchor: 'chestBase' },
+      )
       out.push({
         id: s.chestEntityId,
         slotIndex: i,
-        position: sinkOreSlotWorldPosition(
-          cave.oreSlots[i] as [number, number, number],
-          0,
-          getProceduralMineCaveSeed(run.runId, run.currentDepth),
-          cave,
-          { anchor: 'chestBase' },
-        ),
+        position,
+        rotationY: pickChestRotationY({
+          runId: run.runId,
+          depth: run.currentDepth,
+          slotIndex: i,
+          chestX: position[0],
+          chestZ: position[2],
+          oreSlots: cave.oreSlots,
+          obstacleSlotIndices,
+        }),
         tier: s.chestTier ?? 'wood',
         remainingLoot: s.chestLoot,
         opened: s.chestOpened ?? false,

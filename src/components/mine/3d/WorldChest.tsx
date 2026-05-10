@@ -9,6 +9,8 @@ export type WorldChestEntity = {
   id: string
   slotIndex: number
   position: [number, number, number]
+  /** Y‑rotation (rad); greb ved lokal +Z — undgår at vende direkte mod klipper. */
+  rotationY: number
   tier: ChestTier
   remainingLoot: ChestLootResult
   opened: boolean
@@ -83,7 +85,7 @@ export default function WorldChest({ entity, highlighted, registerHitMesh, onCli
   })
 
   return (
-    <group position={entity.position}>
+    <group position={entity.position} rotation={[0, entity.rotationY, 0]}>
       {/* Usynlig træfflade — ét mesh pr. kiste til raycast i cave */}
       <mesh ref={(n) => registerHitMesh?.(entity.id, n)} position={[0, HEIGHT / 2, 0]}>
         <boxGeometry args={[WIDTH * 1.02, HEIGHT * 1.05, DEPTH * 1.05]} />
