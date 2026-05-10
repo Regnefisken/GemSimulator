@@ -1,5 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { LOOT_SPAWN_EDGE_MARGIN, spawnPositionsAround } from './lootEntities'
+import type { RawOre } from '../types'
+import {
+  LOOT_SPAWN_EDGE_MARGIN,
+  spawnPositionsAround,
+  worldLootKindScale,
+} from './lootEntities'
+
+describe('worldLootKindScale', () => {
+  const emptyPixel = { data: [] as string[], colorMap: {} }
+
+  it('malm mindre end kul; skala under ædelsten-reference', () => {
+    expect(worldLootKindScale({ kind: 'coal', quantity: 1, pixelItem: emptyPixel })).toBe(0.4)
+    const ore: RawOre = {
+      metalName: 'Kobber',
+      quantity: 1,
+      pixelItem: emptyPixel,
+    }
+    expect(worldLootKindScale({ kind: 'ore', ore })).toBe(0.33)
+    expect(worldLootKindScale({ kind: 'ore', ore })).toBeLessThan(
+      worldLootKindScale({ kind: 'coal', quantity: 1, pixelItem: emptyPixel }),
+    )
+    expect(0.33).toBeLessThan(1)
+  })
+})
 
 describe('spawnPositionsAround', () => {
   const origin: [number, number, number] = [6.2, 0.55, -4.1]

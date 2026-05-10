@@ -2,7 +2,7 @@ import { type ThreeEvent, useFrame, useThree } from '@react-three/fiber'
 import { useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { WorldLootEntity } from '../../../lib/lootEntities'
-import { getDropPixelData } from '../../../lib/lootEntities'
+import { getDropPixelData, WORLD_LOOT_BASE_SCALE, worldLootKindScale } from '../../../lib/lootEntities'
 import type { MineDrop } from '../../../gem/mining'
 import { METALS } from '../../../data/metals'
 import VoxelMesh from '../../VoxelMesh'
@@ -37,6 +37,8 @@ export default function WorldLootItem({ entity, onCollect }: Props) {
   const finished = useRef(false)
 
   const pixels = getDropPixelData(entity.drop)
+  const kindScale = worldLootKindScale(entity.drop)
+  const baseScale = WORLD_LOOT_BASE_SCALE * kindScale
 
   useFrame(({ clock }) => {
     const g = root.current
@@ -50,7 +52,7 @@ export default function WorldLootItem({ entity, onCollect }: Props) {
       const p = Math.min(1, elapsed / 250)
       const ease = 1 - Math.pow(1 - p, 2)
       g.position.lerpVectors(startWorld.current, camera.position, ease)
-      g.scale.setScalar(0.085 * (1 - ease))
+      g.scale.setScalar(baseScale * (1 - ease))
       if (p >= 1 && !finished.current) {
         finished.current = true
         onCollect(entity.id)
@@ -62,7 +64,7 @@ export default function WorldLootItem({ entity, onCollect }: Props) {
     const grow = Math.min(1, age / 0.2)
     const bob = Math.sin(t * 2.2) * 0.015
     g.position.set(bx, by + bob, bz)
-    g.scale.setScalar(0.085 * grow)
+    g.scale.setScalar(baseScale * grow)
     g.rotation.y = t * 0.9
   })
 

@@ -163,6 +163,37 @@ export function explodeDropToEntities(
   }
 }
 
+/** Basis-skala for verdens-loot (`WorldLootItem`); gang med `worldLootKindScale`. */
+export const WORLD_LOOT_BASE_SCALE = 0.085
+
+/**
+ * Relativ skala pr. drop-type — ædelsten er reference (1); malm og rå klippe små (voxel-grid varierer).
+ */
+export function worldLootKindScale(drop: MineDrop): number {
+  switch (drop.kind) {
+    case 'gem':
+      return 1
+    case 'coal':
+      return 0.4
+    case 'ore':
+      return 0.33
+    case 'nugget':
+      return 0.62
+    case 'rough-stone':
+      return 0.5
+    case 'consumable':
+      return 0.56
+    case 'blueprint':
+      return 0.64
+    case 'loot_pickaxe':
+    case 'loot_sword':
+    case 'loot_armour':
+      return 0.74
+    default:
+      return 1
+  }
+}
+
 export function getDropPixelData(drop: MineDrop): { data: string[]; colorMap: ColorMap } | null {
   switch (drop.kind) {
     case 'ore':
