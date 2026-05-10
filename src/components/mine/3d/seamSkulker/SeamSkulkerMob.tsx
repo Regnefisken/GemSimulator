@@ -163,6 +163,9 @@ function ProceduralSeamSkulkerMob({
     cooldown.current = Math.max(0, cooldown.current - delta)
 
     if (attackPhase.current === 'IDLE') {
+      const ox0 = offsetX.current
+      const oz0 = offsetZ.current
+
       const mobWx = slotWorldX + offsetX.current
       const mobWz = slotWorldZ + offsetZ.current
       const ddx = px - mobWx
@@ -186,7 +189,6 @@ function ProceduralSeamSkulkerMob({
         nwz = THREE.MathUtils.clamp(nwz, -caveHalfZ, caveHalfZ)
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
-        isWalking = step > MOB_STEP_MOVED_EPS
       } else if (dDist > MOB_COMBAT_OUTER) {
         const step = Math.min(MOB_CHASE_SPEED * delta, dDist - MOB_COMBAT_OUTER)
         let nwx = mobWx + nx * step
@@ -195,8 +197,12 @@ function ProceduralSeamSkulkerMob({
         nwz = THREE.MathUtils.clamp(nwz, -caveHalfZ, caveHalfZ)
         offsetX.current = nwx - slotWorldX
         offsetZ.current = nwz - slotWorldZ
-        isWalking = step > MOB_STEP_MOVED_EPS
       }
+
+      isWalking =
+        attackPhase.current === 'IDLE' &&
+        (Math.abs(offsetX.current - ox0) > MOB_STEP_MOVED_EPS ||
+          Math.abs(offsetZ.current - oz0) > MOB_STEP_MOVED_EPS)
 
       if (attackPhase.current === 'IDLE') {
         if (isWalking) {

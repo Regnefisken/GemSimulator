@@ -78,6 +78,22 @@ describe('alignOreSlotYToCaveFloor', () => {
     expect(chest[1]).toBeGreaterThan(rock[1])
   })
 
+  it('mob slot er over klippenedgravning ved samme felt', () => {
+    const cave = DEFAULT_CAVE_CONFIG
+    const seed = getProceduralMineCaveSeed('moby', 2)
+    const pos = [2, 0.48, -1] as const
+    const extra = -0.08
+    const rock = sinkOreSlotWorldPosition(pos, extra, seed, cave, {
+      rockType: 'normal',
+      meshScaleMultiplier: 1,
+    })
+    const mob = sinkOreSlotWorldPosition(pos, extra, seed, cave, {
+      rockType: 'mob',
+      meshScaleMultiplier: 1.4,
+    })
+    expect(mob[1]).toBeGreaterThan(rock[1])
+  })
+
   it('lootScatterOriginWorldPosition: Y er gulv + basis (ikke klippesænkning)', () => {
     const cave = DEFAULT_CAVE_CONFIG
     const seed = getProceduralMineCaveSeed('loot', 1)

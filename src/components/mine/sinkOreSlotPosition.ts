@@ -27,6 +27,11 @@ export const MINE_SLOT_Y_SINK = -0.175
 export const MINE_CHEST_Y_SINK = -0.035
 
 /**
+ * Mob: pivot over rendret gulv (positiv offset). Klipper bruger `MINE_SLOT_Y_SINK` + evt. extra nedgravning.
+ */
+export const MINE_MOB_ABOVE_FLOOR_Y = 0.1
+
+/**
  * Lodret basis for verdens‑loot (`spawnPositionsAround` lægger lidt ekstra oven i).
  * `VoxelMesh` + root‑scale **0,085** kan rage **~0,38–0,42** under pivot; denne værdi giver synlig **luft mellem sprite‑bund og underlag**.
  */
@@ -58,7 +63,7 @@ export function alignOreSlotYToCaveFloor(
 }
 
 /**
- * @param extraSinkY ekstra fra `getRockLayoutParams` (typisk negativ); 0 = kun basis-sink («top» af nedgravning).
+ * @param extraSinkY ekstra fra `getRockLayoutParams` (typisk negativ); 0 = kun basis-sink («top» af nedgravning). Ignoreres for mob.
  * @param baseSinkY typisk `MINE_SLOT_Y_SINK`; kister bruger `MINE_CHEST_Y_SINK` via `sinkOreSlotWorldPosition`.
  */
 export function sinkOreSlotPosition(
@@ -90,12 +95,13 @@ export function sinkOreSlotWorldPosition(
   opts?: SinkOreSlotWorldOpts,
 ): [number, number, number] {
   const chest = opts?.anchor === 'chestBase'
+  const isMob = opts?.rockType === 'mob'
   const { halfX, halfZ } = getCaveHalfExtents(cave)
   const floorY = sampleCaveFloorMeshY(caveSeed, halfX, halfZ, pos[0], pos[2])
   const anchored: [number, number, number] = [pos[0], floorY, pos[2]]
-  const baseSink = chest ? MINE_CHEST_Y_SINK : MINE_SLOT_Y_SINK
-  const extra = chest ? 0 : extraSinkY
+  const baseSink = chest ? MINE_CHEST_Y_SINK : isMob ? MINE_MOB_ABOVE_FLOOR_Y : MINE_SLOT_Y_SINK
+  const extra = chest || isMob ? 0 : extraSinkY
   const [x, y, z] = alignOreSlotYToCaveFloor(sinkOreSlotPosition(anchored, extra, baseSink), caveSeed, cave)
-  const footBias = chest ? 0 : oreFootVisualSinkBias(opts)
+  const footBias = chest || isMob ? 0 : oreFootVisualSinkBias(opts)
   return [x, y - footBias, z]
 }
