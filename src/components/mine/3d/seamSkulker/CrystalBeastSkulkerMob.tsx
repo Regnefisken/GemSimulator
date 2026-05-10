@@ -89,9 +89,14 @@ export default function CrystalBeastSkulkerMob({
 
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model])
 
+  /** Læses i `useFrame` — undgår `attackAction.clip` (typer + gentaget clip-opslag hver frame). */
+  const attackClipDurationRef = useRef(1)
+
   const { walkAction, attackAction } = useMemo(() => {
     const walkClip = animations.find((c) => c.name === 'walk')
     const attackClip = animations.find((c) => c.name === 'attack')
+    attackClipDurationRef.current =
+      attackClip && attackClip.duration > 1e-6 ? attackClip.duration : 1
     return {
       walkAction: walkClip ? mixer.clipAction(walkClip) : null,
       attackAction: attackClip ? mixer.clipAction(attackClip) : null,
@@ -122,6 +127,8 @@ export default function CrystalBeastSkulkerMob({
   const strikeDamageSent = useRef(false)
 
   const combatAnimOn = useRef(false)
+  /** Undgår `walkAction.time = 0` hver frame når gang er pauset (mindre arbejde i AnimationMixer). */
+  const walkPausedAtZeroRef = useRef(false)
 
   const hitRadius = Math.max(0.55, 1.05 * bulk * MOB_MODEL_SCALE)
 
@@ -221,10 +228,18 @@ export default function CrystalBeastSkulkerMob({
     if (inCombat) {
       if (!combatAnimOn.current) {
         combatAnimOn.current = true
+        /**
+         * Ingen walk↔attack crossfade: to skinning-spor samtidig er særligt dyrt for den tunge
+         * krystal-GLB. Samme mønster som hulestalker/goblin (vægt 0 + pause med det samme).
+         */
+        if (walkAction) {
+          walkAction.stopFading()
+          walkAction.setEffectiveWeight(0)
+          walkAction.paused = true
+        }
         attackAction?.reset()
         attackAction?.setEffectiveWeight(1)
         attackAction?.fadeIn(0.14).play()
-        walkAction?.fadeOut(0.12)
       }
     } else {
       if (combatAnimOn.current) {
@@ -236,19 +251,21 @@ export default function CrystalBeastSkulkerMob({
         if (isWalking) {
           walkAction.paused = false
           walkAction.timeScale = 1.05
+          walkPausedAtZeroRef.current = false
         } else {
           walkAction.paused = true
-          walkAction.time = 0
+          if (!walkPausedAtZeroRef.current) {
+            walkAction.time = 0
+            walkPausedAtZeroRef.current = true
+          }
         }
       }
     }
 
     if (attackAction) {
       if (inCombat) {
-        const cdur = attackAction.clip.duration
-        if (cdur > 1e-6) {
-          attackAction.timeScale = cdur / MOB_COMBAT_PHASE_DUR
-        }
+        const cdur = attackClipDurationRef.current
+        attackAction.timeScale = cdur / MOB_COMBAT_PHASE_DUR
         attackAction.paused = false
       } else {
         attackAction.timeScale = 1

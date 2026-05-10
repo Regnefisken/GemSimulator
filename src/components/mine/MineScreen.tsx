@@ -143,6 +143,9 @@ function pickupAccent(drop: MineDrop): string | undefined {
 }
 
 export default function MineScreen({ area, state, dispatch, onBack }: Props) {
+  const gameStateRef = useRef(state)
+  gameStateRef.current = state
+
   const { showToast } = useToast()
   const pickaxe = state.pickaxes.find((p) => p.id === state.activePickaxeId) ?? state.pickaxes[0]
   const sword = state.swords.find((s) => s.id === state.activeSwordId) ?? state.swords[0]
@@ -425,11 +428,12 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
   const handleCollectLoot = useCallback(
     (entityId: string) => {
+      const cur = gameStateRef.current
       const entity = lootEntities.find((e) => e.id === entityId)
       if (!entity || entity.collected) return
       const drop = entity.drop
       if (drop.kind === 'consumable') {
-        if (!canAddConsumableUnits(state, drop.quantity)) {
+        if (!canAddConsumableUnits(cur, drop.quantity)) {
           pushFloater({
             text: 'Forbrugs-lager fuldt!',
             color: '#fbbf24',
@@ -458,8 +462,13 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
         color: pickupAccent(entity.drop) ?? '#86efac',
       })
     },
-    [lootEntities, matCount, matCap, applyDrop, pushFloater, state],
+    [lootEntities, matCount, matCap, applyDrop, pushFloater],
   )
+
+  const handleWorldChestClick = useCallback((id: string) => {
+    if (typeof document !== 'undefined') document.exitPointerLock?.()
+    setActiveChestId(id)
+  }, [])
 
   const handleUpdateChest = useCallback(
     (chestId: string, remaining: import('../../gem/mining').ChestLootResult, opened: boolean) => {
@@ -807,10 +816,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           depletedSlots={depletedSlots}
           onCollectLoot={handleCollectLoot}
           worldChests={worldChests}
-          onChestClick={(id) => {
-            if (typeof document !== 'undefined') document.exitPointerLock?.()
-            setActiveChestId(id)
-          }}
+          onChestClick={handleWorldChestClick}
           onCrosshairTargetChange={setCrosshairOnTarget}
           onMobStrikeHit={handleMobStrikeHit}
           onMobPlanarOffset={reportMobPlanarOffset}

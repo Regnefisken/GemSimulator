@@ -86,12 +86,16 @@ export default function CaveStalkerSkulkerMob({
 
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model])
 
+  const attackClipDurationRef = useRef(1)
+
   const { idleAction, walkAction, attackAction } = useMemo(() => {
     const idleClip = animations.find((c) => c.name === 'idle')
     const walkClip =
       animations.find((c) => c.name === 'walk') ??
       animations.find((c) => /walk/i.test(c.name ?? ''))
     const attackClip = animations.find((c) => c.name === 'attack')
+    attackClipDurationRef.current =
+      attackClip && attackClip.duration > 1e-6 ? attackClip.duration : 1
     return {
       idleAction: idleClip ? mixer.clipAction(idleClip) : null,
       walkAction: walkClip ? mixer.clipAction(walkClip) : null,
@@ -262,10 +266,7 @@ export default function CaveStalkerSkulkerMob({
 
     if (attackAction) {
       if (inCombat) {
-        const cdur = attackAction.clip.duration
-        if (cdur > 1e-6) {
-          attackAction.timeScale = cdur / MOB_COMBAT_PHASE_DUR
-        }
+        attackAction.timeScale = attackClipDurationRef.current / MOB_COMBAT_PHASE_DUR
         attackAction.paused = false
       } else {
         attackAction.timeScale = 1

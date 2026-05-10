@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { Area, CaveConfig, PixelItem } from '../../../types'
 import type { GraphicsPreset, GraphicsPresetId } from '../../../gem/graphicsPresets'
@@ -317,7 +317,7 @@ function CaveContent({
   )
 }
 
-export default function MiningCave3D({
+function MiningCave3D({
   className = '',
   canvasClassName = '',
   weaponPixelItem,
@@ -460,3 +460,5 @@ export default function MiningCave3D({
     </div>
   )
 }
+
+export default memo(MiningCave3D)
