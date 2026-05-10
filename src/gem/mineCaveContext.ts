@@ -117,7 +117,8 @@ export type RoomLayoutResult = Pick<
 >
 
 /**
- * Geometri + felter for ét lag fra skabelon og størrelse (felt-RNG kommer derefter i `mineLayer`).
+ * Malm‑felter og bounds ud fra **room‑template** (`classic` | `corridor` | `island` | `dogleg`) + `RoomSize` + `slotCount`.
+ * Koordinater er fuldt deterministiske herfra — **ikke** blandet med kerne‑felt‑RNG i `mineLayer`.
  */
 export function computeRoomLayout(args: {
   base: CaveConfig
@@ -371,8 +372,13 @@ export type ResolveEffectiveCaveConfigArgs = {
 }
 
 /**
- * Effektiv grotte for det aktuelle lag: samme layout som `generateLayerState` skal bruge.
- * RNG: slotCount → skabelon → størrelse → geometri (felt-RNG følger i `generateLayerState`).
+ * Effektiv grotte for det aktuelle lag — **skal** matche hvad `generateLayerState` bruger.
+ *
+ * **RNG‑rækkefølge** (ét `mulberry32`‑frø fra `mineLayerSeedKey`): `slotCount` → `drawRoomTemplate` → `drawRoomSize` → `computeRoomLayout`.
+ * Felt‑geometri er **template‑drevet**; der er **ingen** separat layout‑RNG endnu.
+ *
+ * **Plan / §18:** Stokastisk felt‑XZ kan senere bruge et dedikeret underfrø, fx
+ * `hashStringToSeed(mineLayerSeedKey(...) + "|oreXZ|v1")`, uden at ændre rækkefølgen ovenfor.
  */
 export function resolveEffectiveCaveConfig(args: ResolveEffectiveCaveConfigArgs): CaveConfig {
   const base = getCaveConfig(args.area)
