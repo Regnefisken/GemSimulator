@@ -287,20 +287,15 @@ export default function OreNode({
     ? {
         onClick: (e: { stopPropagation: () => void }) => {
           e.stopPropagation()
-          if (interactive && !disabled && onMineHit) {
+          if (disabled) return
+          if (onMineHit) {
             onMineHit()
             return
           }
-          if (!interactive && onSelectTarget) {
-            onSelectTarget()
-            return
-          }
-          if (!interactive && onMineHit && !onSelectTarget && !disabled) {
-            onMineHit()
-          }
+          onSelectTarget?.()
         },
         onPointerDown: (e: { stopPropagation: () => void }) => {
-          if (interactive || onSelectTarget) e.stopPropagation()
+          if (onMineHit || onSelectTarget) e.stopPropagation()
         },
       }
     : {}

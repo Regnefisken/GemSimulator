@@ -791,7 +791,6 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
             setActiveChestId(id)
           }}
           onCrosshairTargetChange={setCrosshairOnTarget}
-          onSelectMineSlot={(i) => dispatch({ type: 'MINE_SET_TARGET_SLOT', index: i })}
           onMobStrikeHit={handleMobStrikeHit}
           disablePointerLock={activeChestId != null}
         />

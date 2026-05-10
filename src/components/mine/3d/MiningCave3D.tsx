@@ -50,8 +50,6 @@ export type MiningCave3DProps = {
   onCollectLoot: (id: string) => void
   worldChests: WorldChestEntity[]
   onChestClick: (id: string) => void
-  /** Venstreklik på en anden klippe for at sætte den som aktivt mål (D13). */
-  onSelectMineSlot?: (slotIndex: number) => void
   onCrosshairTargetChange?: (active: boolean) => void
   /** Kun aktivt mål-mob: kaldes når slag-animationen rammer (synk skade). */
   onMobStrikeHit?: () => void
@@ -126,7 +124,6 @@ function CaveContent({
   onCollectLoot,
   worldChests,
   onChestClick,
-  onSelectMineSlot,
   onCrosshairTargetChange,
   onMobStrikeHit,
   caveSeed,
@@ -265,7 +262,6 @@ function CaveContent({
         if (!slot || slot.kind === 'chest') return null
         const depleted = depletedSlots.has(i) || slot.cleared
         const isVisualTarget = activeSlotIndex === i && targetSlotIndex >= 0 && !depleted
-        const canStrikeHere = !depleted && (targetSlotIndex < 0 || activeSlotIndex === i)
         const layout = getRockLayoutParams(mineRunId, runDepth, i, slot.rockType)
         return (
           <OreNode
@@ -281,15 +277,11 @@ function CaveContent({
             hitPulse={hitPulse}
             visualSeed={hashMineRockVisualSeed(mineRunId, runDepth, i, slot.rockType)}
             rockType={slot.rockType}
-            disabled={disabled}
+            /** Kun aktivt mål respekterer `disabled` (forkert våben osv.) — andre felter skal kunne klikkes for at skifte mål. */
+            disabled={disabled && isVisualTarget}
             interactive={isVisualTarget}
             depleted={depleted}
-            onMineHit={canStrikeHere ? () => onMineHit(i) : undefined}
-            onSelectTarget={
-              targetSlotIndex >= 0 && activeSlotIndex !== i && !depleted
-                ? () => onSelectMineSlot?.(i)
-                : undefined
-            }
+            onMineHit={!depleted ? () => onMineHit(i) : undefined}
             accentMetal={accent}
             hitTargetRef={isVisualTarget ? activeOreMeshRef : undefined}
             caveHalfX={playableHalf.halfX}
