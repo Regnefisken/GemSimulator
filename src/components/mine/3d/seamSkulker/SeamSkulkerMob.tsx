@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'rea
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { buildSeamSkulkerRig, type SeamSkulkerRigParts } from './buildSeamSkulkerRig'
+import CaveStalkerSkulkerMob from './CaveStalkerSkulkerMob'
 import CrystalBeastSkulkerMob from './CrystalBeastSkulkerMob'
 import GrotteGoblinSkulkerMob from './GrotteGoblinSkulkerMob'
 import {
@@ -20,6 +21,7 @@ import {
 import { SEAM_SKULKER_HP_LABEL_MODEL_Y, SEAM_SKULKER_SCALE_MUL } from './seamSkulkerScale'
 import type { MobType } from '../../../../types'
 
+export { caveStalkerHpLabelLocalY } from './CaveStalkerSkulkerMob'
 export { crystalBeastHpLabelLocalY } from './CrystalBeastSkulkerMob'
 export { grotteGoblinHpLabelLocalY } from './GrotteGoblinSkulkerMob'
 export { SEAM_SKULKER_SCALE_MUL } from './seamSkulkerScale'
@@ -379,12 +381,17 @@ function ProceduralSeamSkulkerMob({
 
 /** GLB crystal beast i stedet for procedural skulker. */
 const MOB_TYPE_CRYSTAL_BEAST: MobType = 'dust_wraith'
-/** GLB grotte-goblin i stedet for procedural skulker (`seam_skulker` + `cave_crawler` forbliver procedurelle). */
+/** GLB blind cave stalker — erstatter den tintede procedural skulker for denne type. */
+const MOB_TYPE_CAVE_STALKER: MobType = 'cave_crawler'
+/** GLB grotte-goblin. */
 const MOB_TYPE_GROTTE_GOBLIN: MobType = 'rock_gnome'
 
 export default function SeamSkulkerMob(props: Props) {
   if (props.mobType === MOB_TYPE_CRYSTAL_BEAST) {
     return <CrystalBeastSkulkerMob {...props} />
+  }
+  if (props.mobType === MOB_TYPE_CAVE_STALKER) {
+    return <CaveStalkerSkulkerMob {...props} />
   }
   if (props.mobType === MOB_TYPE_GROTTE_GOBLIN) {
     return <GrotteGoblinSkulkerMob {...props} />

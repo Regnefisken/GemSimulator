@@ -12,6 +12,7 @@ import {
 } from '../../../gem/procedural/buildProceduralMineRock'
 import { useLabelHtmlDistanceFactor } from './useLabelHtmlDistanceFactor'
 import SeamSkulkerMob, {
+  caveStalkerHpLabelLocalY,
   crystalBeastHpLabelLocalY,
   grotteGoblinHpLabelLocalY,
   seamSkulkerHpLabelLocalY,
@@ -309,9 +310,11 @@ export default function OreNode({
     rockType === 'mob'
       ? mobType === 'dust_wraith'
         ? crystalBeastHpLabelLocalY(bulk)
-        : mobType === 'rock_gnome'
-          ? grotteGoblinHpLabelLocalY(bulk)
-          : seamSkulkerHpLabelLocalY(bulk)
+        : mobType === 'cave_crawler'
+          ? caveStalkerHpLabelLocalY(bulk)
+          : mobType === 'rock_gnome'
+            ? grotteGoblinHpLabelLocalY(bulk)
+            : seamSkulkerHpLabelLocalY(bulk)
       : labelBillboardY
 
   const hpBillboard = showHpBar ? (
