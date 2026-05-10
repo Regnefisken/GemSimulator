@@ -1,5 +1,6 @@
 import { AREAS } from '../data/areas'
 import { findBrew } from '../data/brews'
+import { isDevMineGearProtectEnabled } from '../dev/devMineGearProtect'
 import type { GameState } from '../types'
 
 /** D38: neutral mana før brews. */
@@ -90,6 +91,7 @@ export function clampPlayerSurvival(state: GameState): GameState {
  * Nulstilling ved død (D7+D18) tilføjes når døds-flow findes.
  */
 export function applyDamageToPlayer(state: GameState, amount: number, _source?: string): GameState {
+  if (isDevMineGearProtectEnabled()) return state
   if (!isInActiveMineRun(state) || amount <= 0) return state
   const dmg = Math.floor(amount)
   const hp = Math.max(0, state.playerHp - dmg)

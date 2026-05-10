@@ -35,6 +35,7 @@ import { createRandomGem } from '../gem/generate'
 import { buildJewelryVoxel3d } from '../gem/drawJewelry3d'
 import { canDescendFromLayer, createInitialMineRun, generateLayerState } from '../gem/mineLayer'
 import type { ChestLootResult } from '../gem/mining'
+import { isDevMineGearProtectEnabled } from '../dev/devMineGearProtect'
 import { ENABLE_DEV_CHEATS } from '../dev/featureFlags'
 import { logTelemetry } from '../telemetry/localLogger'
 import { computeWorldTier } from './worldTier'
@@ -993,6 +994,7 @@ export function reducer(state: GameState, action: Action): GameState {
       return clampPlayerSurvival({ ...state, activeArmourId: action.id, gameNotice: null })
     }
     case 'DAMAGE_SWORD': {
+      if (isDevMineGearProtectEnabled()) return state
       if (action.amount <= 0) return state
       const swords = state.swords.map((s) =>
         s.id === state.activeSwordId ? { ...s, durability: Math.max(0, s.durability - action.amount) } : s,
@@ -1185,7 +1187,12 @@ export function reducer(state: GameState, action: Action): GameState {
         mineRun: { ...r, slots, rockSlotsClearedThisRun },
         totalRockSlotsCleared,
       }
-      if (nowCleared && !slot.cleared && slot.kind === 'rock') {
+      if (
+        nowCleared &&
+        !slot.cleared &&
+        slot.kind === 'rock' &&
+        !isDevMineGearProtectEnabled()
+      ) {
         const pickaxes = nextState.pickaxes.map((p) =>
           p.id === nextState.activePickaxeId
             ? { ...p, durability: Math.max(0, p.durability - 1) }
@@ -1330,6 +1337,7 @@ export function reducer(state: GameState, action: Action): GameState {
       return applyEligibleUnlocks(next)
     }
     case 'DAMAGE_PICKAXE': {
+      if (isDevMineGearProtectEnabled()) return state
       const pickaxes = state.pickaxes.map((p) =>
         p.id === state.activePickaxeId
           ? { ...p, durability: Math.max(0, p.durability - action.amount) }

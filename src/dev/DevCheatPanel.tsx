@@ -1,8 +1,9 @@
-import type { Dispatch } from 'react'
+import { useState, type Dispatch } from 'react'
 import type { GameState } from '../types'
 import type { Action } from '../lib/gameState'
 import { ENABLE_DEV_CHEATS } from './featureFlags'
 import { xpToGainLevels } from './devCheats'
+import { setDevMineGearProtect, isDevMineGearProtectEnabled } from './devMineGearProtect'
 import {
   devFillGemsToCapacity,
   devSpawnExoticMetalPack,
@@ -45,6 +46,8 @@ const btnBase =
   'w-full rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-white shadow-sm transition-colors leading-snug'
 
 export default function DevCheatPanel({ state, dispatch }: Props) {
+  const [mineGearProtect, setMineGearProtect] = useState(() => isDevMineGearProtectEnabled())
+
   if (!ENABLE_DEV_CHEATS) return null
 
   return (
@@ -58,6 +61,22 @@ export default function DevCheatPanel({ state, dispatch }: Props) {
         <h3 className="text-xs font-semibold uppercase tracking-wide text-orange-300/90 mb-2 px-1">
           🔧 Developer Tools
         </h3>
+        <label className="flex items-start gap-2.5 rounded-lg border border-orange-500/35 bg-orange-950/45 px-2.5 py-2 mb-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="mt-0.5 accent-orange-500 shrink-0"
+            checked={mineGearProtect}
+            onChange={(e) => {
+              const on = e.target.checked
+              setDevMineGearProtect(on)
+              setMineGearProtect(on)
+            }}
+          />
+          <span className="text-[11px] text-orange-100/95 leading-snug min-w-0">
+            <span className="font-semibold block text-orange-200">Beskyttelse i minen</span>
+            Du tager ikke skade fra mobs; rustning slider ikke; hakke og sværd slides ikke ved brug.
+          </span>
+        </label>
         <div className="flex flex-col gap-2">
           <button
             type="button"
