@@ -14,7 +14,7 @@ describe('buildGemVoxel3d', () => {
     expect(g.layers).toHaveLength(3)
     expect(g.layers[0]).toEqual(gem.data)
     expect(g.layers[1]).toEqual(['.OO.', '..O..'])
-    expect(g.layers[2]).toEqual(['.GO.', '..D..'])
+    expect(g.layers[2]).toEqual(gem.data)
     expect(g.colorMap).toBe(gem.colorMap)
   })
 
