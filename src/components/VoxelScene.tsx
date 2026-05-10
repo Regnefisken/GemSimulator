@@ -32,6 +32,8 @@ export type VoxelSceneProps3D = {
   className?: string
   canvasStyle?: CSSProperties
   cameraTilt?: number
+  /** Ingen orbit — langsom Y-rotation (fx små kiste-kort oven på knapper). */
+  disableOrbitControls?: boolean
 }
 
 export type VoxelSceneProps = VoxelSceneProps2D | VoxelSceneProps3D
@@ -191,7 +193,42 @@ function Scene2D({
   )
 }
 
-function Scene3D({ voxel3d, tilt }: { voxel3d: Voxel3DGrid; tilt: number }) {
+function Scene3DNoPointer({ voxel3d, tilt }: { voxel3d: Voxel3DGrid; tilt: number }) {
+  const spinRef = useRef<THREE.Group>(null)
+  useFrame((_, dt) => {
+    const g = spinRef.current
+    if (!g) return
+    g.rotation.y += dt * 0.55
+  })
+
+  return (
+    <>
+      <AdaptiveCamera3D voxel3d={voxel3d} />
+      <group ref={spinRef} rotation={[0, SCENE2D_YAW, 0]}>
+        <group rotation={[tilt, 0, 0]}>
+          <VoxelMesh3D voxel3d={voxel3d} />
+        </group>
+      </group>
+      <ambientLight intensity={0.58} />
+      <directionalLight color="#ffffff" intensity={0.9} position={[5, 8, 10]} />
+      <directionalLight color="#c7d2fe" intensity={0.32} position={[-6, -3, -4]} />
+    </>
+  )
+}
+
+function Scene3D({
+  voxel3d,
+  tilt,
+  disableOrbitControls,
+}: {
+  voxel3d: Voxel3DGrid
+  tilt: number
+  disableOrbitControls?: boolean
+}) {
+  if (disableOrbitControls) {
+    return <Scene3DNoPointer voxel3d={voxel3d} tilt={tilt} />
+  }
+
   const [autoRotate, setAutoRotate] = useState(true)
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
 
@@ -250,7 +287,11 @@ export default function VoxelScene(props: VoxelSceneProps) {
       }}
     >
       {is3d ? (
-        <Scene3D voxel3d={props.voxel3d} tilt={tilt} />
+        <Scene3D
+          voxel3d={props.voxel3d}
+          tilt={tilt}
+          disableOrbitControls={props.disableOrbitControls}
+        />
       ) : (
         <Scene2D
           data={props.data}

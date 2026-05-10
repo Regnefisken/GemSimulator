@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildGemVoxel3d } from './drawGem3d'
+import { buildGemVoxel3d, buildPixelItemVoxel3d } from './drawGem3d'
 import { MAX_VOXEL_INSTANCES } from '../components/VoxelMesh'
 import { countVoxels } from './drawJewelry3d'
 
@@ -16,6 +16,11 @@ describe('buildGemVoxel3d', () => {
     expect(g.layers[1]).toEqual(['.OO.', '..O..'])
     expect(g.layers[2]).toEqual(['.GO.', '..D..'])
     expect(g.colorMap).toBe(gem.colorMap)
+  })
+
+  it('buildPixelItemVoxel3d er samme grid som buildGemVoxel3d for PixelItem', () => {
+    const item = { data: ['.OG.', '..D..'], colorMap: { O: '#111', G: '#222', D: '#333' } }
+    expect(buildPixelItemVoxel3d(item)).toEqual(buildGemVoxel3d(item))
   })
 
   it('holder voxel-antal under instanceloft for alle skabeloner', async () => {

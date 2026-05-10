@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import type { PixelItem } from '../../types'
-import VoxelScene from '../VoxelScene'
+import PixelItemVoxelScene from '../PixelItemVoxelScene'
 
 type Props = {
   open: boolean
@@ -60,11 +60,11 @@ export default function ItemPreviewModal({ open, onClose, item, title, subtitleL
         <div className="flex-1 flex flex-col items-center min-w-0">
           <div className="w-full max-w-[min(100%,400px)] aspect-square min-h-[220px] rounded-xl overflow-hidden border border-slate-700 bg-slate-950">
             {hasPixels ? (
-              <VoxelScene
-                data={item.data}
-                colorMap={item.colorMap}
+              <PixelItemVoxelScene
+                item={item}
                 className="w-full h-full"
                 canvasStyle={{ width: '100%', height: '100%' }}
+                cameraTilt={0.35}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-500 text-sm">Intet billede</div>

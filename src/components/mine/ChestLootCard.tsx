@@ -1,4 +1,4 @@
-import VoxelScene from '../VoxelScene'
+import PixelItemVoxelScene from '../PixelItemVoxelScene'
 import type { MineDrop } from '../../gem/mining'
 import { findBlueprint } from '../../data/blueprints'
 import { findConsumableDef } from '../../data/consumables'
@@ -97,10 +97,10 @@ export default function ChestLootCard(props: Props) {
     <button type="button" disabled={props.disabled} onClick={props.onTake} className={common + ' items-center'}>
       {viz && (
         <div className="pointer-events-none w-[72px] h-[72px] mx-auto overflow-hidden rounded-lg bg-slate-950">
-          <VoxelScene
-            data={viz.data}
-            colorMap={viz.colorMap}
+          <PixelItemVoxelScene
+            item={viz}
             disableOrbitControls
+            cameraTilt={0.35}
             className="pointer-events-none !block !max-w-none scale-90"
           />
         </div>

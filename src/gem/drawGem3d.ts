@@ -32,3 +32,8 @@ export function buildGemVoxel3d(gem: GemVoxelSource, depth = 3): Voxel3DGrid {
 
   return { depth: layers.length, layers, colorMap }
 }
+
+/** Samme volumetrische udvidelse som ædelsten — til malm, rå klipper, klumper, ingots m.m. (`PixelItem`). */
+export function buildPixelItemVoxel3d(item: GemVoxelSource, depth = 3): Voxel3DGrid {
+  return buildGemVoxel3d(item, depth)
+}
