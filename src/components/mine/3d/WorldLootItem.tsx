@@ -1,11 +1,12 @@
 import { type ThreeEvent, useFrame, useThree } from '@react-three/fiber'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { WorldLootEntity } from '../../../lib/lootEntities'
 import { getDropPixelData, WORLD_LOOT_BASE_SCALE, worldLootKindScale } from '../../../lib/lootEntities'
 import type { MineDrop } from '../../../gem/mining'
 import { METALS } from '../../../data/metals'
-import VoxelMesh from '../../VoxelMesh'
+import { buildPixelItemVoxel3d } from '../../../gem/drawGem3d'
+import VoxelMesh3D from '../../VoxelMesh3D'
 
 type Props = {
   entity: WorldLootEntity
@@ -37,12 +38,13 @@ export default function WorldLootItem({ entity, onCollect }: Props) {
   const finished = useRef(false)
 
   const pixels = getDropPixelData(entity.drop)
+  const voxel3d = useMemo(() => (pixels ? buildPixelItemVoxel3d(pixels) : null), [entity.drop])
   const kindScale = worldLootKindScale(entity.drop)
   const baseScale = WORLD_LOOT_BASE_SCALE * kindScale
 
   useFrame(({ clock }) => {
     const g = root.current
-    if (!g || !pixels) return
+    if (!g || !voxel3d) return
 
     const t = clock.elapsedTime
     const [bx, by, bz] = entity.position
@@ -76,7 +78,7 @@ export default function WorldLootItem({ entity, onCollect }: Props) {
     startWorld.current.copy(root.current.position)
   }
 
-  if (!pixels) return null
+  if (!voxel3d) return null
 
   const rare = isRareGlow(entity.drop)
 
@@ -86,7 +88,7 @@ export default function WorldLootItem({ entity, onCollect }: Props) {
         <pointLight color={glowColor(entity.drop)} intensity={0.55} distance={4} decay={2} position={[0, 0.35, 0]} />
       )}
       <group position={[0, -0.12, 0]}>
-        <VoxelMesh data={pixels.data} colorMap={pixels.colorMap} />
+        <VoxelMesh3D voxel3d={voxel3d} />
       </group>
       {/* Stor samle-sfære — lettere at ramme fra FPS; centreret om voxel-centrum */}
       <mesh position={[0, 0.08, 0]} onPointerDown={tryCollect} onClick={tryCollect}>
