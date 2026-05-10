@@ -8,11 +8,37 @@ import { logTelemetry } from '../telemetry/localLogger'
 const STATE_KEY = 'gem-game-state'
 const LEGACY_COLLECTION_KEY = 'gem-collection'
 
+/** Forhindrer at `beforeunload`/debounced save skriver gammel tilstand tilbage efter bruger-nulstilling. */
+const RESET_GUARD_KEY = 'gemSimulator.resetInProgress'
+
 function hydrate(state: GameState): GameState {
   return applyEligibleUnlocks(refundActiveSmeltingJobs(state))
 }
 
+/**
+ * Fjerner gemt spil og markerer session så `saveState` ignoreres indtil næste load.
+ * Kald ved fuld nulstilling lige før `location.reload()`.
+ */
+export function beginFullGameReset(): void {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(RESET_GUARD_KEY, '1')
+    }
+    localStorage.removeItem(STATE_KEY)
+    localStorage.removeItem(LEGACY_COLLECTION_KEY)
+  } catch {
+    // ignore
+  }
+}
+
 export function loadState(): GameState {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(RESET_GUARD_KEY)
+    }
+  } catch {
+    // ignore
+  }
   try {
     const raw = localStorage.getItem(STATE_KEY)
     if (raw) {
@@ -43,6 +69,9 @@ export function loadState(): GameState {
 
 export function saveState(s: GameState): void {
   try {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(RESET_GUARD_KEY) === '1') {
+      return
+    }
     localStorage.setItem(STATE_KEY, JSON.stringify(s))
     localStorage.removeItem(LEGACY_COLLECTION_KEY)
   } catch {

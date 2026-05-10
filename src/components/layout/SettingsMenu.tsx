@@ -1,6 +1,7 @@
 import { useState, type Dispatch } from 'react'
 import type { GameState } from '../../types'
 import type { Action } from '../../lib/gameState'
+import { beginFullGameReset } from '../../lib/storage'
 import DevCheatPanel from '../../dev/DevCheatPanel'
 import GraphicsSettings from '../settings/GraphicsSettings'
 import { DISPLAY_RENDER_PRESETS } from '../../lib/displayRenderSettings'
@@ -23,8 +24,7 @@ export default function SettingsMenu({ onClose, state, dispatch }: Props) {
   }
 
   function confirmReset() {
-    localStorage.removeItem('gem-game-state')
-    localStorage.removeItem('gem-collection')
+    beginFullGameReset()
     window.location.reload()
   }
 
