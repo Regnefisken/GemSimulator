@@ -112,6 +112,29 @@ function wallBackedCandidates(halfX: number, halfZ: number): WallCandidate[] {
 }
 
 /**
+ * Samme spawn-XZ som `pickMineSpawn` når der ikke er klippe-hindringer (tom `mineSlots` / layout-fase).
+ * Matcher **ingen-hindring**-grenen; bruges til malm-placering uden cirkulær afhængighed til klipper.
+ */
+export function pickMineSpawnXZEmptyRoom(args: {
+  halfX: number
+  halfZ: number
+  mineRunId: string
+  runDepth: number
+}): { x: number; z: number } {
+  const candidates = wallBackedCandidates(args.halfX, args.halfZ)
+  const frac = offsetFractionsMiddleThird(WALL_SAMPLES)
+  const spanX = wallHalfSpanFromCenter(args.halfX)
+  const zi = spawnFracIndex(args.mineRunId, args.runDepth, frac.length)
+  const tPick = frac[zi]!
+  const xPrefer = tPick * spanX
+  const best =
+    candidates.find((c) => c.wall === 'S' && Math.abs(c.px - xPrefer) < 1e-3) ??
+    candidates.find((c) => c.wall === 'S') ??
+    candidates[0]!
+  return { x: best.px, z: best.pz }
+}
+
+/**
  * Straf for klipper der ligger lige foran (stor vinkel + tæt) — side/bagved tæller kun som krops-afstand.
  */
 function forwardViewPenalty(
@@ -193,14 +216,14 @@ export function pickMineSpawn(args: {
   }
 
   if (obstacles.length === 0) {
-    const frac = offsetFractionsMiddleThird(WALL_SAMPLES)
-    const spanX = wallHalfSpanFromCenter(halfX)
-    const zi = spawnFracIndex(args.mineRunId, args.runDepth, frac.length)
-    const tPick = frac[zi]!
-    const xPrefer = tPick * spanX
+    const p = pickMineSpawnXZEmptyRoom({
+      halfX,
+      halfZ,
+      mineRunId: args.mineRunId,
+      runDepth: args.runDepth,
+    })
     const best =
-      candidates.find((c) => c.wall === 'S' && Math.abs(c.px - xPrefer) < 1e-3) ??
-      candidates.find((c) => c.wall === 'S') ??
+      candidates.find((c) => Math.abs(c.px - p.x) < 1e-3 && Math.abs(c.pz - p.z) < 1e-3) ??
       candidates[0]!
     return {
       x: best.px,

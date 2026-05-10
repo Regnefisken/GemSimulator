@@ -1,5 +1,7 @@
 import type { Area, CaveConfig, RoomSize, RoomTemplate } from '../types'
 import { getCaveConfig } from '../types'
+import { getPlayableHalfExtents } from '../lib/caveHalfExtents'
+import { pickMineSpawnXZEmptyRoom } from '../components/mine/pickMineSpawn'
 
 /** Antal interaktive felter pr. lag (kerne-lag, uafhængigt af grafik-preset). */
 export const MIN_INTERACTIVE_SLOTS = 5
@@ -26,6 +28,20 @@ const ROOM_SIZE_WORLD_MUL: Record<RoomSize, number> = {
 
 /** Ekstra halvakse-margin omkring malm-pivot (skaleret mesh rager ud over pivot). */
 const INTERACTIVE_ORE_MESH_PAD = 0.9
+
+/**
+ * Suffiks til layout-underfrø — bump version ved ændring af felt-XZ-algoritme (RNG-kontrakt / §18).
+ * Hele strengen i frøet er `${mineLayerSeedKey(...)}|oreXZ|v1`.
+ */
+export const ORE_XZ_LAYOUT_SEED_TAG = 'oreXZ|v1'
+
+/** Min. afstand mellem malm-pivot i XZ ( gameplay + mesh-luft ). */
+const STOCHASTIC_MIN_SLOT_DIST = 3.0
+/** Fri zone omkring foreløbig spawn (matcher `pickMineSpawn` uden klipper). */
+const STOCHASTIC_SPAWN_CLEAR_RADIUS = 3.2
+const STOCHASTIC_DART_ATTEMPTS = 100
+/** Indryk fra playable-kant før dart-throwing. */
+const STOCHASTIC_PLACE_INNER_PAD = 0.35
 
 const PHI = 0.6180339887498949
 
@@ -279,6 +295,180 @@ export function computeRoomLayout(args: {
   }
 }
 
+function stochasticDistanceOk(
+  x: number,
+  z: number,
+  placed: readonly [number, number][],
+  sx: number,
+  sz: number,
+  minDist: number,
+  spawnRadius: number,
+): boolean {
+  if (Math.hypot(x - sx, z - sz) < spawnRadius) return false
+  for (const [px, pz] of placed) {
+    if (Math.hypot(x - px, z - pz) < minDist) return false
+  }
+  return true
+}
+
+function stochasticTryDart(
+  rng: () => number,
+  placed: [number, number][],
+  sx: number,
+  sz: number,
+  ix: number,
+  iz: number,
+  minDist: number,
+  spawnRadius: number,
+): [number, number] | null {
+  for (let a = 0; a < STOCHASTIC_DART_ATTEMPTS; a++) {
+    const x = (rng() * 2 - 1) * ix
+    const z = (rng() * 2 - 1) * iz
+    if (!stochasticDistanceOk(x, z, placed, sx, sz, minDist, spawnRadius)) continue
+    return [x, z]
+  }
+  return null
+}
+
+/** Fallback: spiral + gradvist blødere constraints; bruger `rng` til vinkel-jitter. */
+function stochasticSpiralPlace(
+  rng: () => number,
+  placed: [number, number][],
+  sx: number,
+  sz: number,
+  ix: number,
+  iz: number,
+  baseMin: number,
+  baseSpawnR: number,
+  slotIndex: number,
+): [number, number] | null {
+  const GOLDEN = 2.39996322972865332
+  for (let k = 0; k < 800; k++) {
+    const r = Math.sqrt((k + 1) / 800) * Math.min(ix, iz) * 0.94
+    const ang = k * GOLDEN + slotIndex * 2.17 + rng() * 6.283185307179586
+    let x = Math.cos(ang) * r
+    let z = Math.sin(ang) * r
+    x = Math.max(-ix, Math.min(ix, x))
+    z = Math.max(-iz, Math.min(iz, z))
+    const md = baseMin * (0.72 + ((k % 11) * 0.022))
+    const sr = baseSpawnR * (0.88 + ((k % 7) * 0.014))
+    if (stochasticDistanceOk(x, z, placed, sx, sz, md, sr)) return [x, z]
+  }
+  return null
+}
+
+/**
+ * Stokastisk XZ for malm felter — dart throwing med separat layout-frø (`ORE_XZ_LAYOUT_SEED_TAG`).
+ * `template` påvirker ikke feltkoordinater (kun metadata/fog via `size`); matcher plan §18.4.
+ */
+export function placeOreSlotsStochastic(args: {
+  base: CaveConfig
+  template: RoomTemplate
+  size: RoomSize
+  slotCount: number
+  runId: string
+  mineId: string
+  currentDepth: number
+}): RoomLayoutResult {
+  const sm = ROOM_SIZE_WORLD_MUL[args.size]
+  const baseB = args.base.bounds
+  const fy = floorYFromBase(args.base)
+  const B = baseB * sm
+
+  const preliminaryCfg: CaveConfig = {
+    ...args.base,
+    bounds: B,
+    boundsHalfX: B,
+    boundsHalfZ: B,
+  }
+  const playable = getPlayableHalfExtents(preliminaryCfg)
+  const spawn = pickMineSpawnXZEmptyRoom({
+    halfX: playable.halfX,
+    halfZ: playable.halfZ,
+    mineRunId: args.runId,
+    runDepth: args.currentDepth,
+  })
+
+  const ix = Math.max(playable.halfX - STOCHASTIC_PLACE_INNER_PAD, 0.2)
+  const iz = Math.max(playable.halfZ - STOCHASTIC_PLACE_INNER_PAD, 0.2)
+
+  const layoutSeed = hashStringToSeed(
+    `${mineLayerSeedKey(args.runId, args.mineId, args.currentDepth)}|${ORE_XZ_LAYOUT_SEED_TAG}`,
+  )
+  const layoutRng = mulberry32(layoutSeed)
+
+  const placedXZ: [number, number][] = []
+  const oreSlots: [number, number, number][] = []
+
+  for (let i = 0; i < args.slotCount; i++) {
+    let found =
+      stochasticTryDart(
+        layoutRng,
+        placedXZ,
+        spawn.x,
+        spawn.z,
+        ix,
+        iz,
+        STOCHASTIC_MIN_SLOT_DIST,
+        STOCHASTIC_SPAWN_CLEAR_RADIUS,
+      ) ??
+      stochasticTryDart(
+        layoutRng,
+        placedXZ,
+        spawn.x,
+        spawn.z,
+        ix,
+        iz,
+        STOCHASTIC_MIN_SLOT_DIST * 0.82,
+        STOCHASTIC_SPAWN_CLEAR_RADIUS * 0.94,
+      ) ??
+      stochasticSpiralPlace(
+        layoutRng,
+        placedXZ,
+        spawn.x,
+        spawn.z,
+        ix,
+        iz,
+        STOCHASTIC_MIN_SLOT_DIST,
+        STOCHASTIC_SPAWN_CLEAR_RADIUS,
+        i,
+      )
+
+    if (!found) {
+      let gx = (((i * 17) % 11) / 5 - 1) * ix * 0.88
+      let gz = (((i * 31) % 13) / 6 - 1) * iz * 0.88
+      gx = Math.max(-ix, Math.min(ix, gx))
+      gz = Math.max(-iz, Math.min(iz, gz))
+      found = [gx, gz]
+    }
+
+    placedXZ.push(found)
+    oreSlots.push([found[0], fy, found[1]])
+  }
+
+  let maxAx = 0
+  let maxAz = 0
+  for (const [ox, , oz] of oreSlots) {
+    maxAx = Math.max(maxAx, Math.abs(ox))
+    maxAz = Math.max(maxAz, Math.abs(oz))
+  }
+  const hx = Math.max(B, maxAx + INTERACTIVE_ORE_MESH_PAD)
+  const hz = Math.max(B, maxAz + INTERACTIVE_ORE_MESH_PAD)
+  const bounds = Math.max(hx, hz)
+  const fogMul = args.size === 'compact' ? 0.96 : args.size === 'expansive' ? 1.06 : 1
+
+  return {
+    oreSlots,
+    bounds,
+    boundsHalfX: hx,
+    boundsHalfZ: hz,
+    fogNear: args.base.fogNear * fogMul,
+    fogFar: args.base.fogFar * fogMul,
+    template: args.template,
+    size: args.size,
+  }
+}
+
 /**
  * Classic-layout: baseline `oreSlots` fra område samples til præcis `targetCount` punkter
  * ved jævn fordeling langs den lukkede polygon-perimeter i XZ (Y interpoleres langs kanter).
@@ -374,11 +564,9 @@ export type ResolveEffectiveCaveConfigArgs = {
 /**
  * Effektiv grotte for det aktuelle lag — **skal** matche hvad `generateLayerState` bruger.
  *
- * **RNG‑rækkefølge** (ét `mulberry32`‑frø fra `mineLayerSeedKey`): `slotCount` → `drawRoomTemplate` → `drawRoomSize` → `computeRoomLayout`.
- * Felt‑geometri er **template‑drevet**; der er **ingen** separat layout‑RNG endnu.
- *
- * **Plan / §18:** Stokastisk felt‑XZ kan senere bruge et dedikeret underfrø, fx
- * `hashStringToSeed(mineLayerSeedKey(...) + "|oreXZ|v1")`, uden at ændre rækkefølgen ovenfor.
+ * **Kerne‑RNG** (ét `mulberry32`‑frø fra `mineLayerSeedKey`): `slotCount` → `drawRoomTemplate` → `drawRoomSize`
+ * (samme som `generateLayerState`). Felt‑XZ bruger **separat** layout‑frø via `placeOreSlotsStochastic`
+ * (`ORE_XZ_LAYOUT_SEED_TAG`) så malm‑koordinater ikke stjæler `rng()`‑træk til felt‑indhold.
  */
 export function resolveEffectiveCaveConfig(args: ResolveEffectiveCaveConfigArgs): CaveConfig {
   const base = getCaveConfig(args.area)
@@ -386,7 +574,15 @@ export function resolveEffectiveCaveConfig(args: ResolveEffectiveCaveConfigArgs)
   const slotCount = drawInteractiveSlotCount(rng)
   const template = drawRoomTemplate(rng)
   const size = drawRoomSize(rng)
-  const layout = computeRoomLayout({ base, template, size, slotCount })
+  const layout = placeOreSlotsStochastic({
+    base,
+    template,
+    size,
+    slotCount,
+    runId: args.runId,
+    mineId: args.mineId,
+    currentDepth: args.currentDepth,
+  })
   return {
     ...base,
     ...layout,
