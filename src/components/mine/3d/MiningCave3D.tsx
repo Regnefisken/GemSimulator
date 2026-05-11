@@ -5,6 +5,7 @@ import type { Area, CaveConfig, PixelItem } from '../../../types'
 import type { GraphicsPreset, GraphicsPresetId } from '../../../gem/graphicsPresets'
 import type { MineRunSlotState } from '../../../lib/mineTypes'
 import type { WorldLootEntity } from '../../../lib/lootEntities'
+import type { WeaponFpsDevRuntime } from '../weaponFpsDevRuntime'
 import { hashMineRockVisualSeed } from '../../../gem/procedural/mineRockSeed'
 import { getRockLayoutParams } from '../../../gem/procedural/rockLayout'
 import OreNode from './OreNode'
@@ -46,6 +47,8 @@ export type MiningCave3DProps = {
   weaponPixelItem: PixelItem | null
   /** GLB til aktivt FPS-våben; null/undefined = brug voxel fra `weaponPixelItem`. */
   weaponSceneGlbUrl: string | null | undefined
+  /** Dev (`?weaponDev=1`): live FPS-våben-tuning. */
+  weaponFpsDev?: WeaponFpsDevRuntime | null
   lootEntities: WorldLootEntity[]
   /** Felter hvor klippen er ryddet — ingen bund-plade under verdens-loot */
   depletedSlots: ReadonlySet<number>
@@ -69,6 +72,7 @@ type CaveProps = Omit<
   | 'canvasClassName'
   | 'weaponPixelItem'
   | 'weaponSceneGlbUrl'
+  | 'weaponFpsDev'
   | 'swingTrigger'
   | 'heldWeaponKind'
 > & {
@@ -329,6 +333,7 @@ function MiningCave3D({
   canvasClassName = '',
   weaponPixelItem,
   weaponSceneGlbUrl,
+  weaponFpsDev,
   swingTrigger,
   heldWeaponKind,
   disablePointerLock = false,
@@ -457,9 +462,10 @@ function MiningCave3D({
               <Pickaxe3D
                 pixelItem={weaponPixelItem}
                 sceneGlbUrl={weaponSceneGlbUrl ?? undefined}
+                weaponFpsDev={weaponFpsDev ?? null}
                 swingTrigger={swingTrigger}
                 disabled={caveProps.disabled}
-                visible={pointerLocked}
+                visible={pointerLocked || weaponFpsDev != null}
                 heldWeaponKind={heldWeaponKind}
               />
             </Canvas>

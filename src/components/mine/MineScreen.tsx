@@ -31,6 +31,8 @@ import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../.
 import { useToast } from '../ui/ToastContext'
 import { useGraphicsPreset } from '../../lib/useGraphicsPreset'
 import MiningCave3D from './3d/MiningCave3D'
+import { DEFAULT_SWORD_TRANSFORM } from './3d/pickaxeDefaults'
+import WeaponFpsDevPanel, { pickaxeHeldDefault } from './WeaponFpsDevPanel'
 import {
   lootScatterOriginWorldPosition,
   sinkOreSlotWorldPosition,
@@ -160,6 +162,16 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
   const [crosshairMining, setCrosshairMining] = useState(false)
   const [crosshairOnTarget, setCrosshairOnTarget] = useState(false)
   const [mobCombatHint, setMobCombatHint] = useState(false)
+
+  const weaponDevEnabled =
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('weaponDev') === '1'
+
+  const [devPick, setDevPick] = useState(() => pickaxeHeldDefault())
+  const [devSword, setDevSword] = useState(() => ({ ...DEFAULT_SWORD_TRANSFORM }))
+  const [devPickGlb, setDevPickGlb] = useState(0.44)
+  const [devSwordGlb, setDevSwordGlb] = useState(0.52)
 
   /** Planær jagt-offset pr. slot (XZ) — synkron fra R3F mob; loot ved drab skal lande ved liget. */
   const mobPlanarOffsetRef = useRef<Record<number, [number, number]>>({})
@@ -779,6 +791,12 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     state.equippedWeapon === 'sword' && sword
       ? (sword.sceneGlbUrl ?? null)
       : (pickaxe?.sceneGlbUrl ?? null)
+  const weaponFpsDev = weaponDevEnabled
+    ? {
+        transform: state.equippedWeapon === 'sword' ? devSword : devPick,
+        glbScaleBase: state.equippedWeapon === 'sword' ? devSwordGlb : devPickGlb,
+      }
+    : undefined
   const activeTool = state.equippedWeapon === 'sword' ? sword : pickaxe
 
   const weaponRepairNotice: 'pickaxe' | 'sword' | null =
@@ -817,6 +835,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           heldWeaponKind={state.equippedWeapon}
           weaponPixelItem={weaponPixelItem}
           weaponSceneGlbUrl={weaponSceneGlbUrl}
+          weaponFpsDev={weaponFpsDev}
           lootEntities={lootEntities}
           depletedSlots={depletedSlots}
           onCollectLoot={handleCollectLoot}
@@ -832,6 +851,19 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       <Crosshair state={crosshairState} />
 
       {state.runInventory && <MineRunLootPanel state={state} runInventory={state.runInventory} dispatch={dispatch} />}
+
+      {weaponDevEnabled && (
+        <WeaponFpsDevPanel
+          pick={devPick}
+          setPick={setDevPick}
+          sword={devSword}
+          setSword={setDevSword}
+          pickGlb={devPickGlb}
+          setPickGlb={setDevPickGlb}
+          swordGlb={devSwordGlb}
+          setSwordGlb={setDevSwordGlb}
+        />
+      )}
 
       <div className="pointer-events-none absolute inset-0 z-30 flex flex-col min-h-0">
         <div className="pointer-events-auto shrink-0">

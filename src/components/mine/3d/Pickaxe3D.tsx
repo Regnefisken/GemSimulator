@@ -8,6 +8,7 @@ import {
   WEAPON_SCENE_PICKAXE_GLB,
   WEAPON_SCENE_SWORD_GLB,
 } from '../../../data/weaponVisuals'
+import type { WeaponFpsDevRuntime } from '../weaponFpsDevRuntime'
 import {
   DEFAULT_PICKAXE_TRANSFORM,
   DEFAULT_SWORD_TRANSFORM,
@@ -24,6 +25,8 @@ type Props = {
   visible: boolean
   heldWeaponKind: 'pickaxe' | 'sword'
   sceneGlbUrl?: string
+  /** Dev: live overrides fra `?weaponDev=1`-panelet. */
+  weaponFpsDev?: WeaponFpsDevRuntime | null
 }
 
 const PICKAXE_HELD: HeldFpsTransform = {
@@ -31,14 +34,11 @@ const PICKAXE_HELD: HeldFpsTransform = {
   scaleMul: 1,
 }
 
-function Pickaxe3DVoxel({
-  pixelItem,
-  swingTrigger,
-  disabled,
-  visible,
-  heldWeaponKind,
-}: Omit<Props, 'sceneGlbUrl'>) {
-  const t: HeldFpsTransform = heldWeaponKind === 'sword' ? DEFAULT_SWORD_TRANSFORM : PICKAXE_HELD
+type VoxelInnerProps = Omit<Props, 'sceneGlbUrl' | 'weaponFpsDev'> & {
+  t: HeldFpsTransform
+}
+
+function Pickaxe3DVoxel({ pixelItem, swingTrigger, disabled, visible, heldWeaponKind: _k, t }: VoxelInnerProps) {
   const { camera } = useThree()
   const groupRef = useRef<THREE.Group>(null)
   const swingPhase = useRef<'idle' | 'down' | 'return'>('idle')
@@ -49,6 +49,8 @@ function Pickaxe3DVoxel({
   const localPick = useRef(new THREE.Vector3())
   const quatLocal = useRef(new THREE.Quaternion())
   const eulerTmp = useRef(new THREE.Euler())
+  const viewAxisSpin = useRef(new THREE.Vector3())
+  const spinQuat = useRef(new THREE.Quaternion())
 
   const voxelScale = useMemo(() => {
     const w = pixelItem.data[0]?.length ?? 12
@@ -116,6 +118,17 @@ function Pickaxe3DVoxel({
 
     g.position.copy(offsetWorld.current)
     g.quaternion.copy(camera.quaternion).multiply(quatLocal.current)
+
+    const spin = t.inPlaceSpinRad ?? 0
+    if (Math.abs(spin) > 1e-8) {
+      viewAxisSpin.current.copy(g.position).sub(camera.position)
+      if (viewAxisSpin.current.lengthSq() > 1e-10) {
+        viewAxisSpin.current.normalize()
+        spinQuat.current.setFromAxisAngle(viewAxisSpin.current, spin)
+        g.quaternion.premultiply(spinQuat.current)
+      }
+    }
+
     g.scale.setScalar(voxelScale * 0.945 * t.scaleMul)
   })
 
@@ -135,14 +148,13 @@ function Pickaxe3DVoxel({
   )
 }
 
-function Pickaxe3DGlb({
-  sceneGlbUrl,
-  swingTrigger,
-  disabled,
-  visible,
-  heldWeaponKind,
-}: Omit<Props, 'pixelItem'> & { sceneGlbUrl: string }) {
-  const t: HeldFpsTransform = heldWeaponKind === 'sword' ? DEFAULT_SWORD_TRANSFORM : PICKAXE_HELD
+type GlbInnerProps = Omit<Props, 'pixelItem' | 'weaponFpsDev'> & {
+  sceneGlbUrl: string
+  t: HeldFpsTransform
+  glbMul: number
+}
+
+function Pickaxe3DGlb({ sceneGlbUrl, swingTrigger, disabled, visible, heldWeaponKind: _k, t, glbMul }: GlbInnerProps) {
   const { camera } = useThree()
   const { scene } = useGLTF(sceneGlbUrl) as { scene: THREE.Group }
   const groupRef = useRef<THREE.Group>(null)
@@ -154,6 +166,8 @@ function Pickaxe3DGlb({
   const localPick = useRef(new THREE.Vector3())
   const quatLocal = useRef(new THREE.Quaternion())
   const eulerTmp = useRef(new THREE.Euler())
+  const viewAxisSpin = useRef(new THREE.Vector3())
+  const spinQuat = useRef(new THREE.Quaternion())
 
   const model = useMemo(() => {
     const g = scene.clone(true)
@@ -184,8 +198,6 @@ function Pickaxe3DGlb({
       swingStartSec.current = performance.now() / 1000
     }
   }, [swingTrigger, disabled, visible])
-
-  const glbMul = heldWeaponKind === 'sword' ? 0.52 : 0.44
 
   useFrame(({ clock }) => {
     const g = groupRef.current
@@ -230,6 +242,17 @@ function Pickaxe3DGlb({
 
     g.position.copy(offsetWorld.current)
     g.quaternion.copy(camera.quaternion).multiply(quatLocal.current)
+
+    const spin = t.inPlaceSpinRad ?? 0
+    if (Math.abs(spin) > 1e-8) {
+      viewAxisSpin.current.copy(g.position).sub(camera.position)
+      if (viewAxisSpin.current.lengthSq() > 1e-10) {
+        viewAxisSpin.current.normalize()
+        spinQuat.current.setFromAxisAngle(viewAxisSpin.current, spin)
+        g.quaternion.premultiply(spinQuat.current)
+      }
+    }
+
     g.scale.setScalar(glbMul * t.scaleMul)
   })
 
@@ -243,7 +266,35 @@ function Pickaxe3DGlb({
 }
 
 export default function Pickaxe3D(props: Props) {
-  const { sceneGlbUrl, ...rest } = props
-  if (sceneGlbUrl) return <Pickaxe3DGlb {...rest} sceneGlbUrl={sceneGlbUrl} />
-  return <Pickaxe3DVoxel {...rest} />
+  const { sceneGlbUrl, weaponFpsDev, heldWeaponKind, pixelItem, swingTrigger, disabled, visible } = props
+
+  const defaultT = heldWeaponKind === 'sword' ? DEFAULT_SWORD_TRANSFORM : PICKAXE_HELD
+  const t = weaponFpsDev?.transform ?? defaultT
+  const glbMul =
+    weaponFpsDev?.glbScaleBase ?? (heldWeaponKind === 'sword' ? 0.52 : 0.44)
+
+  if (sceneGlbUrl) {
+    return (
+      <Pickaxe3DGlb
+        sceneGlbUrl={sceneGlbUrl}
+        swingTrigger={swingTrigger}
+        disabled={disabled}
+        visible={visible}
+        heldWeaponKind={heldWeaponKind}
+        t={t}
+        glbMul={glbMul}
+      />
+    )
+  }
+
+  return (
+    <Pickaxe3DVoxel
+      pixelItem={pixelItem}
+      swingTrigger={swingTrigger}
+      disabled={disabled}
+      visible={visible}
+      heldWeaponKind={heldWeaponKind}
+      t={t}
+    />
+  )
 }
