@@ -4,6 +4,7 @@ import type { Action } from '../../lib/gameState'
 import { makeArmour } from '../../data/armour'
 import { makePickaxe } from '../../data/pickaxes'
 import { makeSword } from '../../data/swords'
+import { WEAPON_MENU_PICKAXE_PNG, WEAPON_MENU_SWORD_PNG } from '../../data/weaponVisuals'
 import { SMELTER_TIERS } from '../../data/smelterTiers'
 import {
   SHOP_ARMOUR_OFFERS,
@@ -135,13 +136,22 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
                   key={o.tier}
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4"
                 >
-                  <div>
-                    <div className="font-semibold text-slate-100">{p.name}</div>
-                    <div className="text-xs text-slate-500 mt-1">
-                      Skade {p.damage} · Holdbarhed {p.maxDurability}
-                    </div>
-                    <div className="text-sm text-amber-200/90 mt-1">
-                      Pris {o.price.toLocaleString('da-DK')} g · Krav lvl {o.minLevel}
+                  <div className="flex items-start gap-3 min-w-0">
+                    <img
+                      src={WEAPON_MENU_PICKAXE_PNG}
+                      alt=""
+                      width={56}
+                      height={56}
+                      className="shrink-0 rounded-lg border border-slate-600 bg-slate-950 object-contain p-1"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-100">{p.name}</div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        Skade {p.damage} · Holdbarhed {p.maxDurability}
+                      </div>
+                      <div className="text-sm text-amber-200/90 mt-1">
+                        Pris {o.price.toLocaleString('da-DK')} g · Krav lvl {o.minLevel}
+                      </div>
                     </div>
                   </div>
                   <button
@@ -179,13 +189,22 @@ export default function ShopScreen({ state, dispatch, onBack }: Props) {
                   key={o.tier}
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4"
                 >
-                  <div>
-                    <div className="font-semibold text-slate-100">{s.name}</div>
-                    <div className="text-xs text-slate-500 mt-1">
-                      Skade {s.damage} · Holdbarhed {s.maxDurability}
-                    </div>
-                    <div className="text-sm text-amber-200/90 mt-1">
-                      Pris {o.price.toLocaleString('da-DK')} g · Krav lvl {o.minLevel}
+                  <div className="flex items-start gap-3 min-w-0">
+                    <img
+                      src={WEAPON_MENU_SWORD_PNG}
+                      alt=""
+                      width={56}
+                      height={56}
+                      className="shrink-0 rounded-lg border border-slate-600 bg-slate-950 object-contain p-1"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-100">{s.name}</div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        Skade {s.damage} · Holdbarhed {s.maxDurability}
+                      </div>
+                      <div className="text-sm text-amber-200/90 mt-1">
+                        Pris {o.price.toLocaleString('da-DK')} g · Krav lvl {o.minLevel}
+                      </div>
                     </div>
                   </div>
                   <button

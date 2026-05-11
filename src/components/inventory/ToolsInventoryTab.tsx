@@ -57,6 +57,7 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
           <PixelItemCard
             key={p.id}
             item={p.pixelItem}
+            rasterIconSrc={p.menuIconSrc}
             label={p.name}
             subtitle={
               p.durability === 0
@@ -78,6 +79,7 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
           <PixelItemCard
             key={s.id}
             item={s.pixelItem}
+            rasterIconSrc={s.menuIconSrc}
             label={s.name}
             subtitle={
               s.durability === 0
@@ -127,6 +129,7 @@ export default function ToolsInventoryTab({ state, dispatch }: { state: GameStat
           open
           onClose={() => setPreviewId(null)}
           item={previewWeapon.pixelItem}
+          rasterPreviewSrc={previewWeapon.menuIconSrc}
           title={previewWeapon.name}
           subtitleLines={[
             `Skade: ${previewWeapon.damage}`,

@@ -107,7 +107,7 @@ export default function RepairStation({ state, dispatch }: Props) {
             <p className="text-slate-500 text-sm">Ingen hakke.</p>
           ) : (
             <>
-              <PixelItemCard item={pick.pixelItem} label={pick.name} subtitle={`Tier ${pick.tier}`} />
+              <PixelItemCard item={pick.pixelItem} rasterIconSrc={pick.menuIconSrc} label={pick.name} subtitle={`Tier ${pick.tier}`} />
               <div className="text-xs text-slate-400">
                 Holdbarhed{' '}
                 <span className="font-mono text-slate-200">
@@ -133,7 +133,7 @@ export default function RepairStation({ state, dispatch }: Props) {
             <p className="text-slate-500 text-sm">Intet sværd.</p>
           ) : (
             <>
-              <PixelItemCard item={sw.pixelItem} label={sw.name} subtitle={`Tier ${sw.tier}`} />
+              <PixelItemCard item={sw.pixelItem} rasterIconSrc={sw.menuIconSrc} label={sw.name} subtitle={`Tier ${sw.tier}`} />
               <div className="text-xs text-slate-400">
                 Holdbarhed{' '}
                 <span className="font-mono text-slate-200">

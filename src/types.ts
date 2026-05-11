@@ -120,6 +120,10 @@ export type Pickaxe = {
   durability: number
   maxDurability: number
   pixelItem: PixelItem
+  /** PNG til 2D-menu; gems bruger ikke dette felt. */
+  menuIconSrc?: string
+  /** GLB til FPS/verdens-våben; uden felt bruges voxel-mesh. */
+  sceneGlbUrl?: string
   /** D47: hub (shop/smed) vs. mine-fund; default hub. */
   origin?: LootOrigin
 }
@@ -133,6 +137,8 @@ export type Sword = {
   durability: number
   maxDurability: number
   pixelItem: PixelItem
+  menuIconSrc?: string
+  sceneGlbUrl?: string
   origin?: LootOrigin
 }
 

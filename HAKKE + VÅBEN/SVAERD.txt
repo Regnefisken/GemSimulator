@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Sværd Mesh</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #f2efe9; /* Matcher billedets baggrund */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            pointer-events: none;
+            color: #4a4a4a;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="ui-overlay">Træk med musen/fingeren for at rotere • Scroll for at zoome</div>
+
+    <!-- Henter Three.js og OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls;
+
+        window.onload = function() {
+            init();
+            animate();
+        };
+
+        function init() {
+            // 1. Opsætning af scene
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color('#f2efe9');
+
+            // 2. Kamera (Justeret lidt længere væk for at se hele sværdet)
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, 30);
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // 4. Belysning
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 7);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            fillLight.position.set(-5, 0, -5);
+            scene.add(fillLight);
+
+            // 5. Oprettelse af 3D Meshes (Bygger sværdet)
+            const swordGroup = new THREE.Group();
+
+            // Materialer
+            const metalMaterial = new THREE.MeshStandardMaterial({ 
+                color: '#6c757d', 
+                roughness: 0.4,
+                metalness: 0.7,
+                flatShading: false
+            });
+
+            const leatherMaterial = new THREE.MeshStandardMaterial({ 
+                color: '#5b3a29', // Rødbrun læderfarve
+                roughness: 0.8,
+                metalness: 0.1
+            });
+
+            // --- KLINGE (Blade) ---
+            // Bruger en Shape og ExtrudeGeometry for at skabe klingens profil
+            const bladeShape = new THREE.Shape();
+            bladeShape.moveTo(0, 0); // Bund midt
+            bladeShape.lineTo(0.7, 0); // Bund højre
+            bladeShape.lineTo(0.6, 9); // Start på indsnævring højre
+            bladeShape.lineTo(0, 11.5); // Spids
+            bladeShape.lineTo(-0.6, 9); // Start på indsnævring venstre
+            bladeShape.lineTo(-0.7, 0); // Bund venstre
+            bladeShape.lineTo(0, 0); // Luk formen
+
+            const extrudeSettings = {
+                steps: 2,
+                depth: 0.05, // Reduceret klingens tykkelse for at gøre den tyndere
+                bevelEnabled: true,
+                bevelThickness: 0.1, // Skaber en skarpere, tyndere æg
+                bevelSize: 0.1,
+                bevelOffset: 0,
+                bevelSegments: 3
+            };
+
+            const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, extrudeSettings);
+            bladeGeo.center(); // Centrerer geometrien
+            const bladeMesh = new THREE.Mesh(bladeGeo, metalMaterial);
+            bladeMesh.position.y = 5.5; // Placer klingen over parerpladen
+            bladeMesh.castShadow = true;
+            swordGroup.add(bladeMesh);
+
+            // --- PARERPLADE (Crossguard) ---
+            // En simpel boks-geometri, der er gjort lang og flad
+            const crossguardGeo = new THREE.BoxGeometry(4.5, 0.3, 0.6);
+            const crossguardMesh = new THREE.Mesh(crossguardGeo, metalMaterial);
+            crossguardMesh.position.y = -0.2; // Lige under klingen
+            crossguardMesh.castShadow = true;
+            crossguardMesh.receiveShadow = true;
+            swordGroup.add(crossguardMesh);
+
+            // --- HÅNDTAG (Grip) ---
+            // En cylinder med lædermateriale
+            const gripGeo = new THREE.CylinderGeometry(0.4, 0.35, 3.5, 32);
+            const gripMesh = new THREE.Mesh(gripGeo, leatherMaterial);
+            gripMesh.position.y = -2.1;
+            gripMesh.castShadow = true;
+            swordGroup.add(gripMesh);
+
+            // --- METALBÅND PÅ HÅNDTAG ---
+            // Små torus-ringe for at simulere metalbåndene i top og bund af grebet
+            const bandGeo = new THREE.TorusGeometry(0.38, 0.05, 16, 32);
+            
+            const topBand = new THREE.Mesh(bandGeo, metalMaterial);
+            topBand.position.y = -0.4;
+            topBand.rotation.x = Math.PI / 2; // Roter for at ligge vandret
+            swordGroup.add(topBand);
+
+            const bottomBand = new THREE.Mesh(bandGeo, metalMaterial);
+            bottomBand.position.y = -3.8;
+            bottomBand.rotation.x = Math.PI / 2;
+            swordGroup.add(bottomBand);
+
+            // --- KNAP (Pommel) ---
+            // Sammensat af en cylinderbase og en fladtrykt kugle
+            const pommelBaseGeo = new THREE.CylinderGeometry(0.5, 0.35, 0.4, 32);
+            const pommelBaseMesh = new THREE.Mesh(pommelBaseGeo, metalMaterial);
+            pommelBaseMesh.position.y = -4.0;
+            swordGroup.add(pommelBaseMesh);
+
+            const pommelTopGeo = new THREE.SphereGeometry(0.6, 32, 32);
+            const pommelTopMesh = new THREE.Mesh(pommelTopGeo, metalMaterial);
+            pommelTopMesh.scale.set(1, 0.7, 1); // Fladtryk kuglen
+            pommelTopMesh.position.y = -4.4;
+            pommelTopMesh.castShadow = true;
+            swordGroup.add(pommelTopMesh);
+
+            // Tilføj hele sværdet til scenen
+            scene.add(swordGroup);
+
+            // 6. Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 60;
+
+            // Håndter vinduesstørrelse
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); 
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

@@ -3,12 +3,35 @@ import type { GameState, PixelItem } from '../../types'
 import { drawGem } from '../../gem/draw2d'
 import { effectiveTotalHpMax, effectiveTotalManaMax } from '../../lib/survival'
 
-function MiniPixelIcon({ item, caption }: { item: PixelItem | null; caption: string }) {
+function MiniPixelIcon({
+  item,
+  caption,
+  menuRasterSrc,
+}: {
+  item: PixelItem | null
+  caption: string
+  menuRasterSrc?: string
+}) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const c = ref.current
-    if (c && item && item.data.length > 0) drawGem(c, item.data, item.colorMap, 3)
-  }, [item])
+    if (c && item && item.data.length > 0 && !menuRasterSrc) drawGem(c, item.data, item.colorMap, 3)
+  }, [item, menuRasterSrc])
+
+  if (menuRasterSrc) {
+    return (
+      <div className="flex flex-col items-center gap-1 min-w-[64px]">
+        <img
+          src={menuRasterSrc}
+          alt=""
+          className="pixelated rounded-md border border-slate-600 bg-slate-950 w-14 h-14 object-contain p-0.5"
+        />
+        <span className="text-[9px] text-slate-400 text-center leading-tight max-w-[80px] line-clamp-2">
+          {caption}
+        </span>
+      </div>
+    )
+  }
 
   if (!item || item.data.length === 0) {
     return (
@@ -61,8 +84,8 @@ export default function LoadoutCharacterStrip({ state }: { state: GameState }) {
         </div>
       </div>
       <div className="flex flex-wrap justify-center sm:justify-start gap-6 mt-4 pt-3 border-t border-slate-800/80">
-        <MiniPixelIcon item={pick?.pixelItem ?? null} caption={pick?.name ?? 'Hakke'} />
-        <MiniPixelIcon item={sw?.pixelItem ?? null} caption={sw?.name ?? 'Sværd'} />
+        <MiniPixelIcon item={pick?.pixelItem ?? null} menuRasterSrc={pick?.menuIconSrc} caption={pick?.name ?? 'Hakke'} />
+        <MiniPixelIcon item={sw?.pixelItem ?? null} menuRasterSrc={sw?.menuIconSrc} caption={sw?.name ?? 'Sværd'} />
         <MiniPixelIcon item={arm?.pixelItem ?? null} caption={armLabel} />
       </div>
     </div>

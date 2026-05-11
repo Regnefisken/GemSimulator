@@ -58,6 +58,7 @@ export default function ChestLootCard(props: Props) {
   const drop = props.drop
   let title = 'Genstand'
   let viz: { data: string[]; colorMap: Record<string, string> } | null = null
+  let menuRaster: string | undefined
 
   if (drop.kind === 'ore') {
     title = `${drop.ore.metalName} malm`
@@ -85,9 +86,11 @@ export default function ChestLootCard(props: Props) {
   } else if (drop.kind === 'loot_pickaxe') {
     title = drop.pickaxe.name
     viz = drop.pickaxe.pixelItem
+    menuRaster = drop.pickaxe.menuIconSrc
   } else if (drop.kind === 'loot_sword') {
     title = drop.sword.name
     viz = drop.sword.pixelItem
+    menuRaster = drop.sword.menuIconSrc
   } else if (drop.kind === 'loot_armour') {
     title = drop.armour.name
     viz = drop.armour.pixelItem
@@ -95,7 +98,11 @@ export default function ChestLootCard(props: Props) {
 
   return (
     <button type="button" disabled={props.disabled} onClick={props.onTake} className={common + ' items-center'}>
-      {viz && (
+      {menuRaster ? (
+        <div className="pointer-events-none w-[72px] h-[72px] mx-auto overflow-hidden rounded-lg bg-slate-950 flex items-center justify-center border border-slate-800">
+          <img src={menuRaster} alt="" className="max-w-[90%] max-h-[90%] object-contain" />
+        </div>
+      ) : viz ? (
         <div className="pointer-events-none w-[72px] h-[72px] mx-auto overflow-hidden rounded-lg bg-slate-950">
           <PixelItemVoxelScene
             item={viz}
@@ -104,7 +111,7 @@ export default function ChestLootCard(props: Props) {
             className="pointer-events-none !block !max-w-none scale-90"
           />
         </div>
-      )}
+      ) : null}
       <span className="text-[11px] font-semibold text-slate-200 text-center leading-tight">{title}</span>
       {props.disabledReason && <span className="text-[10px] text-slate-400">{props.disabledReason}</span>}
     </button>

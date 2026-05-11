@@ -44,6 +44,8 @@ export type MiningCave3DProps = {
   swingTrigger: number
   heldWeaponKind: 'pickaxe' | 'sword'
   weaponPixelItem: PixelItem | null
+  /** GLB til aktivt FPS-våben; null/undefined = brug voxel fra `weaponPixelItem`. */
+  weaponSceneGlbUrl: string | null | undefined
   lootEntities: WorldLootEntity[]
   /** Felter hvor klippen er ryddet — ingen bund-plade under verdens-loot */
   depletedSlots: ReadonlySet<number>
@@ -63,7 +65,12 @@ export type MiningCave3DProps = {
 
 type CaveProps = Omit<
   MiningCave3DProps,
-  'className' | 'canvasClassName' | 'weaponPixelItem' | 'swingTrigger' | 'heldWeaponKind'
+  | 'className'
+  | 'canvasClassName'
+  | 'weaponPixelItem'
+  | 'weaponSceneGlbUrl'
+  | 'swingTrigger'
+  | 'heldWeaponKind'
 > & {
   caveSeed: number
   spawnLookAtX: number
@@ -321,6 +328,7 @@ function MiningCave3D({
   className = '',
   canvasClassName = '',
   weaponPixelItem,
+  weaponSceneGlbUrl,
   swingTrigger,
   heldWeaponKind,
   disablePointerLock = false,
@@ -448,6 +456,7 @@ function MiningCave3D({
               <MineSceneLights cfg={weaponCaveCfg} />
               <Pickaxe3D
                 pixelItem={weaponPixelItem}
+                sceneGlbUrl={weaponSceneGlbUrl ?? undefined}
                 swingTrigger={swingTrigger}
                 disabled={caveProps.disabled}
                 visible={pointerLocked}

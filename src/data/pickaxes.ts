@@ -1,5 +1,9 @@
 import type { Pickaxe } from '../types'
 import { PICKAXE_TEMPLATE } from './pickaxeTemplates'
+import {
+  WEAPON_MENU_PICKAXE_PNG,
+  WEAPON_SCENE_PICKAXE_GLB,
+} from './weaponVisuals'
 
 const PICKAXE_CONFIGS = [
   { slug: 'tin', name: 'Tinhakke', damage: 5, maxDurability: 50, headColor: '#cbd5e1', edgeColor: '#64748b' },
@@ -24,5 +28,7 @@ export function makePickaxe(tier: number, uniqueSuffix?: string): Pickaxe {
       data: PICKAXE_TEMPLATE,
       colorMap: { T: '#8b4513', H: config.headColor, K: config.edgeColor },
     },
+    menuIconSrc: WEAPON_MENU_PICKAXE_PNG,
+    sceneGlbUrl: WEAPON_SCENE_PICKAXE_GLB,
   }
 }

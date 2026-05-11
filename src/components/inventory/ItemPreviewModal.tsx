@@ -9,9 +9,19 @@ type Props = {
   title: string
   subtitleLines?: string[]
   footer?: ReactNode
+  /** Når sat: statisk forhåndsvisning (fx hakke/sværd-PNG) i stedet for voxel-scene. */
+  rasterPreviewSrc?: string
 }
 
-export default function ItemPreviewModal({ open, onClose, item, title, subtitleLines, footer }: Props) {
+export default function ItemPreviewModal({
+  open,
+  onClose,
+  item,
+  title,
+  subtitleLines,
+  footer,
+  rasterPreviewSrc,
+}: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -59,7 +69,13 @@ export default function ItemPreviewModal({ open, onClose, item, title, subtitleL
 
         <div className="flex-1 flex flex-col items-center min-w-0">
           <div className="w-full max-w-[min(100%,400px)] aspect-square min-h-[220px] rounded-xl overflow-hidden border border-slate-700 bg-slate-950">
-            {hasPixels ? (
+            {rasterPreviewSrc ? (
+              <img
+                src={rasterPreviewSrc}
+                alt=""
+                className="w-full h-full object-contain p-4"
+              />
+            ) : hasPixels ? (
               <PixelItemVoxelScene
                 item={item}
                 className="w-full h-full"
@@ -83,7 +99,9 @@ export default function ItemPreviewModal({ open, onClose, item, title, subtitleL
               ))}
             </ul>
           )}
-          <p className="mt-4 text-xs text-slate-500">Træk for at rotere · slip for auto-rotation</p>
+          <p className="mt-4 text-xs text-slate-500">
+            {rasterPreviewSrc ? 'Forhåndsvisning af udstyr — 3D-versionen ses i minen.' : 'Træk for at rotere · slip for auto-rotation'}
+          </p>
           {footer && <div className="mt-6 flex flex-wrap gap-2">{footer}</div>}
         </div>
       </div>

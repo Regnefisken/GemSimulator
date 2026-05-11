@@ -775,6 +775,10 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
   const weaponPixelItem =
     state.equippedWeapon === 'sword' && sword ? sword.pixelItem : (pickaxe?.pixelItem ?? null)
+  const weaponSceneGlbUrl =
+    state.equippedWeapon === 'sword' && sword
+      ? (sword.sceneGlbUrl ?? null)
+      : (pickaxe?.sceneGlbUrl ?? null)
   const activeTool = state.equippedWeapon === 'sword' ? sword : pickaxe
 
   const weaponRepairNotice: 'pickaxe' | 'sword' | null =
@@ -812,6 +816,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           swingTrigger={swingTrigger}
           heldWeaponKind={state.equippedWeapon}
           weaponPixelItem={weaponPixelItem}
+          weaponSceneGlbUrl={weaponSceneGlbUrl}
           lootEntities={lootEntities}
           depletedSlots={depletedSlots}
           onCollectLoot={handleCollectLoot}

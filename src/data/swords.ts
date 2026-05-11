@@ -1,4 +1,5 @@
 import type { Sword } from '../types'
+import { WEAPON_MENU_SWORD_PNG, WEAPON_SCENE_SWORD_GLB } from './weaponVisuals'
 
 /** Simpel pixel-klinge (2D HUD / butik); 3D-scene genbruger Pickaxe3D med samme grid. */
 const SWORD_TEMPLATE = [
@@ -37,5 +38,7 @@ export function makeSword(tier: number, uniqueSuffix?: string): Sword {
       data: [...SWORD_TEMPLATE],
       colorMap: { B: config.blade, H: config.hilt },
     },
+    menuIconSrc: WEAPON_MENU_SWORD_PNG,
+    sceneGlbUrl: WEAPON_SCENE_SWORD_GLB,
   }
 }

@@ -26,7 +26,7 @@ import { WORKSHOP_DEFAULT_STOCK } from '../data/consumables'
 import { STARTER_UNLOCKED_ALCHEMY_RECIPES } from '../data/alchemyRecipes'
 import { normalizeStackableFoundLoot } from './foundLootStack'
 
-export const CURRENT_STATE_VERSION = 21
+export const CURRENT_STATE_VERSION = 22
 
 /** @deprecated Brug METALS.Guld — bevares for ældre saves der refererer til feltet. */
 export const GOLD_DEFAULT_INCLUSION: MetalInclusion = { ...METALS.Guld, icon: '✦', effect: 'Guldåre' }
@@ -171,6 +171,8 @@ function migratePickaxe(raw: unknown, fallback: Pickaxe): Pickaxe {
       typeof (p.pixelItem as PixelItemLike).colorMap === 'object'
         ? p.pixelItem
         : fallback.pixelItem,
+    menuIconSrc: typeof p.menuIconSrc === 'string' ? p.menuIconSrc : fallback.menuIconSrc,
+    sceneGlbUrl: typeof p.sceneGlbUrl === 'string' ? p.sceneGlbUrl : fallback.sceneGlbUrl,
   }
 }
 
@@ -193,6 +195,8 @@ function migrateSword(raw: unknown, fallback: Sword): Sword {
       typeof (p.pixelItem as PixelItemLike).colorMap === 'object'
         ? p.pixelItem
         : fallback.pixelItem,
+    menuIconSrc: typeof p.menuIconSrc === 'string' ? p.menuIconSrc : fallback.menuIconSrc,
+    sceneGlbUrl: typeof p.sceneGlbUrl === 'string' ? p.sceneGlbUrl : fallback.sceneGlbUrl,
   }
 }
 

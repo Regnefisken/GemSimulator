@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Magisk Hakke Mesh</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #1a1a1a; /* Mørk baggrund for at fremhæve magien */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(255, 0, 85, 0.3);
+            text-align: center;
+            pointer-events: none;
+            color: #fff;
+            font-weight: 500;
+            border: 1px solid rgba(255, 0, 85, 0.3);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="ui-overlay">Træk for at rotere • Scroll for at zoome • Den episke hakke</div>
+
+    <!-- Henter Three.js og OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let pickaxeGroup; // Gør pickaxeGroup global, så vi kan animere den
+
+        window.onload = function() {
+            init();
+            animate();
+        };
+
+        function init() {
+            // 1. Opsætning af scene
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color('#1a1a1a');
+
+            // 2. Kamera (Justeret for at centrere hakken bedre)
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, -3, 35);
+
+            // 3. Renderer 
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // 4. Belysning
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 7);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const fillLight = new THREE.DirectionalLight(0x4444ff, 0.5); // Koldt blåt lys
+            fillLight.position.set(-5, 0, -5);
+            scene.add(fillLight);
+
+            // Magisk rødt lys fra ædelstenen
+            const gemLight = new THREE.PointLight(0xff0055, 1.5, 20);
+            gemLight.position.set(0, 1.9, 1);
+            scene.add(gemLight);
+
+            // 5. Oprettelse af 3D Meshes
+            pickaxeGroup = new THREE.Group();
+
+            // --- MATERIALER ---
+            const darkWoodMaterial = new THREE.MeshStandardMaterial({ 
+                color: '#2a1d17', // Meget mørkt træ
+                roughness: 0.9,
+                metalness: 0.1
+            });
+
+            const metalMaterial = new THREE.MeshStandardMaterial({ 
+                color: '#4a4e59', 
+                roughness: 0.3,
+                metalness: 0.9,
+                flatShading: false
+            });
+
+            const darkMetalMaterial = new THREE.MeshStandardMaterial({ 
+                color: '#111', 
+                roughness: 0.5,
+                metalness: 0.8,
+            });
+
+            // Gennemkrystet, glødende ædelstens-materiale (Ruby)
+            const gemMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xff0055,
+                metalness: 0.2,
+                roughness: 0.1,
+                transmission: 0.9, // Glas-effekt
+                thickness: 0.5,
+                emissive: 0x990033, // Gløder indefra
+                emissiveIntensity: 0.6,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1
+            });
+
+            // --- SKAFT (Træhåndtag) ---
+            const handleGeo = new THREE.CylinderGeometry(0.4, 0.5, 16, 32);
+            const handle = new THREE.Mesh(handleGeo, darkWoodMaterial);
+            handle.position.y = -4.8; 
+            handle.castShadow = true;
+            handle.receiveShadow = true;
+            pickaxeGroup.add(handle);
+
+            // --- METALRING ---
+            const ringGeo = new THREE.CylinderGeometry(0.58, 0.54, 1.8, 32);
+            const ring = new THREE.Mesh(ringGeo, darkMetalMaterial); // Gjort til mørkt metal
+            ring.position.y = 1.9; 
+            ring.castShadow = true;
+            pickaxeGroup.add(ring);
+
+            // --- HAKKEHOVED ---
+            const headShape = new THREE.Shape();
+            
+            // Tegner hakkens profil
+            headShape.moveTo(-7.5, -1.5); 
+            headShape.quadraticCurveTo(0, 2.5, 7.5, -1.5); 
+            headShape.quadraticCurveTo(2.5, 0.5, 0.6, -0.5); 
+            headShape.lineTo(-0.6, -0.5); 
+            headShape.quadraticCurveTo(-2.5, 0.5, -7.5, -1.5); 
+
+            const extrudeSettings = {
+                steps: 2,
+                depth: 0.8, 
+                bevelEnabled: true,
+                bevelThickness: 0.2,
+                bevelSize: 0.1,
+                bevelOffset: 0,
+                bevelSegments: 4
+            };
+
+            const headGeo = new THREE.ExtrudeGeometry(headShape, extrudeSettings);
+            headGeo.center();
+
+            const headMesh = new THREE.Mesh(headGeo, metalMaterial);
+            headMesh.position.y = 1.9; 
+            headMesh.castShadow = true;
+            pickaxeGroup.add(headMesh);
+
+            // --- DEN STORE ÆDELSTEN (Center Gem) ---
+            const mainGemGeo = new THREE.OctahedronGeometry(0.8, 0); 
+            const mainGem = new THREE.Mesh(mainGemGeo, gemMaterial);
+            mainGem.position.y = 1.9;
+            mainGem.position.z = 0.55; // Stikker ud fra centeret
+            mainGem.scale.set(1, 1.2, 0.6); // Fladtrykt lidt, strakt på y
+            pickaxeGroup.add(mainGem);
+
+            // En tilsvarende på bagsiden
+            const mainGemBack = mainGem.clone();
+            mainGemBack.position.z = -0.55;
+            pickaxeGroup.add(mainGemBack);
+
+            // --- KNAP MED ÆDELSTEN (Pommel) ---
+            const pommelGroup = new THREE.Group();
+            pommelGroup.position.y = -12.8; // Bunden af skaftet
+
+            const pommelBaseGeo = new THREE.CylinderGeometry(0.6, 0.3, 0.8, 4); // Skarp 4-kantet klo
+            const pommelBaseMesh = new THREE.Mesh(pommelBaseGeo, darkMetalMaterial);
+            pommelBaseMesh.rotation.y = Math.PI / 4;
+            pommelGroup.add(pommelBaseMesh);
+
+            // Den lille ædelsten i bunden
+            const bottomGemGeo = new THREE.OctahedronGeometry(0.5, 0);
+            const bottomGem = new THREE.Mesh(bottomGemGeo, gemMaterial);
+            bottomGem.position.y = -0.5;
+            pommelGroup.add(bottomGem);
+
+            pickaxeGroup.add(pommelGroup);
+
+            // Tilføj hele hakken til scenen
+            scene.add(pickaxeGroup);
+
+            // 6. Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 60;
+            controls.target.set(0, -3, 0); // Får kameraet til at fokusere lidt lavere på modellen
+
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); 
+
+            // Magisk svævende og let roterende animation
+            const time = Date.now() * 0.001;
+            if (pickaxeGroup) {
+                pickaxeGroup.position.y = Math.sin(time * 2) * 0.3; // Bobler op og ned
+                pickaxeGroup.rotation.y = Math.sin(time * 0.5) * 0.2; // Drejer let frem og tilbage
+            }
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

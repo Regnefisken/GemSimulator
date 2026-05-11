@@ -76,7 +76,9 @@
           "H": "#cbd5e1",
           "K": "#64748b"
         }
-      }
+      },
+      "menuIconSrc": "/assets/weapons/hakke.png",
+      "sceneGlbUrl": "/assets/weapons/hakke_3d.glb"
     }
   ],
   "equippedWeapon": "pickaxe",
@@ -107,7 +109,9 @@
           "B": "#94a3b8",
           "H": "#78350f"
         }
-      }
+      },
+      "menuIconSrc": "/assets/weapons/svaerd.png",
+      "sceneGlbUrl": "/assets/weapons/sword_3d.glb"
     }
   ],
   "armours": [
@@ -219,5 +223,5 @@
   "playerManaMax": 77,
   "activeBrewId": "brew_solar_vigor",
   "gameNotice": null,
-  "version": 21
+  "version": 22
 }

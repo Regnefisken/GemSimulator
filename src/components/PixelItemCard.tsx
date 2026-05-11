@@ -11,6 +11,8 @@ export type PixelItemCardProps = {
   highlighted?: boolean
   /** Ekstra ramme (fx metalklumper). */
   rareGlow?: boolean
+  /** Når sat: vis PNG i stedet for voxel-canvas (fx hakke/sværd-menu). */
+  rasterIconSrc?: string
 }
 
 export default function PixelItemCard({
@@ -21,14 +23,15 @@ export default function PixelItemCard({
   onClick,
   highlighted,
   rareGlow,
+  rasterIconSrc,
 }: PixelItemCardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hasPixels = item.data.length > 0 && item.data[0]?.length
 
   useEffect(() => {
     const c = canvasRef.current
-    if (c && hasPixels) drawGem(c, item.data, item.colorMap, 4)
-  }, [item, hasPixels])
+    if (c && hasPixels && !rasterIconSrc) drawGem(c, item.data, item.colorMap, 4)
+  }, [item, hasPixels, rasterIconSrc])
 
   const borderClass = rareGlow
     ? 'border-amber-400/50 ring-2 ring-amber-400/40 shadow-[0_0_16px_rgba(251,191,36,0.2)]'
@@ -54,7 +57,15 @@ export default function PixelItemCard({
         (onClick ? ' cursor-pointer hover:bg-slate-700/80' : '')
       }
     >
-      {hasPixels ? (
+      {rasterIconSrc ? (
+        <img
+          src={rasterIconSrc}
+          alt=""
+          width={64}
+          height={64}
+          className="mb-2 object-contain rounded-lg bg-slate-950 border border-slate-700/80"
+        />
+      ) : hasPixels ? (
         <canvas ref={canvasRef} width={64} height={64} className="pixelated mb-2" />
       ) : (
         <div className="w-16 h-16 mb-2 rounded-lg bg-slate-900 border border-slate-600 flex items-center justify-center text-slate-500 text-[10px]">
