@@ -460,6 +460,7 @@ function MiningCave3D({
               <OverlayWeaponCamera mirror={weaponCameraMirror} />
               <MineSceneLights cfg={weaponCaveCfg} />
               <Pickaxe3D
+                key={heldWeaponKind}
                 pixelItem={weaponPixelItem}
                 sceneGlbUrl={weaponSceneGlbUrl ?? undefined}
                 weaponFpsDev={weaponFpsDev ?? null}

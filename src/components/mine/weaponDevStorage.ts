@@ -1,12 +1,18 @@
 import {
   DEFAULT_SWORD_TRANSFORM,
+  DEFAULT_HELD_WEAPON_GLB_SCALE,
   defaultHeldPickaxeTransform,
   type HeldFpsTransform,
 } from './3d/pickaxeDefaults'
 
-export const WEAPON_DEV_STORAGE_KEY = 'gemsim-weapon-dev-v1'
+export const WEAPON_DEV_STORAGE_KEY = 'gemsim-weapon-dev-v2'
+/** Tidligere nøgle — ryddes ved «Slet gemt» så gamle forkerte tal ikke hænger ved. */
+export const WEAPON_DEV_STORAGE_KEY_LEGACY = 'gemsim-weapon-dev-v1'
 
-const DEFAULT_GLB = { pickGlb: 0.45, swordGlb: 0.57 } as const
+const DEFAULT_GLB = {
+  pickGlb: DEFAULT_HELD_WEAPON_GLB_SCALE.pickaxe,
+  swordGlb: DEFAULT_HELD_WEAPON_GLB_SCALE.sword,
+} as const
 
 function asVec3(v: unknown): [number, number, number] | null {
   if (!Array.isArray(v) || v.length !== 3) return null
@@ -89,6 +95,7 @@ export function saveWeaponDevToStorage(data: WeaponDevStored): void {
 export function clearWeaponDevStorage(): void {
   try {
     localStorage.removeItem(WEAPON_DEV_STORAGE_KEY)
+    localStorage.removeItem(WEAPON_DEV_STORAGE_KEY_LEGACY)
   } catch {
     /* ignore */
   }

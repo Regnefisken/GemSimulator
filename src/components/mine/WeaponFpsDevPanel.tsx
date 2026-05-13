@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import {
   DEFAULT_SWORD_TRANSFORM,
+  DEFAULT_HELD_WEAPON_GLB_SCALE,
   defaultHeldPickaxeTransform,
   type HeldFpsTransform,
 } from './3d/pickaxeDefaults'
@@ -292,6 +293,15 @@ export default function WeaponFpsDevPanel({
         ændrer slider-trin; brug tal-felter eller ± for fin justering. Justeringer gemmes lokalt i denne browser (
         <code className="text-slate-400">localStorage</code>).
       </p>
+      <p className="mb-2 text-[10px] leading-snug text-slate-500">
+        <strong className="text-slate-300">1:1 med spillet:</strong> Samme <code className="text-slate-400">Pickaxe3D</code>, samme
+        overlay-kamera som hovedscenen og samme GLB/voxel-sti som når du spiller. Tal du ser her er de samme som sendes til
+        våben-meshet. Når du <strong className="text-slate-300">kopiér alt</strong> og vi lægger det ind i{' '}
+        <code className="text-slate-400">pickaxeDefaults.ts</code> + GLB-konstanterne dér, matcher det spillet uden dev — så længe du
+        også kopierer GLB-linjerne eller vi bruger <code className="text-slate-400">DEFAULT_HELD_WEAPON_GLB_SCALE</code>. Små
+        forskelle kan stadig ses under <strong className="text-slate-300">sving</strong> (animation) eller hvis hug er låst (
+        <code className="text-slate-400">disabled</code>), ikke i ren idle-placering.
+      </p>
 
       <div
         className={
@@ -324,7 +334,7 @@ export default function WeaponFpsDevPanel({
       <div className="space-y-3 border-t border-slate-700/80 pt-2">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Placering & vinkel</div>
         <Vec3SliderRow
-          label="basePos (kamera-rum, meter)"
+          label="basePos (meter: X højre, Y op/ned, Z− = frem)"
           vecKey="basePos"
           weapon={w}
           onChange={patchVec}
@@ -426,10 +436,10 @@ export default function WeaponFpsDevPanel({
             onClick={() => {
               if (tab === 'pick') {
                 setPick(defaultHeldPickaxeTransform())
-                setPickGlb(0.45)
+                setPickGlb(DEFAULT_HELD_WEAPON_GLB_SCALE.pickaxe)
               } else {
                 setSword({ ...DEFAULT_SWORD_TRANSFORM })
-                setSwordGlb(0.57)
+                setSwordGlb(DEFAULT_HELD_WEAPON_GLB_SCALE.sword)
               }
             }}
             className="rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-[10px] text-slate-200 hover:bg-slate-700"

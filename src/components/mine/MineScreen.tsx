@@ -822,8 +822,10 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
       : (pickaxe?.sceneGlbUrl ?? null)
   const weaponFpsDev = weaponDevEnabled
     ? {
-        transform: state.equippedWeapon === 'sword' ? devSword : devPick,
-        glbScaleBase: state.equippedWeapon === 'sword' ? devSwordGlb : devPickGlb,
+        pick: devPick,
+        sword: devSword,
+        pickGlbScaleBase: devPickGlb,
+        swordGlbScaleBase: devSwordGlb,
       }
     : undefined
   const activeTool = state.equippedWeapon === 'sword' ? sword : pickaxe

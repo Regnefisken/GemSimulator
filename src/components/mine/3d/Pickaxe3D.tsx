@@ -12,6 +12,7 @@ import type { WeaponFpsDevRuntime } from '../weaponFpsDevRuntime'
 import {
   DEFAULT_PICKAXE_TRANSFORM,
   DEFAULT_SWORD_TRANSFORM,
+  DEFAULT_HELD_WEAPON_GLB_SCALE,
   type HeldFpsTransform,
 } from './pickaxeDefaults'
 
@@ -31,7 +32,7 @@ type Props = {
 
 const PICKAXE_HELD: HeldFpsTransform = {
   ...DEFAULT_PICKAXE_TRANSFORM,
-  scaleMul: 1.04,
+  scaleMul: 0.68,
 }
 
 type VoxelInnerProps = Omit<Props, 'sceneGlbUrl' | 'weaponFpsDev'> & {
@@ -78,9 +79,6 @@ function Pickaxe3DVoxel({ pixelItem, swingTrigger, disabled, visible, heldWeapon
   useFrame(({ clock }) => {
     const g = groupRef.current
     if (!g) return
-
-    g.visible = visible
-    if (!visible) return
 
     const rx0 = t.baseRot[0]
     let rotX = rx0
@@ -130,6 +128,7 @@ function Pickaxe3DVoxel({ pixelItem, swingTrigger, disabled, visible, heldWeapon
     }
 
     g.scale.setScalar(voxelScale * 0.945 * t.scaleMul)
+    g.visible = visible
   })
 
   return (
@@ -203,9 +202,6 @@ function Pickaxe3DGlb({ sceneGlbUrl, swingTrigger, disabled, visible, heldWeapon
     const g = groupRef.current
     if (!g) return
 
-    g.visible = visible
-    if (!visible) return
-
     const rx0 = t.baseRot[0]
     let rotX = rx0
     let bobLocalY = 0
@@ -254,6 +250,7 @@ function Pickaxe3DGlb({ sceneGlbUrl, swingTrigger, disabled, visible, heldWeapon
     }
 
     g.scale.setScalar(glbMul * t.scaleMul)
+    g.visible = visible
   })
 
   return (
@@ -269,9 +266,18 @@ export default function Pickaxe3D(props: Props) {
   const { sceneGlbUrl, weaponFpsDev, heldWeaponKind, pixelItem, swingTrigger, disabled, visible } = props
 
   const defaultT = heldWeaponKind === 'sword' ? DEFAULT_SWORD_TRANSFORM : PICKAXE_HELD
-  const t = weaponFpsDev?.transform ?? defaultT
-  const glbMul =
-    weaponFpsDev?.glbScaleBase ?? (heldWeaponKind === 'sword' ? 0.57 : 0.45)
+  const t = weaponFpsDev
+    ? heldWeaponKind === 'sword'
+      ? weaponFpsDev.sword
+      : weaponFpsDev.pick
+    : defaultT
+  const glbMul = weaponFpsDev
+    ? heldWeaponKind === 'sword'
+      ? weaponFpsDev.swordGlbScaleBase
+      : weaponFpsDev.pickGlbScaleBase
+    : heldWeaponKind === 'sword'
+      ? DEFAULT_HELD_WEAPON_GLB_SCALE.sword
+      : DEFAULT_HELD_WEAPON_GLB_SCALE.pickaxe
 
   if (sceneGlbUrl) {
     return (
