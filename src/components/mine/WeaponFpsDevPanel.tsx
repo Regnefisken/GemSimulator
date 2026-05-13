@@ -1,15 +1,19 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import {
-  DEFAULT_PICKAXE_TRANSFORM,
   DEFAULT_SWORD_TRANSFORM,
+  defaultHeldPickaxeTransform,
   type HeldFpsTransform,
 } from './3d/pickaxeDefaults'
 
 const RAD2DEG = 180 / Math.PI
 const DEG2RAD = Math.PI / 180
 
-function pickaxeHeldDefault(): HeldFpsTransform {
-  return { ...DEFAULT_PICKAXE_TRANSFORM, scaleMul: 1 }
+type PrecisionId = 'normal' | 'fine' | 'ultra'
+
+const PRECISION: Record<PrecisionId, { pos: number; deg: number; spin: number; scale: number; grip: number }> = {
+  normal: { pos: 0.02, deg: 0.5, spin: 1, scale: 0.02, grip: 0.05 },
+  fine: { pos: 0.005, deg: 0.1, spin: 0.25, scale: 0.005, grip: 0.01 },
+  ultra: { pos: 0.001, deg: 0.02, spin: 0.05, scale: 0.001, grip: 0.005 },
 }
 
 function formatVec3(v: readonly [number, number, number]): string {
@@ -57,6 +61,33 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, n))
 }
 
+function NudgePair({ onMinus, onPlus, title }: { onMinus: () => void; onPlus: () => void; title?: string }) {
+  return (
+    <div className="flex shrink-0 gap-0.5" title={title}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onMinus()
+        }}
+        className="h-6 w-6 rounded border border-slate-600 bg-slate-800 text-[11px] leading-none text-slate-300 hover:bg-slate-700"
+      >
+        −
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onPlus()
+        }}
+        className="h-6 w-6 rounded border border-slate-600 bg-slate-800 text-[11px] leading-none text-slate-300 hover:bg-slate-700"
+      >
+        +
+      </button>
+    </div>
+  )
+}
+
 function Vec3SliderRow({
   label,
   vecKey,
@@ -82,12 +113,19 @@ function Vec3SliderRow({
   const axes = ['X', 'Y', 'Z'] as const
   return (
     <div className="space-y-1.5">
-      <div className="text-[10px] text-slate-500">{label}{eulerAsDegrees ? ' (grader på slider)' : ''}</div>
+      <div className="text-[10px] text-slate-500">
+        {label}
+        {eulerAsDegrees ? ' (grader)' : ''}
+      </div>
       {axes.map((ax, i) => {
         const rawDisplay = v[i]! * mul
         const display = clamp(rawDisplay, min, max)
+        const applyDisplay = (next: number) => {
+          const c = clamp(next, min, max)
+          onChange(vecKey, i as 0 | 1 | 2, c * inv)
+        }
         return (
-          <label key={ax} className="flex items-center gap-2">
+          <div key={ax} className="flex items-center gap-1">
             <span className="w-3 shrink-0 text-[9px] text-slate-500">{ax}</span>
             <input
               type="range"
@@ -98,21 +136,33 @@ function Vec3SliderRow({
               onChange={(e) => {
                 const x = Number(e.target.value)
                 if (Number.isNaN(x)) return
-                onChange(vecKey, i as 0 | 1 | 2, x * inv)
+                applyDisplay(x)
               }}
-              className="flex-1 min-w-0 h-2 accent-amber-600 cursor-grab active:cursor-grabbing"
+              className="min-w-0 flex-1 h-2 cursor-grab accent-amber-600 active:cursor-grabbing"
             />
-            <span className="w-[3.25rem] shrink-0 text-right font-mono text-[9px] text-slate-400 tabular-nums">
-              {eulerAsDegrees ? display.toFixed(1) : display.toFixed(2)}
-            </span>
-          </label>
+            <input
+              type="number"
+              min={min}
+              max={max}
+              step={step}
+              value={display}
+              onChange={(e) => {
+                const x = parseFloat(e.target.value)
+                if (Number.isNaN(x)) return
+                applyDisplay(x)
+              }}
+              className="w-[3.25rem] shrink-0 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 font-mono text-[9px] text-slate-200 tabular-nums"
+              onPointerDown={(e) => e.stopPropagation()}
+            />
+            <NudgePair title={`Trin: ${step}`} onMinus={() => applyDisplay(display - step)} onPlus={() => applyDisplay(display + step)} />
+          </div>
         )
       })}
     </div>
   )
 }
 
-function ScalarSliderRow({
+function ScalarControlRow({
   label,
   value,
   min,
@@ -132,30 +182,49 @@ function ScalarSliderRow({
   accentClass?: string
 }) {
   const v = clamp(value, min, max)
+  const apply = (next: number) => onChange(clamp(next, min, max))
   return (
     <div className="space-y-1">
       <div className="flex justify-between gap-2 text-[10px] text-slate-500">
         <span>{label}</span>
         <span className="font-mono text-slate-400 tabular-nums">{v.toFixed(decimals)}</span>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={v}
-        onChange={(e) => {
-          const x = Number(e.target.value)
-          if (Number.isNaN(x)) return
-          onChange(x)
-        }}
-        className={`w-full h-2 cursor-grab active:cursor-grabbing ${accentClass}`}
-      />
+      <div className="flex items-center gap-1">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={v}
+          onChange={(e) => {
+            const x = Number(e.target.value)
+            if (Number.isNaN(x)) return
+            apply(x)
+          }}
+          className={`min-w-0 flex-1 h-2 cursor-grab active:cursor-grabbing ${accentClass}`}
+        />
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={v}
+          onChange={(e) => {
+            const x = parseFloat(e.target.value)
+            if (Number.isNaN(x)) return
+            apply(x)
+          }}
+          className="w-[3.25rem] shrink-0 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 font-mono text-[9px] text-slate-200 tabular-nums"
+          onPointerDown={(e) => e.stopPropagation()}
+        />
+        <NudgePair title={`Trin: ${step}`} onMinus={() => apply(v - step)} onPlus={() => apply(v + step)} />
+      </div>
     </div>
   )
 }
 
 type Props = {
+  equippedWeapon: 'pickaxe' | 'sword'
   pick: HeldFpsTransform
   setPick: Dispatch<SetStateAction<HeldFpsTransform>>
   sword: HeldFpsTransform
@@ -164,9 +233,11 @@ type Props = {
   setPickGlb: Dispatch<SetStateAction<number>>
   swordGlb: number
   setSwordGlb: Dispatch<SetStateAction<number>>
+  onClearStoredWeaponDev?: () => void
 }
 
 export default function WeaponFpsDevPanel({
+  equippedWeapon,
   pick,
   setPick,
   sword,
@@ -175,18 +246,24 @@ export default function WeaponFpsDevPanel({
   setPickGlb,
   swordGlb,
   setSwordGlb,
+  onClearStoredWeaponDev,
 }: Props) {
-  const [tab, setTab] = useState<'pick' | 'sword'>('pick')
+  const [precision, setPrecision] = useState<PrecisionId>('normal')
+  const pr = PRECISION[precision]
+  const tab = equippedWeapon === 'sword' ? 'sword' : 'pick'
   const w = tab === 'pick' ? pick : sword
   const setW = tab === 'pick' ? setPick : setSword
 
-  const patchVec = useCallback((key: Vec3Key, axis: 0 | 1 | 2, value: number) => {
-    setW((prev) => {
-      const next = { ...prev, [key]: [...prev[key]] as [number, number, number] }
-      next[key][axis] = value
-      return next
-    })
-  }, [setW])
+  const patchVec = useCallback(
+    (key: Vec3Key, axis: 0 | 1 | 2, value: number) => {
+      setW((prev) => {
+        const next = { ...prev, [key]: [...prev[key]] as [number, number, number] }
+        next[key][axis] = value
+        return next
+      })
+    },
+    [setW],
+  )
 
   const exportText = useMemo(() => formatExport(pick, sword, pickGlb, swordGlb), [pick, sword, pickGlb, swordGlb])
 
@@ -203,39 +280,45 @@ export default function WeaponFpsDevPanel({
 
   return (
     <div
-      className="pointer-events-auto fixed right-2 top-20 z-[200] w-[min(96vw,22rem)] max-h-[min(85vh,620px)] overflow-y-auto rounded-xl border border-amber-600/60 bg-slate-950/95 p-3 text-[11px] text-slate-200 shadow-2xl backdrop-blur-md"
+      className="pointer-events-auto fixed right-2 top-20 z-[200] w-[min(96vw,24rem)] max-h-[min(85vh,680px)] overflow-y-auto rounded-xl border border-amber-600/60 bg-slate-950/95 p-3 text-[11px] text-slate-200 shadow-2xl backdrop-blur-md"
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="font-semibold text-amber-200/95 text-xs mb-1">FPS våben (dev)</div>
-      <p className="text-[10px] text-slate-500 leading-snug mb-2">
+      <div className="mb-1 text-xs font-semibold text-amber-200/95">FPS våben (dev)</div>
+      <p className="mb-2 text-[10px] leading-snug text-slate-500">
         Kun i development. URL: <code className="text-amber-300/90">?weaponDev=1</code>. Våbenet{' '}
-        <strong className="text-slate-300">forbliver synligt</strong> mens du slider. Brug sektionen{' '}
-        <strong className="text-slate-300">Størrelse</strong> for GLB (to sliders + samlet tal).{' '}
-        <strong className="text-slate-300">gripColumn</strong> forklares under «Greb». Tab skifter aktivt våben — undgå
-        at klikke på mine-canvas under justering.
+        <strong className="text-slate-300">forbliver synligt</strong> mens du justerer. Panelet følger det våben du{' '}
+        <strong className="text-slate-300">holder</strong> (skift med Tab i spillet). <strong className="text-slate-300">Præcision</strong>{' '}
+        ændrer slider-trin; brug tal-felter eller ± for fin justering. Justeringer gemmes lokalt i denne browser (
+        <code className="text-slate-400">localStorage</code>).
       </p>
-      <div className="flex gap-1 mb-2">
-        <button
-          type="button"
-          onClick={() => setTab('pick')}
-          className={
-            'flex-1 rounded-lg py-1 text-xs font-semibold border ' +
-            (tab === 'pick' ? 'bg-amber-800/80 border-amber-500 text-amber-50' : 'bg-slate-900 border-slate-600 text-slate-400')
-          }
-        >
-          Hakke
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('sword')}
-          className={
-            'flex-1 rounded-lg py-1 text-xs font-semibold border ' +
-            (tab === 'sword' ? 'bg-violet-800/80 border-violet-400 text-violet-50' : 'bg-slate-900 border-slate-600 text-slate-400')
-          }
-        >
-          Sværd
-        </button>
+
+      <div
+        className={
+          'mb-2 flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5 ' +
+          (tab === 'pick' ? 'border-amber-800/80 bg-amber-950/40' : 'border-violet-800/60 bg-violet-950/35')
+        }
+      >
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold text-slate-200">Tuner nu: {tab === 'pick' ? 'Hakke' : 'Sværd'}</div>
+          <div className="text-[9px] text-slate-500">Skift våben med Tab for at tune det andet.</div>
+        </div>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-[10px] text-slate-400">
+          Præcision
+          <select
+            value={precision}
+            onChange={(e) => setPrecision(e.target.value as PrecisionId)}
+            className="rounded-md border border-slate-600 bg-slate-900 px-1.5 py-0.5 text-[10px] text-slate-200"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <option value="normal">Normal</option>
+            <option value="fine">Fin</option>
+            <option value="ultra">Ultra</option>
+          </select>
+        </label>
       </div>
 
       <div className="space-y-3 border-t border-slate-700/80 pt-2">
@@ -248,7 +331,7 @@ export default function WeaponFpsDevPanel({
           eulerAsDegrees={false}
           min={-5}
           max={3}
-          step={0.02}
+          step={pr.pos}
         />
         <Vec3SliderRow
           label="baseRot (ydre gruppe)"
@@ -258,7 +341,7 @@ export default function WeaponFpsDevPanel({
           eulerAsDegrees
           min={-180}
           max={180}
-          step={0.5}
+          step={pr.deg}
         />
         <Vec3SliderRow
           label="meshOrient (undergruppe)"
@@ -268,75 +351,69 @@ export default function WeaponFpsDevPanel({
           eulerAsDegrees
           min={-180}
           max={180}
-          step={0.5}
+          step={pr.deg}
         />
 
-        <ScalarSliderRow
+        <ScalarControlRow
           label="Spin på stedet (° om synslinjen)"
           value={(w.inPlaceSpinRad ?? 0) * RAD2DEG}
           min={-180}
           max={180}
-          step={1}
+          step={pr.spin}
           onChange={(v) => setW((p) => ({ ...p, inPlaceSpinRad: v * DEG2RAD }))}
           decimals={0}
           accentClass="accent-cyan-600"
         />
-        <p className="text-[9px] text-slate-500 -mt-1 leading-snug">
-          Drejer våbnet som et «klistermærke» i billedplanet: akse er linjen fra kameraet til våbenets placering — ikke
-          en lokal model-akse (den gav buen).
+        <p className="-mt-1 text-[9px] leading-snug text-slate-500">
+          Drejer våbnet som et «klistermærke» i billedplanet: akse er linjen fra kameraet til våbenets placering — ikke en lokal
+          model-akse.
         </p>
 
-        <div className="rounded-lg border border-slate-700/80 bg-slate-900/40 p-2.5 space-y-2">
+        <div className="space-y-2 rounded-lg border border-slate-700/80 bg-slate-900/40 p-2.5">
           <div className="text-[10px] font-semibold text-slate-200">Størrelse</div>
-          <p className="text-[9px] text-slate-500 leading-snug">
-            Med <strong className="text-slate-400">GLB</strong>-våben bliver størrelsen:{" "}
-            <span className="font-mono text-slate-300">GLB-basis × samlet skala</span>. Begge sliders påvirker
-            resultatet — tal i kassen nedenfor viser den <strong className="text-slate-400">samlede</strong> GLB-skala
-            lige nu.
+          <p className="text-[9px] leading-snug text-slate-500">
+            Med <strong className="text-slate-400">GLB</strong>-våben bliver størrelsen:{' '}
+            <span className="font-mono text-slate-300">GLB-basis × samlet skala</span>.
           </p>
           <div className="rounded border border-amber-900/40 bg-slate-950/90 px-2 py-1.5 text-center font-mono text-[11px] text-amber-100/95">
             GLB samlet: {(glbVal * w.scaleMul).toFixed(3)}
-            <span className="block text-[9px] font-sans font-normal text-slate-500 mt-0.5">
+            <span className="mt-0.5 block font-sans text-[9px] font-normal text-slate-500">
               ({glbVal.toFixed(2)} × {w.scaleMul.toFixed(2)})
             </span>
           </div>
-          <ScalarSliderRow
+          <ScalarControlRow
             label="Samlet skala (scaleMul)"
             value={w.scaleMul}
             min={0.1}
             max={6}
-            step={0.02}
+            step={pr.scale}
             onChange={(v) => setW((p) => ({ ...p, scaleMul: v }))}
             decimals={2}
             accentClass="accent-amber-500"
           />
-          <ScalarSliderRow
+          <ScalarControlRow
             label={`GLB-basis — ${tab === 'pick' ? 'hakke' : 'sværd'} (.glb)`}
             value={glbVal}
             min={0.05}
             max={3}
-            step={0.02}
+            step={pr.scale}
             onChange={(v) => setGlb(v)}
             decimals={2}
             accentClass={tab === 'pick' ? 'accent-amber-600' : 'accent-violet-500'}
           />
         </div>
 
-        <div className="rounded-lg border border-slate-700/60 bg-slate-900/30 p-2.5 space-y-2">
+        <div className="space-y-2 rounded-lg border border-slate-700/60 bg-slate-900/30 p-2.5">
           <div className="text-[10px] font-semibold text-slate-200">Greb (kun voxel-grid)</div>
-          <p className="text-[9px] text-slate-500 leading-snug">
-            <strong className="text-slate-400">gripColumn</strong> er hvilken <em>lodrette kolonne</em> (0 = venstre
-            kant) i det lille 2D-pixelgitter for hakke/sværd, som bruges som <strong>pivot</strong>, når våbnet tegnes
-            som <strong>voxels</strong>. Den flytter «hvor skaftet sidder» i forhold til modellen. Når du bruger{" "}
-            <strong className="text-slate-400">GLB</strong>, har den <strong>ingen effekt</strong> — kun placering
-            ovenfor + størrelse gælder.
+          <p className="text-[9px] leading-snug text-slate-500">
+            <strong className="text-slate-400">gripColumn</strong> er pivot-kolonne i 2D-pixelgitteret (GLB ignorerer).
           </p>
-          <ScalarSliderRow
+          <ScalarControlRow
             label="gripColumn (kolonne-index)"
             value={w.gripColumn}
             min={-1}
             max={8}
-            step={0.05}
+            step={pr.grip}
             onChange={(v) => setW((p) => ({ ...p, gripColumn: v }))}
             decimals={2}
             accentClass="accent-slate-500"
@@ -348,11 +425,11 @@ export default function WeaponFpsDevPanel({
             type="button"
             onClick={() => {
               if (tab === 'pick') {
-                setPick(pickaxeHeldDefault())
-                setPickGlb(0.44)
+                setPick(defaultHeldPickaxeTransform())
+                setPickGlb(0.45)
               } else {
                 setSword({ ...DEFAULT_SWORD_TRANSFORM })
-                setSwordGlb(0.52)
+                setSwordGlb(0.57)
               }
             }}
             className="rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-[10px] text-slate-200 hover:bg-slate-700"
@@ -366,11 +443,21 @@ export default function WeaponFpsDevPanel({
           >
             Kopiér alt
           </button>
+          {onClearStoredWeaponDev != null ? (
+            <button
+              type="button"
+              title="Nulstil begge våben + GLB og slet gemt localStorage"
+              onClick={onClearStoredWeaponDev}
+              className="rounded-lg border border-rose-700/50 bg-rose-950/70 px-2 py-1 text-[10px] text-rose-100 hover:bg-rose-900/70"
+            >
+              Slet gemt
+            </button>
+          ) : null}
         </div>
       </div>
 
       <details className="mt-2 border-t border-slate-700/80 pt-2">
-        <summary className="cursor-pointer text-[10px] text-slate-400 select-none">Rå eksport</summary>
+        <summary className="cursor-pointer select-none text-[10px] text-slate-400">Rå eksport</summary>
         <textarea
           readOnly
           value={exportText}
@@ -384,4 +471,4 @@ export default function WeaponFpsDevPanel({
   )
 }
 
-export { pickaxeHeldDefault }
+export { defaultHeldPickaxeTransform as pickaxeHeldDefault }

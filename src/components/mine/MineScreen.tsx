@@ -31,8 +31,14 @@ import { playEssenceFound, playGemFound, playMineHit, playRockBreak } from '../.
 import { useToast } from '../ui/ToastContext'
 import { useGraphicsPreset } from '../../lib/useGraphicsPreset'
 import MiningCave3D from './3d/MiningCave3D'
-import { DEFAULT_SWORD_TRANSFORM } from './3d/pickaxeDefaults'
-import WeaponFpsDevPanel, { pickaxeHeldDefault } from './WeaponFpsDevPanel'
+import WeaponFpsDevPanel from './WeaponFpsDevPanel'
+import {
+  clearWeaponDevStorage,
+  loadWeaponDevFromStorage,
+  saveWeaponDevToStorage,
+  type WeaponDevStored,
+  weaponDevDefaultState,
+} from './weaponDevStorage'
 import {
   lootScatterOriginWorldPosition,
   sinkOreSlotWorldPosition,
@@ -168,10 +174,33 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('weaponDev') === '1'
 
-  const [devPick, setDevPick] = useState(() => pickaxeHeldDefault())
-  const [devSword, setDevSword] = useState(() => ({ ...DEFAULT_SWORD_TRANSFORM }))
-  const [devPickGlb, setDevPickGlb] = useState(0.44)
-  const [devSwordGlb, setDevSwordGlb] = useState(0.52)
+  const weaponDevInitialRef = useRef<WeaponDevStored | null>(null)
+  if (weaponDevInitialRef.current == null) {
+    weaponDevInitialRef.current = loadWeaponDevFromStorage() ?? weaponDevDefaultState()
+  }
+  const [devPick, setDevPick] = useState(() => weaponDevInitialRef.current!.pick)
+  const [devSword, setDevSword] = useState(() => weaponDevInitialRef.current!.sword)
+  const [devPickGlb, setDevPickGlb] = useState(() => weaponDevInitialRef.current!.pickGlb)
+  const [devSwordGlb, setDevSwordGlb] = useState(() => weaponDevInitialRef.current!.swordGlb)
+
+  useEffect(() => {
+    if (!weaponDevEnabled) return
+    saveWeaponDevToStorage({
+      pick: devPick,
+      sword: devSword,
+      pickGlb: devPickGlb,
+      swordGlb: devSwordGlb,
+    })
+  }, [weaponDevEnabled, devPick, devSword, devPickGlb, devSwordGlb])
+
+  const clearStoredWeaponDev = useCallback(() => {
+    clearWeaponDevStorage()
+    const d = weaponDevDefaultState()
+    setDevPick(d.pick)
+    setDevSword(d.sword)
+    setDevPickGlb(d.pickGlb)
+    setDevSwordGlb(d.swordGlb)
+  }, [])
 
   /** Planær jagt-offset pr. slot (XZ) — synkron fra R3F mob; loot ved drab skal lande ved liget. */
   const mobPlanarOffsetRef = useRef<Record<number, [number, number]>>({})
@@ -854,6 +883,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
 
       {weaponDevEnabled && (
         <WeaponFpsDevPanel
+          equippedWeapon={state.equippedWeapon}
           pick={devPick}
           setPick={setDevPick}
           sword={devSword}
@@ -862,6 +892,7 @@ export default function MineScreen({ area, state, dispatch, onBack }: Props) {
           setPickGlb={setDevPickGlb}
           swordGlb={devSwordGlb}
           setSwordGlb={setDevSwordGlb}
+          onClearStoredWeaponDev={clearStoredWeaponDev}
         />
       )}
 

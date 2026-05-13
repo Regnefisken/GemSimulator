@@ -31,7 +31,7 @@ type Props = {
 
 const PICKAXE_HELD: HeldFpsTransform = {
   ...DEFAULT_PICKAXE_TRANSFORM,
-  scaleMul: 1,
+  scaleMul: 1.04,
 }
 
 type VoxelInnerProps = Omit<Props, 'sceneGlbUrl' | 'weaponFpsDev'> & {
@@ -271,7 +271,7 @@ export default function Pickaxe3D(props: Props) {
   const defaultT = heldWeaponKind === 'sword' ? DEFAULT_SWORD_TRANSFORM : PICKAXE_HELD
   const t = weaponFpsDev?.transform ?? defaultT
   const glbMul =
-    weaponFpsDev?.glbScaleBase ?? (heldWeaponKind === 'sword' ? 0.52 : 0.44)
+    weaponFpsDev?.glbScaleBase ?? (heldWeaponKind === 'sword' ? 0.57 : 0.45)
 
   if (sceneGlbUrl) {
     return (

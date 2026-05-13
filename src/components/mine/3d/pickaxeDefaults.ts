@@ -15,9 +15,9 @@ export type PickaxeTransform = {
 }
 
 export const DEFAULT_PICKAXE_TRANSFORM: PickaxeTransform = {
-  basePos: [-0.5998, -2.3552, -2.084],
-  baseRot: [0.062, -0.6005, 0.074],
-  meshOrient: [0.08, 0.1, 0.376],
+  basePos: [0.42, -2.26, -2.084],
+  baseRot: [0.514872, 2.487094, 0.07854],
+  meshOrient: [-0.113446, -0.863938, -0.174533],
   gripColumn: 0,
   inPlaceSpinRad: 0,
 }
@@ -29,10 +29,15 @@ export type HeldFpsTransform = PickaxeTransform & {
 }
 
 export const DEFAULT_SWORD_TRANSFORM: HeldFpsTransform = {
-  basePos: [-0.28, -2.38, -0.64],
-  baseRot: [-1.425, -0.6005, 0.125],
-  meshOrient: [-1.495, 0.23, 0.87],
+  basePos: [2.28, -2.3, 1.36],
+  baseRot: [0.767945, -2.234021, 0.488692],
+  meshOrient: [0.418879, 0.794125, 0.174533],
   gripColumn: 0,
-  scaleMul: 2.29,
-  inPlaceSpinRad: 0,
+  scaleMul: 2.12,
+  inPlaceSpinRad: 0.034907,
+}
+
+/** Held FPS-hakke med voxel/GLB `scaleMul` (afstemt i dev). */
+export function defaultHeldPickaxeTransform(): HeldFpsTransform {
+  return { ...DEFAULT_PICKAXE_TRANSFORM, scaleMul: 1.04 }
 }
