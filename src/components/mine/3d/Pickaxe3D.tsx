@@ -32,7 +32,7 @@ type Props = {
 
 const PICKAXE_HELD: HeldFpsTransform = {
   ...DEFAULT_PICKAXE_TRANSFORM,
-  scaleMul: 0.68,
+  scaleMul: 0.58,
 }
 
 type VoxelInnerProps = Omit<Props, 'sceneGlbUrl' | 'weaponFpsDev'> & {

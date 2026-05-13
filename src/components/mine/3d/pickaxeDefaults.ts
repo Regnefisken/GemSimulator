@@ -15,9 +15,9 @@ export type PickaxeTransform = {
 }
 
 export const DEFAULT_PICKAXE_TRANSFORM: PickaxeTransform = {
-  basePos: [0.82, -2.22, -1.82],
-  baseRot: [0.514872, 2.487094, 0.07854],
-  meshOrient: [-0.113446, -0.863938, -0.174533],
+  basePos: [0.94, -1.06, -1.82],
+  baseRot: [0.610865, 2.487094, 0.017453],
+  meshOrient: [0.174533, -0.863938, -0.174533],
   gripColumn: 0,
   inPlaceSpinRad: 0,
 }
@@ -29,9 +29,9 @@ export type HeldFpsTransform = PickaxeTransform & {
 }
 
 export const DEFAULT_SWORD_TRANSFORM: HeldFpsTransform = {
-  basePos: [0.58, -2.28, -1.48],
-  baseRot: [0.767945, -2.234021, 0.488692],
-  meshOrient: [0.418879, 0.794125, 0.174533],
+  basePos: [1.56, -1.86, -4.6],
+  baseRot: [1.45735, -2.548181, 0.453786],
+  meshOrient: [0.549779, 0.767945, 0.575959],
   gripColumn: 0,
   scaleMul: 1.12,
   inPlaceSpinRad: 0.034907,
@@ -45,5 +45,5 @@ export const DEFAULT_HELD_WEAPON_GLB_SCALE = {
 
 /** Held FPS-hakke med voxel/GLB `scaleMul` (afstemt i dev). */
 export function defaultHeldPickaxeTransform(): HeldFpsTransform {
-  return { ...DEFAULT_PICKAXE_TRANSFORM, scaleMul: 0.68 }
+  return { ...DEFAULT_PICKAXE_TRANSFORM, scaleMul: 0.58 }
 }

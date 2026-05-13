@@ -95,12 +95,11 @@ function CameraMirrorInto({ mirror }: { mirror: THREE.PerspectiveCamera }) {
 }
 
 function OverlayWeaponCamera({ mirror }: { mirror: THREE.PerspectiveCamera }) {
-  const { camera, size } = useThree()
+  const { camera } = useThree()
   useFrame(() => {
     if (camera instanceof THREE.PerspectiveCamera) {
+      /** Brug spejlets projektion 1:1 — `mirror.aspect` kommer allerede fra hoved-canvas (undgår subpixel-afvigelse mellem to WebGL-rødder). */
       camera.copy(mirror)
-      camera.aspect = size.width / Math.max(1, size.height)
-      camera.updateProjectionMatrix()
     }
   })
   return null
@@ -390,6 +389,8 @@ function MiningCave3D({
 
   const weaponCaveCfg = caveProps.effectiveCaveConfig
 
+  const sceneLayerKey = `${caveProps.mineRunId}-${caveProps.runDepth}-${caveProps.graphicsPresetId}`
+
   useLayoutEffect(() => {
     if (!disablePointerLock) return
     document.exitPointerLock?.()
@@ -426,7 +427,7 @@ function MiningCave3D({
       )}
       <div className={`relative ${canvasCn}`}>
         <Canvas
-          key={`${caveProps.mineRunId}-${caveProps.runDepth}-${caveProps.graphicsPresetId}`}
+          key={sceneLayerKey}
           camera={canvasCamera}
           dpr={caveProps.graphicsPreset.dpr}
           gl={{ antialias: true }}
@@ -446,6 +447,7 @@ function MiningCave3D({
             style={{ zIndex: 9000 }}
           >
             <Canvas
+              key={sceneLayerKey}
               className="h-full w-full"
               camera={canvasCamera}
               dpr={caveProps.graphicsPreset.dpr}
