@@ -1,7 +1,34 @@
-import PixelItemVoxelScene from '../PixelItemVoxelScene'
+import { useEffect, useRef } from 'react'
 import type { MineDrop } from '../../gem/mining'
+import { drawGem } from '../../gem/draw2d'
+import type { PixelItem } from '../../types'
 import { findBlueprint } from '../../data/blueprints'
 import { findConsumableDef } from '../../data/consumables'
+
+/** 2D-pixel preview som inventar-kort — undgår ekstra WebGL-contexts oven på minescenen. */
+function ChestLootItemCanvas({ item }: { item: PixelItem }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  const hasPixels = item.data.length > 0 && item.data[0]?.length
+
+  useEffect(() => {
+    const c = ref.current
+    if (c && hasPixels) drawGem(c, item.data, item.colorMap, 4)
+  }, [item, hasPixels])
+
+  if (!hasPixels) {
+    return (
+      <div className="pointer-events-none w-[72px] h-[72px] mx-auto overflow-hidden rounded-lg bg-slate-950 flex items-center justify-center border border-slate-800 text-slate-500 text-xs">
+        —
+      </div>
+    )
+  }
+
+  return (
+    <div className="pointer-events-none w-[72px] h-[72px] mx-auto overflow-hidden rounded-lg bg-slate-950 flex items-center justify-center border border-slate-800">
+      <canvas ref={ref} className="pixelated max-w-[90%] max-h-[90%]" />
+    </div>
+  )
+}
 
 type Props =
   | {
@@ -103,14 +130,7 @@ export default function ChestLootCard(props: Props) {
           <img src={menuRaster} alt="" className="max-w-[90%] max-h-[90%] object-contain" />
         </div>
       ) : viz ? (
-        <div className="pointer-events-none w-[72px] h-[72px] mx-auto overflow-hidden rounded-lg bg-slate-950">
-          <PixelItemVoxelScene
-            item={viz}
-            disableOrbitControls
-            cameraTilt={0.35}
-            className="pointer-events-none !block !max-w-none scale-90"
-          />
-        </div>
+        <ChestLootItemCanvas item={viz} />
       ) : null}
       <span className="text-[11px] font-semibold text-slate-200 text-center leading-tight">{title}</span>
       {props.disabledReason && <span className="text-[10px] text-slate-400">{props.disabledReason}</span>}
