@@ -408,6 +408,8 @@ function MiningCave3D({
     canvasClassName ||
     'w-full h-[min(60vh,420px)] min-h-[220px] touch-none cursor-crosshair'
 
+  const weaponOverlayVisible = pointerLocked || weaponFpsDev != null
+
   return (
     <div
       className={`relative w-full rounded-2xl overflow-hidden border border-slate-700 bg-gradient-to-b from-slate-900 to-slate-950 ${className}`}
@@ -462,13 +464,13 @@ function MiningCave3D({
               <OverlayWeaponCamera mirror={weaponCameraMirror} />
               <MineSceneLights cfg={weaponCaveCfg} />
               <Pickaxe3D
-                key={heldWeaponKind}
+                key={`${heldWeaponKind}-${weaponOverlayVisible ? 1 : 0}`}
                 pixelItem={weaponPixelItem}
                 sceneGlbUrl={weaponSceneGlbUrl ?? undefined}
                 weaponFpsDev={weaponFpsDev ?? null}
                 swingTrigger={swingTrigger}
                 disabled={caveProps.disabled}
-                visible={pointerLocked || weaponFpsDev != null}
+                visible={weaponOverlayVisible}
                 heldWeaponKind={heldWeaponKind}
               />
             </Canvas>
