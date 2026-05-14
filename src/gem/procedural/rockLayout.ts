@@ -31,6 +31,9 @@ export type RockLayoutParams = {
 /** Maks. ekstra lodret nedgravning ud over basis-sink (verdensenheder). */
 const MAX_EXTRA_SINK_Y = 0.165
 
+/** Krystal: lavere profil + bred «fod» — samme max‑sink som andre gør den ofte visuelt for nedgravet. */
+const MAX_EXTRA_SINK_Y_CRYSTAL = MAX_EXTRA_SINK_Y * 0.52
+
 /**
  * Deterministisk udseende variaton pr. felt (samme input som visuel mesh‑seed).
  * Bruges til placering (Y) og mesh‑skala uden `Math.random()` i render.
@@ -45,7 +48,8 @@ export function getRockLayoutParams(
   const rng = mulberry32(h ^ 0xa0761d65)
 
   const uSink = rng()
-  const extraSinkY = -Math.pow(uSink, 1.38) * MAX_EXTRA_SINK_Y
+  const maxExtra = rockType === 'crystal' ? MAX_EXTRA_SINK_Y_CRYSTAL : MAX_EXTRA_SINK_Y
+  const extraSinkY = -Math.pow(uSink, 1.38) * maxExtra
 
   const band = rng()
   let meshScaleMultiplier: number

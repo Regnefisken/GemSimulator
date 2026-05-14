@@ -17,6 +17,14 @@ describe('getRockLayoutParams', () => {
     )
   })
 
+  it('krystal: ekstra-sænkning er bundet lavere end for andre typer (samme maks‑led)', () => {
+    for (let i = 0; i < 50; i++) {
+      const p = getRockLayoutParams(`cr-${i}`, i % 4, i % 9, 'crystal')
+      expect(p.extraSinkY).toBeGreaterThanOrEqual(-0.086)
+      expect(p.extraSinkY).toBeLessThanOrEqual(0)
+    }
+  })
+
   it('holder meshScaleMultiplier i [0.5, 2] og extraSinkY ≤ 0', () => {
     for (let i = 0; i < 80; i++) {
       const p = getRockLayoutParams(`run-${i}`, i % 5, i % 7, 'rich')

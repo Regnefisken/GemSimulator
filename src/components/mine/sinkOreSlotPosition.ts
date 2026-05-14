@@ -80,6 +80,8 @@ export function oreFootVisualSinkBias(opts?: SinkOreSlotWorldOpts): number {
   const mul = opts.meshScaleMultiplier ?? 1
   if (mul > 1) bias += LARGE_ROCK_SCALE_SINK_PER_UNIT * (mul - 1)
   if (opts.rockType === 'rich') bias += RICH_FLAT_SOLE_VISUAL_SINK
+  /** Krystal-host + facets — samme basis-sink som tung klippe føles for dybt under underlag. */
+  if (opts.rockType === 'crystal') bias -= 0.058
   return bias
 }
 
@@ -103,5 +105,8 @@ export function sinkOreSlotWorldPosition(
   const extra = chest || isMob ? 0 : extraSinkY
   const [x, y, z] = alignOreSlotYToCaveFloor(sinkOreSlotPosition(anchored, extra, baseSink), caveSeed, cave)
   const footBias = chest || isMob ? 0 : oreFootVisualSinkBias(opts)
-  return [x, y - footBias, z]
+  /** Basis-sink er i faste enheder; små mesh (meshScaleMultiplier under 1) ser ellers ud til at sidde «i» gulvet. */
+  const mul = opts?.meshScaleMultiplier ?? 1
+  const smallScaleRelief = !chest && !isMob && mul < 1 ? (1 - mul) * 0.13 : 0
+  return [x, y - footBias + smallScaleRelief, z]
 }

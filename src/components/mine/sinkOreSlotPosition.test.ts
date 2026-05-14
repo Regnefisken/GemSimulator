@@ -46,11 +46,12 @@ describe('alignOreSlotYToCaveFloor', () => {
     expect(a).toEqual(b)
   })
 
-  it('oreFootVisualSinkBias: rig åre + stor skala graver ekstra ned', () => {
+  it('oreFootVisualSinkBias: rig åre + stor skala graver ekstra ned; krystal løftes lidt', () => {
     expect(oreFootVisualSinkBias()).toBe(0)
     expect(oreFootVisualSinkBias({ rockType: 'rich', meshScaleMultiplier: 1 })).toBeCloseTo(0.032, 6)
     expect(oreFootVisualSinkBias({ rockType: 'hard', meshScaleMultiplier: 1 })).toBe(0)
     expect(oreFootVisualSinkBias({ rockType: 'normal', meshScaleMultiplier: 2 })).toBeCloseTo(0.026, 6)
+    expect(oreFootVisualSinkBias({ rockType: 'crystal', meshScaleMultiplier: 1 })).toBeCloseTo(-0.058, 6)
     const richLarge = oreFootVisualSinkBias({ rockType: 'rich', meshScaleMultiplier: 2 })
     expect(richLarge).toBeCloseTo(0.032 + 0.026, 6)
   })
@@ -92,6 +93,23 @@ describe('alignOreSlotYToCaveFloor', () => {
       meshScaleMultiplier: 1.4,
     })
     expect(mob[1]).toBeGreaterThan(rock[1])
+  })
+
+  it('små mesh (lav meshScaleMultiplier) løftes lidt ift. standard — mindre «i gulvet»', () => {
+    const cave = DEFAULT_CAVE_CONFIG
+    const seed = getProceduralMineCaveSeed('smallrock', 1)
+    const pos = [1.2, 0.48, -0.8] as const
+    const extra = -0.08
+    const base = sinkOreSlotWorldPosition(pos, extra, seed, cave, {
+      rockType: 'normal',
+      meshScaleMultiplier: 1,
+    })
+    const small = sinkOreSlotWorldPosition(pos, extra, seed, cave, {
+      rockType: 'normal',
+      meshScaleMultiplier: 0.55,
+    })
+    expect(small[1]).toBeGreaterThan(base[1])
+    expect(small[1] - base[1]).toBeCloseTo((1 - 0.55) * 0.13, 6)
   })
 
   it('lootScatterOriginWorldPosition: Y er gulv + basis (ikke klippesænkning)', () => {
