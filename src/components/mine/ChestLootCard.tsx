@@ -63,11 +63,19 @@ export default function ChestLootCard(props: Props) {
         type="button"
         disabled={props.disabled || props.goldAmount <= 0}
         onClick={props.onTake}
-        className={common + ' text-left'}
+        className={common + ' items-center'}
       >
-        <span className="text-2xl">🪙</span>
-        <span className="text-sm font-semibold text-amber-200">{props.goldAmount} guld</span>
-        {props.disabledReason && <span className="text-[11px] text-amber-400/90">{props.disabledReason}</span>}
+        <div className="pointer-events-none flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-950/80">
+          <span className="text-3xl leading-none select-none" aria-hidden>
+            🪙
+          </span>
+        </div>
+        <span className="text-[11px] font-semibold leading-tight text-amber-200 text-center tabular-nums">
+          {props.goldAmount} guld
+        </span>
+        {props.disabledReason && (
+          <span className="text-[10px] text-center text-amber-400/90">{props.disabledReason}</span>
+        )}
       </button>
     )
   }

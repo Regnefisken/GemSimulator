@@ -18,6 +18,7 @@ import { getEssenceDef } from '../../data/essences'
 import { findBlueprint } from '../../data/blueprints'
 import { playEssenceFound, playRockBreak } from '../../lib/sounds'
 import { useToast } from '../ui/ToastContext'
+import { CHEST_TIER_NAME_DK } from '../../lib/chestTierUi'
 import ChestLootCard from './ChestLootCard'
 import type { WorldChestEntity } from './3d/WorldChest'
 
@@ -282,8 +283,7 @@ export default function ChestLootScene({
     maxHeight: `min(${gridScrollMaxPx}px, calc(90dvh - 12rem))`,
   } as const
 
-  const tierLabel =
-    chest.tier === 'wood' ? 'Træ kiste' : chest.tier === 'silver' ? 'Sølv kiste' : 'Guld kiste'
+  const tierLabel = CHEST_TIER_NAME_DK[chest.tier]
 
   return (
     <div
@@ -364,7 +364,7 @@ export default function ChestLootScene({
             onClick={takeAll}
             className="w-full shrink-0 min-h-[48px] rounded-xl bg-amber-800/80 hover:bg-amber-700/90 text-amber-50 font-semibold text-sm border border-amber-600/50"
           >
-            Tag alt muligt
+            Tag alt
           </button>
         )}
 
