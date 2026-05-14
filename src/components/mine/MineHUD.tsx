@@ -38,7 +38,7 @@ export function HUDTopBar({
 }: TopProps) {
   return (
     <div
-      className={`flex items-center justify-between gap-3 px-3 py-2.5 bg-slate-950/80 border-b border-slate-700/90 backdrop-blur-md ${className}`}
+      className={`flex items-center justify-between gap-3 px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top,0px))] bg-slate-950/80 border-b border-slate-700/90 backdrop-blur-md ${className}`}
     >
       <button
         type="button"
@@ -325,7 +325,7 @@ export function HUDBottomBar({
   const toolLabel = toolKind === 'sword' ? 'Sværd' : 'Hakke'
   return (
     <div
-      className={`flex flex-wrap items-end justify-between gap-3 px-3 py-2.5 bg-slate-950/80 border-t border-slate-700/90 backdrop-blur-md ${className}`}
+      className={`flex flex-wrap items-end justify-between gap-3 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom,0px))] bg-slate-950/80 border-t border-slate-700/90 backdrop-blur-md ${className}`}
     >
       <div className="space-y-2 min-w-[min(200px,45vw)]">
         {dynamiteReady && (

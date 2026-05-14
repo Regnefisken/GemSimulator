@@ -41,7 +41,7 @@ export default function LevelBadge({ state, dispatch }: Props) {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 border-b border-slate-700 bg-slate-950/95 backdrop-blur-md px-2 sm:px-3 py-2">
+    <header className="fixed top-0 left-0 right-0 z-40 border-b border-slate-700 bg-slate-950/95 backdrop-blur-md px-2 sm:px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))]">
       <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-x-2 gap-y-1 sm:gap-3">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 sm:flex-none">
           <span className="text-sm font-bold text-amber-400 whitespace-nowrap shrink-0">Lvl {state.level}</span>

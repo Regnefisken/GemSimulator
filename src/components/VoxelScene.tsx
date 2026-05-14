@@ -230,8 +230,8 @@ export default function VoxelScene(props: VoxelSceneProps) {
       }
       gl={{ antialias }}
       dpr={dpr}
-      style={{ width: 320, height: 320, ...props.canvasStyle }}
-      className={`pixelated block max-w-full ${props.className ?? ''}`}
+      style={{ width: 320, height: 320, touchAction: 'none', ...props.canvasStyle }}
+      className={`pixelated block max-w-full touch-none ${props.className ?? ''}`}
       onCreated={({ gl }) => {
         gl.setClearColor(new THREE.Color(0x020617))
         gl.setPixelRatio(dpr)

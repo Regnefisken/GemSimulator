@@ -19,6 +19,7 @@ import { getProceduralMineCaveSeed } from '../../../gem/mineCaveContext'
 import { generateCosmeticRocks } from '../../../gem/mineCosmetics'
 import { getPlayableHalfExtents } from '../../../lib/caveHalfExtents'
 import { pickMineSpawn } from '../pickMineSpawn'
+import MineMobileNavOverlay from '../MineMobileNavOverlay'
 import CosmeticRocksInstanced from './CosmeticRocksInstanced'
 
 function dominantMetal(area: Area) {
@@ -341,6 +342,9 @@ function MiningCave3D({
   const [pointerLocked, setPointerLocked] = useState(
     typeof document !== 'undefined' && document.pointerLockElement != null,
   )
+  const [coarsePointer, setCoarsePointer] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+  )
 
   const proceduralSeed = useMemo(
     () => getProceduralMineCaveSeed(caveProps.mineRunId, caveProps.runDepth),
@@ -404,17 +408,24 @@ function MiningCave3D({
     return () => document.removeEventListener('pointerlockchange', onChange)
   }, [])
 
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)')
+    const fn = () => setCoarsePointer(mq.matches)
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  }, [])
+
   const canvasCn =
     canvasClassName ||
-    'w-full h-[min(60vh,420px)] min-h-[220px] touch-none cursor-crosshair'
+    'w-full h-[min(60dvh,420px)] min-h-[220px] touch-none cursor-crosshair'
 
-  const weaponOverlayVisible = pointerLocked || weaponFpsDev != null
+  const weaponOverlayVisible = pointerLocked || weaponFpsDev != null || coarsePointer
 
   return (
     <div
       className={`relative w-full rounded-2xl overflow-hidden border border-slate-700 bg-gradient-to-b from-slate-900 to-slate-950 ${className}`}
     >
-      {!pointerLocked && (
+      {!pointerLocked && !coarsePointer && (
         <div
           className="fixed left-1/2 bottom-[calc(9rem+5.75rem)] z-[83] w-full max-w-[min(90vw,420px)] -translate-x-1/2 pointer-events-none px-3"
           role="status"
@@ -428,11 +439,13 @@ function MiningCave3D({
         </div>
       )}
       <div className={`relative ${canvasCn}`}>
+        <MineMobileNavOverlay disabled={disablePointerLock} />
         <Canvas
           key={sceneLayerKey}
           camera={canvasCamera}
           dpr={caveProps.graphicsPreset.dpr}
           gl={{ antialias: true }}
+          style={{ display: 'block', width: '100%', height: '100%', touchAction: 'none' }}
         >
           <CameraMirrorInto mirror={weaponCameraMirror} />
           <CaveContent
@@ -450,7 +463,7 @@ function MiningCave3D({
           >
             <Canvas
               key={sceneLayerKey}
-              className="h-full w-full"
+              className="h-full w-full touch-none"
               camera={canvasCamera}
               dpr={caveProps.graphicsPreset.dpr}
               gl={{
@@ -459,6 +472,7 @@ function MiningCave3D({
                 /** false gør ofte transparente lag mørke ved komposit oven på hoved-canvas */
                 premultipliedAlpha: true,
               }}
+              style={{ display: 'block', width: '100%', height: '100%', touchAction: 'none' }}
               onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
             >
               <OverlayWeaponCamera mirror={weaponCameraMirror} />

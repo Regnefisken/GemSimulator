@@ -23,16 +23,18 @@ export default function AppShell({
 }: Props) {
   if (fullscreen) {
     return (
-      <div className="fixed inset-0 z-40 flex flex-col bg-slate-900 text-slate-100 overflow-hidden">
+      <div className="fixed inset-0 z-40 flex min-h-dvh flex-col bg-slate-900 text-slate-100 overflow-hidden">
         {children}
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-900 text-slate-100 pb-20 pt-14">
+    <div className="flex min-h-dvh min-h-0 flex-col bg-slate-900 text-slate-100 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] pt-14">
       <LevelBadge state={state} dispatch={dispatch} />
-      <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-4 py-4 min-w-0">{children}</main>
+      <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-4 py-4 min-w-0 min-h-0 overflow-y-auto overscroll-y-contain">
+        {children}
+      </main>
       <TabBar active={tab} onChange={onTabChange} />
     </div>
   )
